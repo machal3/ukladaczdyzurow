@@ -16,6 +16,15 @@ let state = load() || {
 };
 state.avail ??= {}; // { personId: { 'YYYY-MM-DD': poziom 0-3 } } — patrz LEVELS
 state.limits ??= {}; // { personId: { shiftId: maks. dyżurów w miesiącu } } — brak = bez limitu
+// jednorazowa migracja zapisanych danych: stare domyślne miejsca → OITN, PN1, PN2 (id zostają, więc grafik i limity też)
+if (!state.miejscaV2) {
+  const rename = { 'Oddział': 'OITN', 'SOR': 'PN1' };
+  for (const s of state.shifts) s.name = rename[s.name] ?? s.name;
+  for (const name of ['OITN', 'PN1', 'PN2'])
+    if (!state.shifts.some((s) => s.name === name)) state.shifts.push({ id: uid(), name, days: [0, 1, 2, 3, 4, 5, 6] });
+  state.miejscaV2 = true;
+  save();
+}
 const now = new Date();
 let view = { y: now.getFullYear(), m: now.getMonth(), who: null }; // who: osoba, której dostępność edytujemy
 
