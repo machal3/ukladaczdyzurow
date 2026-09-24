@@ -52,7 +52,8 @@ const pick = (obj, keys) => Object.fromEntries(keys.filter((k) => obj[k]).map((k
 
 function render() {
   const { y, m } = view;
-  $('#month-label').textContent = new Date(y, m).toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' });
+  const monthName = new Date(y, m).toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' });
+  $('#month-label').textContent = monthName;
   $('#today').classList.toggle('here', y === now.getFullYear() && m === now.getMonth());
 
   const todayKey = dateKey(now.getFullYear(), now.getMonth(), now.getDate());
@@ -80,11 +81,11 @@ function render() {
       const clash = why && 'clash';
       return `<label class="slot ${pid ? '' : 'unfilled'} ${manual} ${clash}" title="${esc(s.name)}${manual && ' — wpisany ręcznie'}${why}">
         <span>${esc(s.name)}</span>
-        <input list="team-list" data-key="${key}" data-shift="${s.id}" value="${pid ? esc(nameOf[pid]) : ''}" placeholder="—" aria-label="${esc(s.name)}, ${d}">
+        <input list="team-list" data-key="${key}" data-shift="${s.id}" value="${pid ? esc(nameOf[pid]) : ''}" placeholder="—" aria-label="${esc(s.name)}, ${d} ${monthName}">
       </label>`;
     }).join('');
     html += `<div class="cell ${weekday(y, m, d) > 4 ? 'weekend' : ''} ${key === todayKey ? 'today' : ''}">
-      <div class="num" data-dow="${DAYS[weekday(y, m, d)]}">${d}</div>${b > 1 && !view.bad && !view.who ? `<i class="dot b${b}" title="${BAD[b]} dzień"></i>` : ''}${rows}</div>`;
+      <div class="num" data-dow="${DAYS[weekday(y, m, d)]}" aria-label="${DAYS[weekday(y, m, d)]}, ${d} ${monthName}">${d}</div>${b > 1 && !view.bad && !view.who ? `<i class="dot b${b}" title="${BAD[b]} dzień"></i>` : ''}${rows}</div>`;
   }
   html += '<div class="cell empty"></div>'.repeat((7 - (weekday(y, m, 1) + daysInMonth(y, m)) % 7) % 7); // domknięcie ostatniego tygodnia
   $('#calendar').innerHTML = html;
@@ -141,7 +142,8 @@ function render() {
   $('#status').innerHTML = view.bad ? `<span><b>Gównianość dni</b> — klikaj dni, by zmienić:</span>${chips(BAD, ['lvl-2', 'lvl-1', 'lvl-0', 'bad-3'])}${done}` :
     view.who ? `<span><b>Dostępność: ${esc(nameOf[view.who])}</b> — klikaj dni, by zmienić:</span>${chips([2, 3, 0, 1].map((i) => LEVELS[i]), ['lvl-2', 'lvl-3', 'lvl-0', 'lvl-1'])}${done}` :
     empty === slots && slots ? '<span>Pusty grafik — <b>Ułóż miesiąc</b> wypełni go automatycznie; każde pole możesz też wpisać ręcznie.</span>' :
-    empty ? `<span><b>Nieobsadzone: ${empty}</b></span>` : '';
+    empty ? `<span>Obsadzone <b class="ok">${slots - empty} z ${slots}</b></span><span class="progress" role="progressbar" aria-label="Obsadzone dyżury" aria-valuenow="${Math.round((slots - empty) / slots * 100)}"><i style="width:${(slots - empty) / slots * 100}%"></i></span>` +
+      `<span>wolne: <b>${empty}</b></span><button class="ghost" data-jump>Pokaż pierwszy wolny →</button>` : '';
   $('#status').classList.toggle('info', !!view.who || view.bad || empty === slots);
   $('#bad-mode').setAttribute('aria-pressed', view.bad);
 }
@@ -195,7 +197,14 @@ $('.tabs').onclick = (e) => { const t = e.target.closest('[data-tab]'); if (t) {
 $('.actions').addEventListener('click', (e) => { if (e.target.closest('#generate, #clear')) showTab('calendar'); });
 
 // „Gotowe” kończy dostępność/gównianość i wraca na kartę, z której je włączono
-$('#status').onclick = (e) => { if ('done' in e.target.dataset) { view.who = null; view.bad = false; showTab(back); render(); } };
+$('#status').onclick = (e) => {
+  if ('done' in e.target.dataset) { view.who = null; view.bad = false; showTab(back); render(); }
+  if ('jump' in e.target.dataset) { // pierwszy nieobsadzony dyżur: przewiń i ustaw kursor
+    const input = $('#calendar .slot.unfilled input');
+    input?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    input?.focus({ preventScroll: true });
+  }
+};
 $('#bad-mode').onclick = () => { view.bad = !view.bad; view.who = null; back = 'settings'; if (view.bad) showTab('calendar'); render(); };
 
 // Klik w dzień w trybie dostępności: Mogę → Chcę → Nie mogę → W ostateczności → Mogę
@@ -329,14 +338,14 @@ function logHtml(p) {
     const t = new Date(view.y, view.m - i), y = t.getFullYear(), m = t.getMonth();
     const list = log.filter((x) => x.key.startsWith(dateKey(y, m, 1).slice(0, 8))).reverse(); // najnowsze na górze
     html += `<h4>${monthName(y, m)} <small>${summary(list)}</small></h4>` + (!list.length ? '' :
-      `<table class="preview"><tr><th>Dzień</th><th>Miejsce</th><th>Gównianość</th><th>Przerwa</th></tr>` +
+      `<div class="table-scroll"><table class="preview"><tr><th>Dzień</th><th>Miejsce</th><th>Gównianość</th><th>Przerwa</th></tr>` +
       list.map((x) => {
         const d = +x.key.slice(8);
         const note = [state.manual[x.key]?.[x.sid] === pid && 'ręczny', x.key > today && 'zaplanowany'].filter(Boolean).join(', ');
         return `<tr class="${weekday(y, m, d) > 4 ? 'weekend' : ''}"><td>${d} ${DAYS[weekday(y, m, d)]}</td>` +
           `<td>${esc(shiftName[x.sid] ?? '(usunięte miejsce)')}${note && ` <small class="hint">${note}</small>`}</td><td>${BAD[x.bad]}</td>` +
           `<td>${x.gap === null ? '—' : x.gap === 1 ? '1 dzień' : `${x.gap} dni`}</td></tr>`;
-      }).join('') + '</table>');
+      }).join('') + '</table></div>');
   }
   return html;
 }

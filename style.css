@@ -90,6 +90,11 @@ button:disabled { opacity: .35; cursor: default; }
 .cycle { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; }
 .cycle span[class] { padding: 2px 8px; border-radius: 6px; }
 #status [data-done] { margin-left: auto; padding: 6px 16px; }
+#status b.ok { color: var(--text); }
+.progress { width: 120px; height: 2px; background: var(--line); }
+.progress i { display: block; height: 100%; background: var(--text); }
+#status [data-jump] { margin-left: auto; padding: 4px 8px; font-size: 13px; }
+.table-scroll { max-width: 100%; overflow-x: auto; }
 body[data-tab="settings"] #status:not(.info) { display: none; }
 
 main { display: flex; flex-direction: column; gap: 24px; }
@@ -299,6 +304,9 @@ dialog menu { display: flex; justify-content: flex-end; gap: 8px; padding: 0; }
   #status > span:first-child { flex: 1 1 60%; }
   #status [data-done] { order: 1; }
   #status .cycle { order: 2; flex-basis: 100%; }
+  #status > span:first-child:has(+ .progress) { flex: none; }
+  .progress { flex: 1; min-width: 60px; }
+  #status [data-jump] { flex-basis: 100%; margin: 0; text-align: left; padding-left: 0; }
   .panel { padding: 16px; }
   .settings { gap: 16px; grid-template-columns: 1fr; }
   .who { font-size: 15px; }
