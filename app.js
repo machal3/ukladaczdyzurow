@@ -100,7 +100,7 @@ function render() {
   }
   $('#people').innerHTML = team().map((p) => `<li>
       <button class="who ${p.id === view.who ? 'on' : ''}" data-who="${p.id}" aria-pressed="${p.id === view.who}" title="Dostępność w grafiku">${esc(p.name)}</button><span class="badge role ${p.prestige ? '' : 'rez'}" title="${ROLES[p.prestige]}">${p.prestige ? `SA ${p.prestige}` : 'Rez.'}</span><span class="badge">${count[p.id]}</span>
-      <button class="x" data-edit="${p.id}" aria-label="Ustawienia i historia: ${esc(p.name)}" title="Ustawienia i historia">⚙</button>
+      <button class="edit" data-edit="${p.id}" aria-label="Ustawienia i historia: ${esc(p.name)}" title="Ustawienia i historia">⚙ Ustawienia</button>
       <button class="x" data-del-person="${p.id}" aria-label="Usuń ${esc(p.name)}">×</button></li>`).join('');
   const max = Math.max(1, ...Object.values(count));
   $('#summary-list').innerHTML = team().map((p) => `<li>
