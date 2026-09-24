@@ -49,3 +49,13 @@ test('dostępność: Chcę > Mogę > W ostateczności, Nie mogę = nigdy', () =>
   assert.equal(pick({ a: { [k]: 0 }, b: { [k]: 1 }, c: { [k]: 0 }, d: { [k]: 0 } }), 'b');
   assert.equal(pick(Object.fromEntries(people.map((p) => [p.id, { [k]: 0 }]))), undefined); // wszyscy „Nie mogę” → pusto
 });
+
+test('limit: nikt ponad swój limit na danym dyżurze, 0 = nigdy, ręczne wpisy się liczą', () => {
+  const locked = { [dateKey(2026, 9, 1)]: { s1: 'a' } };
+  const limits = { a: { s1: 2, s2: 0 }, b: { s2: 3 } };
+  const out = generateMonth(2026, 9, shifts, people, locked, {}, limits);
+  const n = (pid, sid) => Object.values(out).filter((day) => day[sid] === pid).length;
+  assert.equal(n('a', 's1'), 2);
+  assert.equal(n('a', 's2'), 0);
+  assert.ok(n('b', 's2') <= 3);
+});
