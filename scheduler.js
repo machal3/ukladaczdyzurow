@@ -71,7 +71,8 @@ export const shiftsForDay = (shifts, y, m, d) => shifts.filter((s) => s.days.inc
 // maks. jeden rezydent dziennie (licząc ręczne wpisy), warunki z `rules` (patrz breaksRule),
 // po OITN w sobotę wolny poniedziałek, po OITN w niedzielę wolny wtorek (czyli 2 dni po weekendowym OITN).
 // Kolejność wyboru (domyślna, `order` = klucze PRIORITIES w innej kolejności ją zmienia): najpierw dostępność (Chcę > Mogę > W ostateczności), potem unikanie „kanapek” (dyżur z jednym dniem
-// przerwy, np. pn i śr — chyba że osoba chce ten dzień), potem różne dni weekendu (w ten sam Pt/So/Nd maks. limits[pid].d4/d5/d6 dyżurów, domyślnie 1 — miękko), potem prośby: kto ma mniej dyżurów na tym miejscu, niż prosił
+// przerwy, np. pn i śr — chyba że osoba chce ten dzień; wyjątek: PN1 w sobotę + dowolny dyżur w poniedziałek to kanapka preferowana,
+// chyba że osoba ma person.pn1Sandwich === false), potem różne dni weekendu (w ten sam Pt/So/Nd maks. limits[pid].d4/d5/d6 dyżurów, domyślnie 1 — miękko), potem prośby: kto ma mniej dyżurów na tym miejscu, niż prosił
 // (wants = { personId: { shiftId: n, d4/d5/d6: n w ten dzień weekendu } }, miękkie — nie łamie limitów ani zakazów), potem w gówniany dzień najmniejsze
 // obciążenie gównianością (person.past + person.hist z poprzednich miesięcy + ten miesiąc), potem równy podział liczby dyżurów.
 // W dzień Tragiczny na koniec kolejki idą ci, którzy mieli Tragiczny miesiąc temu (person.tragic) albo już w tym miesiącu.
@@ -100,6 +101,7 @@ export function generateMonth(y, m, shifts, people, locked = {}, avail = {}, lim
   const resident = new Set(people.filter(isResident).map((p) => p.id));
   // ponytail: OITN rozpoznawany po nazwie miejsca; bez sprawdzania przełomu miesięcy (jak „dzień po dniu”)
   const oitn = shifts.find((s) => s.name === 'OITN')?.id;
+  const pn1 = shifts.find((s) => s.name === 'PN1')?.id;
   const oitnWe = (d, pid) => d >= 1 && weekday(y, m, d) >= 5 && (result[dateKey(y, m, d)] ?? locked[dateKey(y, m, d)] ?? {})[oitn] === pid;
   for (const [key, day] of Object.entries(locked))
     for (const [sid, pid] of Object.entries(day)) if (pid in count) add(pid, sid, +key.slice(8));
@@ -111,7 +113,11 @@ export function generateMonth(y, m, shifts, people, locked = {}, avail = {}, lim
     let hasResident = [...busy].some((pid) => resident.has(pid));
     const isBad = badOf(bad, y, m, d) > 0;
     const isTragic = badOf(bad, y, m, d) === 3;
-    const sandwich = (pid) => +(availOf(avail, pid, key) < 3 && (lastDay[pid] === d - 2 || lockedOn(locked, y, m, d + 2, pid)));
+    // 1 = kanapka, −1 = preferowana kanapka PN1 w sobotę + poniedziałek (osoba bez pn1Sandwich === false), suma dla obu stron
+    const wd = weekday(y, m, d);
+    const sandwich = (p, sid) => availOf(avail, p.id, key) < 3 &&
+      (lastDay[p.id] === d - 2 && (p.pn1Sandwich !== false && wd === 0 && result[dateKey(y, m, d - 2)]?.[pn1] === p.id ? -1 : 1)) +
+      (lockedOn(locked, y, m, d + 2, p.id) && (p.pn1Sandwich !== false && wd === 5 && sid === pn1 ? -1 : 1));
 
     const noise = rand && Object.fromEntries(people.map((p) => [p.id, rand()]));
     const todays = shiftsForDay(shifts, y, m, d);
@@ -120,7 +126,7 @@ export function generateMonth(y, m, shifts, people, locked = {}, avail = {}, lim
       if (day[s.id]) continue;
       const cmp = {
         avail: (a, b) => availOf(avail, b.id, key) - availOf(avail, a.id, key),
-        sandwich: (a, b) => sandwich(a.id) - sandwich(b.id),
+        sandwich: (a, b) => sandwich(a, s.id) - sandwich(b, s.id),
         weDow: (a, b) => dowFull(a.id, d) - dowFull(b.id, d),
         wants: (a, b) => short(b.id, s.id) - short(a.id, s.id) || (isWe(d) && short(b.id, `d${weekday(y, m, d)}`) - short(a.id, `d${weekday(y, m, d)}`)),
         bad: (a, b) => (isTragic && tragic[a.id] - tragic[b.id]) || (isBad && burden[a.id] - burden[b.id]),
@@ -168,7 +174,9 @@ export function scoreMonth(y, m, schedule, shifts, people, avail = {}, bad = {},
   const sc = { unfilled: 0, avail: 0, sandwich: 0, weDow: 0, wants: 0, bad: 0, even: 0, lastResort: 0 };
   const count = Object.fromEntries(people.map((p) => [p.id, 0]));
   const burden = Object.fromEntries(people.map((p) => [p.id, (p.past ?? 0) * PAST_WEIGHT + (p.hist ?? 0)]));
-  const perShift = {}, last = {}; // perShift jak w generateMonth, też 'personId:d4..d6'
+  const perShift = {}, last = {}, lastSid = {}; // perShift jak w generateMonth, też 'personId:d4..d6'
+  const pn1 = shifts.find((s) => s.name === 'PN1')?.id;
+  const pref = Object.fromEntries(people.map((p) => [p.id, p.pn1Sandwich !== false]));
   for (let d = 1; d <= daysInMonth(y, m); d++) {
     const key = dateKey(y, m, d), day = schedule[key] || {};
     for (const s of shiftsForDay(shifts, y, m, d)) {
@@ -177,9 +185,9 @@ export function scoreMonth(y, m, schedule, shifts, people, avail = {}, bad = {},
       const lvl = availOf(avail, pid, key);
       sc.avail += [0, 10, 1, 0][lvl];
       sc.lastResort += lvl === 1;
-      if (last[pid] === d - 2 && lvl < 3) sc.sandwich++;
-      last[pid] = d;
       const wd = weekday(y, m, d);
+      if (last[pid] === d - 2 && lvl < 3 && !(pref[pid] && wd === 0 && lastSid[pid] === pn1)) sc.sandwich++; // PN1 So + Pn nie liczy się jako kanapka
+      last[pid] = d; lastSid[pid] = s.id;
       if (wd >= 4) sc.weDow += (perShift[`${pid}:d${wd}`] = (perShift[`${pid}:d${wd}`] || 0) + 1) > sameDow(limits, pid, wd, wants); // ponad limit tego samego dnia weekendu
       count[pid]++;
       burden[pid] += badOf(bad, y, m, d);

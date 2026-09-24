@@ -142,7 +142,7 @@ wszystkich wyższych. Domyślna kolejność:
 | # | Priorytet | Kogo wybiera najpierw |
 |---|---|---|
 | 1 | **Dostępność** | Chcę → Mogę → W ostateczności |
-| 2 | **Bez „kanapek”** | kogoś, kto *nie* miałby dyżuru co drugi dzień (np. pn i śr). Nie dotyczy dnia, w który osoba zaznaczyła „Chcę”. |
+| 2 | **Bez „kanapek”** | kogoś, kto *nie* miałby dyżuru co drugi dzień (np. pn i śr). Nie dotyczy dnia, w który osoba zaznaczyła „Chcę”. Wyjątek: PN1 w sobotę + dowolny dyżur w poniedziałek to kanapka *preferowana* (wyłączane w oknie osoby: „Preferuje kanapkę PN1 So + Pn”). |
 | 3 | **Dyżury weekendowe w różne dni** | w Pt/So/Nd — kogoś, kto nie wyczerpał jeszcze swojego „tego samego dnia weekendu” (domyślnie: nie miał jeszcze tego dnia tygodnia) |
 | 4 | **Prośby o liczbę dyżurów** | kogoś, kto ma na tym miejscu (lub w ten dzień weekendu) mniej dyżurów, niż prosił |
 | 5 | **Sprawiedliwy podział gównianych dni** | w dzień ciężki (gównianość ≥ 1) — osobę z najmniejszym obciążeniem; w dzień Tragiczny najpierw osoby, które *nie* miały Tragicznego ani w zeszłym, ani w tym miesiącu |

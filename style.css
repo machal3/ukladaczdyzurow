@@ -249,6 +249,7 @@ dialog menu { display: flex; justify-content: flex-end; gap: 8px; padding: 0; }
 .limits small { color: var(--muted); font-variant-numeric: tabular-nums; }
 .limits :is(input, select) { padding: 3px 8px; }
 .limits input { width: 60px; }
+.limits input[type=checkbox] { width: auto; }
 #person-body > h3 { font-size: 15px; }
 #person-body .preview { table-layout: fixed; }
 #person-body .preview :is(th, td):first-child { width: 20%; }

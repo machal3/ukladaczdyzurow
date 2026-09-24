@@ -153,6 +153,18 @@ test('kanapki: unika dyżuru z jednym dniem przerwy, chyba że osoba chce ten dz
   assert.notEqual(generateMonth(2026, 9, one, people, locked)[k].s, 'b'); // b wpisany ręcznie 5.10 → nie 3.10
 });
 
+test('kanapka PN1 w sobotę + poniedziałek jest preferowana, chyba że osoba ją wyłączyła', () => {
+  const two = [{ id: 'p', name: 'PN1', days: all }, { id: 's', name: 'S', days: all }];
+  const six = ['a', 'b', 'c', 'd', 'e', 'f'].map((id) => ({ id, name: id }));
+  const sat = dateKey(2026, 9, 3), mon = dateKey(2026, 9, 5); // październik 2026: 3 = sobota, 5 = poniedziałek
+  const on = generateMonth(2026, 9, two, six, { [sat]: { p: 'a' } });
+  assert.ok(Object.values(on[mon]).includes('a'));
+  assert.equal(scoreMonth(2026, 9, { [sat]: { p: 'a' }, [mon]: { s: 'a' } }, two, six).sandwich, 0);
+  const off = six.map((p) => (p.id === 'a' ? { ...p, pn1Sandwich: false } : p));
+  assert.ok(!Object.values(generateMonth(2026, 9, two, off, { [sat]: { p: 'a' } })[mon]).includes('a'));
+  assert.equal(scoreMonth(2026, 9, { [sat]: { p: 'a' }, [mon]: { s: 'a' } }, two, off).sandwich, 1);
+});
+
 test('import tabeli: nagłówek z miejscami, dni, puste komórki i zły dzień tygodnia', () => {
   const rows = [
     ['', '', 'OITN', 'PN2', 'Inne'],

@@ -114,7 +114,8 @@ function render() {
       `<section class="limits"><h4>Osoba</h4><label><span>Funkcja</span><select data-prestige aria-label="Funkcja">` +
       ROLES.map((r, i) => `<option value="${i}" ${i === who.prestige ? 'selected' : ''}>${r}</option>`).join('') + `</select></label>` +
       `<label><span>Ostatnio gówniane (spoza grafiku)</span><select data-past aria-label="Jak gówniane dyżury miała ostatnio poza grafikiem">` +
-      BAD.map((_, i) => `<option value="${i}" ${i === (who.past ?? 0) ? 'selected' : ''}>${i}</option>`).join('') + `</select></label></section>` +
+      BAD.map((_, i) => `<option value="${i}" ${i === (who.past ?? 0) ? 'selected' : ''}>${i}</option>`).join('') + `</select></label>` +
+      `<label><span>Preferuje kanapkę PN1 So + Pn</span><input type="checkbox" data-pn1sandwich ${who.pn1Sandwich === false ? '' : 'checked'}></label></section>` +
       `<section class="limits"><h4>Limit w miesiącu <small>puste = bez limitu</small></h4>` +
       [{ id: '*', name: 'Łącznie' }, { id: 'we', name: 'Pt/So/Nd' }, ...state.shifts].map((s) => `<label><span>${esc(s.name)}</span><small>${s.id === '*' ? count[who.id] : whoShifts[s.id] || 0} /</small>
         <input type="number" min="0" step="1" placeholder="${s.id === 'we' ? WEEKEND_LIMIT : '∞'}" data-limit="${s.id}" value="${state.limits[who.id]?.[s.id] ?? ''}" aria-label="Limit: ${esc(s.name)}"></label>`).join('') + '</section>' +
@@ -346,6 +347,8 @@ $('#person').onkeydown = (e) => { if (e.key === 'Enter' && e.target.type === 'nu
 $('#person').onchange = (e) => {
   if ('past' in e.target.dataset)
     return update(() => { state.people.find((p) => p.id === view.who).past = +e.target.value; });
+  if ('pn1sandwich' in e.target.dataset) // brak pola = włączone
+    return update(() => { state.people.find((p) => p.id === view.who).pn1Sandwich = e.target.checked; });
   if ('prestige' in e.target.dataset)
     return update(() => { state.people.find((p) => p.id === view.who).prestige = +e.target.value; });
   const { limit, want } = e.target.dataset, sid = limit ?? want;
