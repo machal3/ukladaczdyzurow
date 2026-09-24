@@ -52,7 +52,8 @@ export const shiftsForDay = (shifts, y, m, d) => shifts.filter((s) => s.days.inc
 // Twarde zasady: nikt dwa razy tego samego dnia, nikt dzień po dniu, nikt w dzień „Nie mogę”,
 // nikt ponad swój miesięczny limit na danym dyżurze: limits = { personId: { shiftId: n, '*': n łącznie, we: n w Pt/So/Nd } } (brak = bez limitu),
 // maks. jeden rezydent dziennie (licząc ręczne wpisy), warunki z `rules` (patrz breaksRule).
-// Kolejność wyboru: najpierw dostępność (Chcę > Mogę > W ostateczności), potem w gówniany dzień najmniejsze
+// Kolejność wyboru: najpierw dostępność (Chcę > Mogę > W ostateczności), potem unikanie „kanapek” (dyżur z jednym dniem
+// przerwy, np. pn i śr — chyba że osoba chce ten dzień), potem w gówniany dzień najmniejsze
 // obciążenie gównianością (person.past + person.hist z poprzednich miesięcy + ten miesiąc), potem równy podział liczby dyżurów.
 // W dzień Tragiczny na koniec kolejki idą ci, którzy mieli Tragiczny miesiąc temu (person.tragic) albo już w tym miesiącu.
 // Wpisy z `locked` (ręczne) są zachowane i liczą się do bilansu.
@@ -85,13 +86,14 @@ export function generateMonth(y, m, shifts, people, locked = {}, avail = {}, lim
     let hasResident = [...busy].some((pid) => resident.has(pid));
     const isBad = badOf(bad, y, m, d) > 0;
     const isTragic = badOf(bad, y, m, d) === 3;
+    const sandwich = (pid) => +(availOf(avail, pid, key) < 3 && (lastDay[pid] === d - 2 || lockedOn(locked, y, m, d + 2, pid)));
 
     for (const s of shiftsForDay(shifts, y, m, d)) {
       if (day[s.id]) continue;
       const pick = people
         .filter((p) => availOf(avail, p.id, key) > 0 && !busy.has(p.id) && lastDay[p.id] !== d - 1 && !lockedOn(locked, y, m, d + 1, p.id) && underLimit(p.id, s.id, d) &&
           !(hasResident && resident.has(p.id)) && !breaksRule(rules, day, p.id, s.id))
-        .sort((a, b) => availOf(avail, b.id, key) - availOf(avail, a.id, key) ||
+        .sort((a, b) => availOf(avail, b.id, key) - availOf(avail, a.id, key) || sandwich(a.id) - sandwich(b.id) ||
           (isTragic && tragic[a.id] - tragic[b.id]) || (isBad && burden[a.id] - burden[b.id]) || count[a.id] - count[b.id] || (lastDay[a.id] ?? -99) - (lastDay[b.id] ?? -99))[0];
       if (!pick) continue; // brak wolnej osoby → dyżur zostaje pusty, widoczny w UI
       day[s.id] = pick.id;

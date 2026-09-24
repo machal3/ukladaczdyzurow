@@ -140,3 +140,15 @@ test('gównianość domyślna: Pt = Gówniany, So/Nd = Słaby, reszta Zwykły; r
   assert.deepEqual([5, 6, 7, 8, 9, 10, 11].map((d) => badOf({}, 2026, 9, d)), [0, 0, 0, 0, 2, 1, 1]); // 5.10.2026 = pon
   assert.equal(badOf({ '2026-10-09': 0 }, 2026, 9, 9), 0);
 });
+
+test('kanapki: unika dyżuru z jednym dniem przerwy, chyba że osoba chce ten dzień', () => {
+  const one = [{ id: 's', name: 'S', days: all }];
+  const trio = people.slice(0, 3);
+  const out = generateMonth(2026, 9, one, trio);
+  const days = Object.values(out).map((day) => day.s);
+  days.forEach((pid, i) => { if (i >= 2) assert.notEqual(pid, days[i - 2], `kanapka dnia ${i + 1}`); });
+  const k = dateKey(2026, 9, 3);
+  assert.equal(generateMonth(2026, 9, one, trio, {}, { a: { [k]: 3 } })[k].s, 'a'); // a miał 1.10, ale chce 3.10
+  const locked = { [dateKey(2026, 9, 5)]: { s: 'b' } };
+  assert.notEqual(generateMonth(2026, 9, one, people, locked)[k].s, 'b'); // b wpisany ręcznie 5.10 → nie 3.10
+});
