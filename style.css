@@ -9,6 +9,10 @@
   --warn: #d9480f;
   --warn-soft: #fff1ea;
   --weekend: #fbfbfa;
+  --ok: #2b8a3e;
+  --ok-soft: #ebfbee;
+  --maybe: #b07d00;
+  --maybe-soft: #fff9db;
   --radius: 12px;
   color-scheme: light dark;
 }
@@ -24,6 +28,10 @@
     --warn: #ff8a5b;
     --warn-soft: #3a2218;
     --weekend: #161618;
+    --ok: #69db7c;
+    --ok-soft: #1b3322;
+    --maybe: #ffd43b;
+    --maybe-soft: #3a3115;
   }
 }
 
@@ -45,6 +53,7 @@ h1 { font-size: 15px; font-weight: 600; color: var(--muted); }
 .month h2 { font-size: 22px; font-weight: 600; min-width: 200px; text-align: center; text-transform: capitalize; }
 .actions { margin-left: auto; display: flex; align-items: center; gap: 8px; }
 #status { color: var(--warn); font-size: 13px; margin-right: 8px; }
+#status.info { color: var(--accent); }
 
 button {
   border: 0; border-radius: 8px; padding: 8px 14px; cursor: pointer;
@@ -89,6 +98,15 @@ main { display: grid; grid-template-columns: 1fr 300px; gap: 24px; align-items: 
 .slot.unfilled { background: var(--warn-soft); }
 .slot.unfilled select { color: var(--warn); }
 .slot.manual { box-shadow: inset 2px 0 0 var(--accent); }
+.slot.clash { outline: 1px dashed var(--warn); }
+
+/* Tryb dostępności */
+.avail { flex: 1; font-size: 12px; border-radius: 6px; }
+.avail:hover { opacity: .8; }
+.lvl-0 { background: var(--warn-soft); color: var(--warn); }
+.lvl-1 { background: var(--maybe-soft); color: var(--maybe); }
+.lvl-2 { background: var(--line); color: var(--muted); }
+.lvl-3 { background: var(--ok-soft); color: var(--ok); }
 
 /* Panel boczny */
 aside { display: flex; flex-direction: column; gap: 16px; }
@@ -97,7 +115,9 @@ aside { display: flex; flex-direction: column; gap: 16px; }
 .panel small { font-weight: 400; color: var(--muted); font-size: 11px; }
 .list { list-style: none; padding: 0; display: flex; flex-direction: column; }
 .list li { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line); }
-.list li > span:first-child { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.who { background: none; color: inherit; font-weight: 400; padding: 2px 6px; margin-left: -6px; text-align: left; }
+.who.on { background: var(--accent-soft); color: var(--accent); font-weight: 500; }
+.list li > :first-child { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .badge { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .x { background: none; color: var(--muted); padding: 2px 6px; font-size: 16px; line-height: 1; opacity: .5; }
 .list li:hover .x { opacity: 1; }
