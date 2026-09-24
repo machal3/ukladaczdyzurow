@@ -54,6 +54,7 @@ h1 { font-size: 15px; font-weight: 600; color: var(--muted); }
 #status { margin-left: auto; color: var(--warn); font-size: 13px; }
 .actions { display: flex; align-items: center; gap: 8px; }
 #status.info { color: var(--accent); }
+#status button { padding: 2px 8px; margin-left: 6px; color: inherit; border: 1px solid currentColor; }
 
 button {
   border: 0; border-radius: 8px; padding: 8px 14px; cursor: pointer;

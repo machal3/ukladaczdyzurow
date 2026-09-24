@@ -36,6 +36,7 @@ if (!state.miejscaV2) {
 if (cloud && !cloud.data) save(); // pusta chmura → wysyłamy to, co było w tej przeglądarce
 const now = new Date();
 let view = { y: now.getFullYear(), m: now.getMonth(), who: null, bad: false }; // who: osoba, której dostępność edytujemy; bad: tryb oceny gównianości dni
+let prevWho = null; // tryb sprzed otwarcia okna osoby
 
 function uid() { return Math.random().toString(36).slice(2, 10); }
 function person(name) { return { id: uid(), name, prestige: 1 }; }
@@ -94,7 +95,8 @@ function render() {
     if (weekday(y, m, +k.slice(8)) >= 4) whoShifts.we++;
   }
   $('#people').innerHTML = team().map((p) => `<li>
-      <button class="who ${p.id === view.who ? 'on' : ''}" data-who="${p.id}" aria-pressed="${p.id === view.who}" title="Dostępność w grafiku, ustawienia i historia">${esc(p.name)}</button><span class="badge" title="${ROLES[p.prestige]}">${p.prestige ? `SA ${p.prestige}` : 'Rez.'}</span><span class="badge">${count[p.id]}</span>
+      <button class="who ${p.id === view.who ? 'on' : ''}" data-who="${p.id}" aria-pressed="${p.id === view.who}" title="Dostępność w grafiku">${esc(p.name)}</button><span class="badge" title="${ROLES[p.prestige]}">${p.prestige ? `SA ${p.prestige}` : 'Rez.'}</span><span class="badge">${count[p.id]}</span>
+      <button class="x" data-edit="${p.id}" aria-label="Ustawienia i historia: ${esc(p.name)}" title="Ustawienia i historia">⚙</button>
       <button class="x" data-del-person="${p.id}" aria-label="Usuń ${esc(p.name)}">×</button></li>`).join('');
   // Okno osoby: ustawienia (limity i prośby dotyczą oglądanego miesiąca) + historia dyżurów
   const who = state.people.find((p) => p.id === view.who);
@@ -126,8 +128,8 @@ function render() {
   $('#priority').innerHTML = state.priority.map((k, i) => `<li><span>${i + 1}. ${PRIORITIES[k]}</span>
       <button class="x" data-up="${i}" ${i ? '' : 'disabled'} aria-label="Wyżej: ${PRIORITIES[k]}">↑</button>
       <button class="x" data-up="${i + 1}" ${i < state.priority.length - 1 ? '' : 'disabled'} aria-label="Niżej: ${PRIORITIES[k]}">↓</button></li>`).join('');
-  $('#status').textContent = view.bad ? 'Gównianość dni — klikaj dni, by zmienić' :
-    view.who ? `Dostępność: ${nameOf[view.who]} — klikaj dni, by zmienić` :
+  $('#status').innerHTML = view.bad ? 'Gównianość dni — klikaj dni, by zmienić' :
+    view.who ? `Dostępność: ${esc(nameOf[view.who])} — klikaj dni, by zmienić <button class="ghost" data-done>Gotowe</button>` :
     empty ? `Nieobsadzone: ${empty}` : '';
   $('#status').classList.toggle('info', !!view.who || view.bad);
   $('#bad-mode').setAttribute('aria-pressed', view.bad);
@@ -176,6 +178,7 @@ function showTab(tab) {
 $('.tabs').onclick = (e) => { if (e.target.dataset.tab) { showTab(e.target.dataset.tab); scrollTo(0, 0); } };
 $('.actions').addEventListener('click', (e) => { if (e.target.closest('#generate, #bad-mode, #clear')) showTab('calendar'); });
 
+$('#status').onclick = (e) => { if ('done' in e.target.dataset) { view.who = null; render(); } };
 $('#bad-mode').onclick = () => { view.bad = !view.bad; view.who = null; render(); };
 
 // Klik w dzień w trybie dostępności: Mogę → Chcę → Nie mogę → W ostateczności → Mogę
@@ -249,11 +252,13 @@ $('#add-rule').onsubmit = (e) => {
 };
 
 document.querySelector('aside').onclick = (e) => {
-  const { delPerson, delRule, who, up } = e.target.dataset;
+  const { delPerson, delRule, who, edit, up } = e.target.dataset;
   if (up) update(() => { const i = +up; [state.priority[i - 1], state.priority[i]] = [state.priority[i], state.priority[i - 1]]; });
   if (e.target.dataset.go) { showTab(e.target.dataset.go); scrollTo(0, 0); }
   if (delRule) update(() => { state.rules = state.rules.filter((r) => r.id !== delRule); });
-  if (who) { view.who = view.who === who ? null : who; view.bad = false; if (view.who) $('#person').showModal(); render(); }
+  // imię = tryb dostępności w kalendarzu; ⚙ = okno ustawień (po zamknięciu wraca poprzedni tryb, chyba że „Dostępność →”)
+  if (who) { view.who = view.who === who ? null : who; view.bad = false; if (view.who) showTab('calendar'); render(); }
+  if (edit) { prevWho = view.who; view.who = edit; view.bad = false; $('#person').returnValue = ''; $('#person').showModal(); render(); }
   if (delPerson && confirm(`Usunąć ${state.people.find((p) => p.id === delPerson).name}? Przeszłe dyżury zostaną w grafiku, przyszłe zostaną zwolnione.`)) update(() => {
     state.people.find((p) => p.id === delPerson).gone = true;
     const today = dateKey(now.getFullYear(), now.getMonth(), now.getDate());
@@ -267,6 +272,7 @@ document.querySelector('aside').onclick = (e) => {
   });
 };
 
+$('#person').onclose = () => { if ($('#person').returnValue !== 'avail') view.who = prevWho; render(); };
 $('#person').onclick = (e) => { if (e.target.dataset.go) { showTab(e.target.dataset.go); scrollTo(0, 0); } };
 // Enter w polu liczby zatwierdza wartość zamiast zamykać okno (formularz method="dialog")
 $('#person').onkeydown = (e) => { if (e.key === 'Enter' && e.target.type === 'number') { e.preventDefault(); e.target.blur(); } };
