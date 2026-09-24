@@ -74,7 +74,8 @@ h1 { font: var(--type-display); letter-spacing: -.025em; text-wrap: balance; }
 .month button { display: grid; place-items: center; padding: 10px; min-width: 44px; background: var(--md-sys-color-surface-container-high); color: var(--text); }
 #today { padding-inline: 18px; background: var(--md-sys-color-secondary-container); color: var(--md-sys-color-on-secondary-container); }
 .actions { display: flex; align-items: center; gap: 4px; }
-.actions .ghost { padding-inline: 12px; color: var(--muted); }
+.actions .ghost { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 10px 16px 10px 12px; } /* MD3 text button z ikoną: 40 px, ikona 18 px, 12/16 px */
+.actions .ghost svg { width: 18px; height: 18px; }
 #generate { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 56px; padding: 16px 20px; border-radius: 16px; margin-left: 12px; background: var(--accent-soft); color: var(--md-sys-color-on-primary-container); }
 #generate:enabled:hover { background: var(--md-sys-color-primary-container); }
 #status { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin: 0 0 20px; padding: 14px 20px; border-radius: 20px; background: var(--md-sys-color-surface-container); color: var(--muted); font-size: 13px; }
@@ -380,7 +381,7 @@ body:has(.login) { padding: 24px; min-height: 100dvh; display: grid; place-items
   .month h2 { flex: 1; font-size: 22px; margin: 0; min-width: 0; }
   #today { padding-inline: 12px; }
   .actions { gap: 8px; flex-wrap: wrap; }
-  .actions .ghost { background: var(--md-sys-color-surface-container); padding-inline: 18px; }
+  .actions .ghost { background: var(--md-sys-color-surface-container); }
   #generate { position: fixed; right: 20px; bottom: calc(96px + env(safe-area-inset-bottom)); z-index: 8; margin: 0; min-height: 56px; padding: 16px 22px; background: var(--accent-soft);  }
   #status { top: 8px; font-size: 12px; padding: 14px 16px; gap: 8px; }
   #status .cycle { flex-basis: 100%; order: 2; }
@@ -461,4 +462,22 @@ input[type=checkbox]:not([role=switch]):checked::after { content: '✓'; color: 
   button[aria-pressed=true], input:checked { outline: 2px solid Highlight; }
   input[type=checkbox] { appearance: auto; }
   input[type=checkbox]::before, input[type=checkbox]::after { display: none; }
+}
+/* Wydruk / eksport do PDF: pionowa tabela #print-sheet (dzień pod dniem, miejsca w kolumnach) na jednej kartce A4 — patrz render() w app.js */
+.print-sheet { display: none; }
+@page { size: A4 portrait; margin: 12mm; }
+@media print {
+  body { padding: 0; margin: 0; max-width: none; background: #fff; color: #000; font: 10pt/1.2 var(--headline); }
+  body > :not(.print-sheet) { display: none !important; }
+  .print-sheet { display: block; }
+  .print-sheet h2 { font: 600 16pt/1.2 var(--headline); margin-bottom: 4mm; }
+  .print-sheet table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+  .print-sheet th, .print-sheet td { height: 7.8mm; padding: 0 2.5mm; border-bottom: .5pt solid #bbb; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .print-sheet thead th { font-size: 8.5pt; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #444; border-bottom: 1.2pt solid #000; }
+  .print-sheet .c-d, .print-sheet .c-wd { width: 10mm; }
+  .print-sheet .d { text-align: right; padding-right: 1.5mm; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .print-sheet .wd { color: #555; padding-left: 1mm; }
+  .print-sheet tr.we td { background: #eee; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .print-sheet tr.mon td { border-top: 1pt solid #000; }
+  .print-sheet .none { color: #aaa; }
 }

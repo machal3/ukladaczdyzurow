@@ -92,6 +92,15 @@ function render() {
   html += '<div class="cell empty"></div>'.repeat((7 - (weekday(y, m, 1) + daysInMonth(y, m)) % 7) % 7); // domknięcie ostatniego tygodnia
   $('#calendar').innerHTML = html;
 
+  // Wydruk (pionowo, jedna kartka): dzień pod dniem, miejsca w kolumnach — widoczny tylko w @media print
+  const cols = state.shifts.filter((s) => s.days.length);
+  $('#print-sheet').innerHTML = `<h2>Grafik dyżurów — ${monthName[0].toUpperCase() + monthName.slice(1)}</h2><table><colgroup><col class="c-d"><col class="c-wd"></colgroup><thead><tr><th colspan="2">Dzień</th>${cols.map((s) => `<th>${esc(s.name)}</th>`).join('')}</tr></thead><tbody>` +
+    Array.from({ length: daysInMonth(y, m) }, (_, i) => {
+      const d = i + 1, key = dateKey(y, m, d), wd = weekday(y, m, d), day = state.schedule[key] || {};
+      return `<tr class="${wd >= 5 ? 'we' : ''} ${wd === 0 ? 'mon' : ''}"><td class="d">${d}</td><td class="wd">${DAYS[wd]}</td>${cols.map((s) =>
+        `<td>${!s.days.includes(wd) ? '' : nameOf[day[s.id]] ? esc(nameOf[day[s.id]]) : '<span class="none">—</span>'}</td>`).join('')}</tr>`;
+    }).join('') + '</tbody></table>';
+
   // Statystyki miesiąca
   const count = Object.fromEntries(team().map((p) => [p.id, 0]));
   for (const k of monthKeys()) for (const pid of Object.values(state.schedule[k] || {})) if (pid in count) count[pid]++;
@@ -244,6 +253,8 @@ $('#clear').onclick = () => {
   if (!confirm('Wyczyścić grafik tego miesiąca (łącznie z ręcznymi zmianami)?')) return;
   update(() => { for (const k of monthKeys()) { delete state.schedule[k]; delete state.manual[k]; } });
 };
+
+$('#print').onclick = () => window.print(); // wydruk / „Zapisz jako PDF” — obsługuje przeglądarka, patrz @media print w style.css
 
 // Pole osoby: po kliknięciu czyści się i pokazuje własną listę osób, wpisywanie ją filtruje
 // (bez wielkości liter i polskich znaków). Enter/klik wybiera, Esc lub brak dopasowania przywraca poprzednią wartość.
