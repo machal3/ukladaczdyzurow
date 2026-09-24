@@ -66,6 +66,23 @@ test('limit łączny: nikt ponad swój limit wszystkich dyżurów w miesiącu, n
   assert.equal(Object.values(out).flatMap(Object.values).filter((pid) => pid === 'a').length, 3);
 });
 
+test('gównianość: w gówniany dzień wygrywa osoba z mniejszym obciążeniem (ostatnio + ten miesiąc)', () => {
+  const one = [{ id: 's', name: 'S', days: all }];
+  const k = dateKey(2026, 9, 1); // czwartek, domyślnie 0
+  const withPast = people.map((p) => ({ ...p, past: p.id === 'a' ? 3 : 0 }));
+  assert.equal(generateMonth(2026, 9, one, withPast)[k].s, 'a');                  // zwykły dzień: „ostatnio” nie gra roli
+  assert.notEqual(generateMonth(2026, 9, one, withPast, {}, {}, {}, { [k]: 3 })[k].s, 'a');
+});
+
+test('gównianość: punkty rozkładają się równo w miesiącu', () => {
+  const out = generateMonth(2026, 9, shifts, people); // Pt/So/Nd domyślnie po 2 pkt
+  const pts = {};
+  for (const [k, day] of Object.entries(out)) for (const pid of Object.values(day))
+    pts[pid] = (pts[pid] || 0) + ([4, 5, 6].includes((new Date(k).getDay() + 6) % 7) ? 2 : 0);
+  const n = Object.values(pts);
+  assert.ok(Math.max(...n) - Math.min(...n) <= 2, JSON.stringify(pts));
+});
+
 test('limit weekendowy: nikt ponad swój limit dyżurów w Pt/So/Nd, ręczne wpisy się liczą', () => {
   const locked = { [dateKey(2026, 9, 2)]: { s1: 'a' } }; // piątek
   const limits = { a: { we: 2 }, b: { we: 0 } };

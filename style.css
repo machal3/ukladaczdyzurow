@@ -63,6 +63,7 @@ button {
 button:hover { opacity: .88; }
 button.ghost { background: transparent; color: var(--text); }
 button.ghost:hover { background: var(--line); opacity: 1; }
+button.ghost[aria-pressed="true"] { background: var(--line); }
 button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 main { display: grid; grid-template-columns: 1fr 300px; gap: 24px; align-items: start; }
@@ -107,6 +108,7 @@ main { display: grid; grid-template-columns: 1fr 300px; gap: 24px; align-items: 
 .lvl-1 { background: var(--maybe-soft); color: var(--maybe); }
 .lvl-2 { background: var(--line); color: var(--muted); }
 .lvl-3 { background: var(--ok-soft); color: var(--ok); }
+.bad-3 { background: var(--warn); color: var(--bg); font-weight: 600; }
 
 /* Panel boczny */
 aside { display: flex; flex-direction: column; gap: 16px; }
@@ -124,7 +126,7 @@ aside { display: flex; flex-direction: column; gap: 16px; }
 .list li.limits { flex-direction: column; align-items: stretch; gap: 4px; padding: 8px 0 10px; }
 .limits label { display: flex; align-items: center; gap: 6px; font-size: 12px; }
 .limits span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.limits input { width: 56px; border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; background: var(--bg); }
+.limits input, .limits select { width: 56px; border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; background: var(--bg); }
 .days { display: flex; gap: 2px; }
 .day { padding: 0; width: 20px; height: 20px; font-size: 10px; border-radius: 50%; background: var(--line); color: var(--muted); }
 .day.on { background: var(--accent); color: #fff; }
