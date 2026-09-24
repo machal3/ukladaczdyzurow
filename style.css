@@ -134,6 +134,10 @@ aside { display: flex; flex-direction: column; gap: 16px; }
 .list li > :first-child { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .badge { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .x { background: none; color: var(--muted); padding: 2px 6px; font-size: 16px; line-height: 1; opacity: .5; }
+.x:disabled { visibility: hidden; }
+#priority li > :first-child { white-space: normal; }
+.variants { display: flex; flex-direction: column; gap: 10px; }
+.variants .chk { align-items: flex-start; gap: 8px; }
 .limits { display: flex; flex-direction: column; gap: 4px; }
 .limits label { display: flex; align-items: center; gap: 6px; font-size: 12px; }
 .limits span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -186,7 +190,7 @@ aside { display: flex; flex-direction: column; gap: 16px; }
   .tabs button { flex: 1; padding: 12px 4px; font-weight: 600; color: var(--muted); }
   .tabs button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
   body[data-tab="calendar"] aside,
-  body[data-tab="people"] #calendar, body[data-tab="people"] #panel-rules,
+  body[data-tab="people"] #calendar, body[data-tab="people"] #panel-rules, body[data-tab="people"] #panel-priority,
   body[data-tab="rules"] #calendar, body[data-tab="rules"] #panel-people { display: none; }
   .to-cal { display: block; align-self: flex-start; margin-bottom: 4px; padding: 8px 12px; }
   .panel { padding: 12px 14px; }

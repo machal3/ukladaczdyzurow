@@ -44,6 +44,11 @@
         <ul id="rules" class="list"></ul>
         <form id="add-rule" class="rule-form"></form>
       </div>
+      <div class="panel" id="panel-priority">
+        <h3>Priorytety układania <small>od najważniejszego</small></h3>
+        <ol id="priority" class="list"></ol>
+        <p class="hint">Twarde zasady (Nie mogę, limity, dzień po dniu, jeden rezydent, warunki) obowiązują zawsze.</p>
+      </div>
     </aside>
   </main>
 
@@ -58,6 +63,18 @@
       <h3 id="person-title" tabindex="-1" autofocus></h3>
       <div id="person-body"></div>
       <menu><button class="ghost to-cal" data-go="calendar">Dostępność →</button><button>Zamknij</button></menu>
+    </form>
+  </dialog>
+
+  <dialog id="variants" aria-labelledby="variants-title">
+    <form method="dialog">
+      <h3 id="variants-title">Wybierz wariant grafiku</h3>
+      <p class="hint">Najlepsze znalezione grafiki według priorytetów. Zaznacz, by zobaczyć go w kalendarzu.</p>
+      <div id="variants-list" class="variants"></div>
+      <menu>
+        <button value="cancel" class="ghost" formnovalidate>Anuluj</button>
+        <button value="ok">Zostaw zaznaczony</button>
+      </menu>
     </form>
   </dialog>
 

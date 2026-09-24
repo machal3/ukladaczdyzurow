@@ -1,4 +1,4 @@
-import { dateKey, daysInMonth, weekday, shiftsForDay, generateMonth, availOf, breaksRule, LEVELS, ROLES, badOf, BAD, history, parseTable, matchPerson, personLog, PAST_WEIGHT } from './scheduler.js';
+import { dateKey, daysInMonth, weekday, shiftsForDay, generateVariants, PRIORITIES, PRIORITY_ORDER, availOf, breaksRule, LEVELS, ROLES, badOf, BAD, history, parseTable, matchPerson, personLog, PAST_WEIGHT } from './scheduler.js';
 import { cloudLoad, cloudSave, cloudLogout } from './cloud.js';
 
 const DAYS = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So', 'Nd'];
@@ -21,6 +21,7 @@ state.limits ??= {}; // { personId: { shiftId: maks. dyżurów w miesiącu, '*':
 state.wants ??= {}; // { personId: { shiftId: ile dyżurów chce w miesiącu } } — prośby, miękkie (patrz generateMonth)
 state.bad ??= {}; // { 'YYYY-MM-DD': gównianość 0-3 } — patrz BAD/badOf; osoba: person.past 0-3
 state.rules ??= []; // [{ id, who, with, places: [shiftId] }] — patrz breaksRule
+state.priority = [...new Set([...(state.priority ?? []), ...PRIORITY_ORDER])].filter((k) => k in PRIORITIES); // kolejność kryteriów układania
 state.aliases ??= {}; // { 'imię z importowanej tabeli' (małe litery): personId } — zapamiętane połączenia z importu
 for (const p of state.people) p.prestige ??= 1; // 0 = Rezydent, 1–2 = Starszy asystent — patrz ROLES; p.gone = usunięta (zostaje dla przeszłych dyżurów)
 // jednorazowa migracja zapisanych danych: stare domyślne miejsca → OITN, PN1, PN2 (id zostają, więc grafik i limity też)
@@ -122,6 +123,9 @@ function render() {
     <fieldset><legend>to jest w:</legend>${state.shifts.map((s) =>
       `<label class="chk"><input type="checkbox" name="places" value="${s.id}">${esc(s.name)}</label>`).join('')}</fieldset>
     <button>Dodaj warunek</button>`;
+  $('#priority').innerHTML = state.priority.map((k, i) => `<li><span>${i + 1}. ${PRIORITIES[k]}</span>
+      <button class="x" data-up="${i}" ${i ? '' : 'disabled'} aria-label="Wyżej: ${PRIORITIES[k]}">↑</button>
+      <button class="x" data-up="${i + 1}" ${i < state.priority.length - 1 ? '' : 'disabled'} aria-label="Niżej: ${PRIORITIES[k]}">↓</button></li>`).join('');
   $('#status').textContent = view.bad ? 'Gównianość dni — klikaj dni, by zmienić' :
     view.who ? `Dostępność: ${nameOf[view.who]} — klikaj dni, by zmienić` :
     empty ? `Nieobsadzone: ${empty}` : '';
@@ -145,8 +149,22 @@ $('#generate').onclick = () => update(() => {
   const today = dateKey(now.getFullYear(), now.getMonth(), now.getDate());
   for (const k of keys) if (k < today) for (const [sid, pid] of Object.entries(state.schedule[k] || {}))
     if (gone.has(pid)) (locked[k] = { ...locked[k] })[sid] = pid;
-  Object.assign(state.schedule, generateMonth(view.y, view.m, state.shifts, people, locked, state.avail,
-    Object.fromEntries(team().map((p) => [p.id, { we: WEEKEND_LIMIT, ...state.limits[p.id] }])), state.rules, state.bad, state.wants));
+  const variants = generateVariants(view.y, view.m, state.shifts, people, locked, state.avail,
+    Object.fromEntries(team().map((p) => [p.id, { we: WEEKEND_LIMIT, ...state.limits[p.id] }])), state.rules, state.bad, state.wants, { order: state.priority });
+  const prev = Object.fromEntries(keys.map((k) => [k, state.schedule[k]]));
+  const apply = (i) => update(() => Object.assign(state.schedule, variants[i].schedule));
+  apply(0);
+  if (variants.length < 2) return;
+  // Kilka równie dobrych/podobnych grafików → wybór; zaznaczenie od razu pokazuje wariant w kalendarzu
+  $('#variants-list').innerHTML = variants.map(({ score: s }, i) => `<label class="chk"><input type="radio" name="variant" value="${i}" ${i ? '' : 'checked'}>
+    <span><b>Wariant ${i + 1}</b> — nieobsadzone: ${s.unfilled}, „W ostateczności”: ${s.lastResort}, kanapki: ${s.sandwich},
+    niespełnione prośby: ${s.wants}, różnica liczby dyżurów: ${s.spread}</span></label>`).join('');
+  $('#variants-list').onchange = (e) => apply(+e.target.value);
+  $('#variants').onclose = () => {
+    if ($('#variants').returnValue === 'cancel') update(() => { for (const k of keys) if (prev[k]) state.schedule[k] = prev[k]; else delete state.schedule[k]; });
+  };
+  $('#variants').returnValue = '';
+  $('#variants').showModal();
 });
 
 // Zakładki na telefonie (na szerokim ekranie ukryte, wszystko widać naraz)
@@ -230,7 +248,8 @@ $('#add-rule').onsubmit = (e) => {
 };
 
 document.querySelector('aside').onclick = (e) => {
-  const { delPerson, delRule, who } = e.target.dataset;
+  const { delPerson, delRule, who, up } = e.target.dataset;
+  if (up) update(() => { const i = +up; [state.priority[i - 1], state.priority[i]] = [state.priority[i], state.priority[i - 1]]; });
   if (e.target.dataset.go) { showTab(e.target.dataset.go); scrollTo(0, 0); }
   if (delRule) update(() => { state.rules = state.rules.filter((r) => r.id !== delRule); });
   if (who) { view.who = view.who === who ? null : who; view.bad = false; if (view.who) $('#person').showModal(); render(); }

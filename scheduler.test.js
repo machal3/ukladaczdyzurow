@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { generateMonth, dateKey, history, badOf, parseTable, matchPerson, personLog } from './scheduler.js';
+import { generateMonth, generateVariants, scoreMonth, dateKey, history, badOf, parseTable, matchPerson, personLog } from './scheduler.js';
 
 const people = ['a', 'b', 'c', 'd'].map((id) => ({ id, name: id }));
 const all = [0, 1, 2, 3, 4, 5, 6];
@@ -205,4 +205,30 @@ test('historia osoby: okno miesięcy, gównianość dnia, przerwa liczona też s
   ]);
   assert.equal(personLog(schedule, {}, 'a', 2025, 8, 1)[0].gap, 3);
   assert.equal(personLog(schedule, {}, 'a', 2025, 7, 1)[0].gap, null);
+});
+
+test('warianty: losowe próby omijają ślepy zaułek zachłannego układania', () => {
+  const one = [{ id: 's', name: 'S', days: [3, 4] }]; // czw + pt
+  const ab = [{ id: 'a', name: 'a', prestige: 1 }, { id: 'b', name: 'b', prestige: 1 }];
+  const avail = { b: { [dateKey(2026, 9, 2)]: 0 } }; // 1.10 czw: obaj mogą, 2.10 pt: tylko a
+  const greedy = scoreMonth(2026, 9, generateMonth(2026, 9, one, ab, {}, avail), one, ab, avail);
+  const [best] = generateVariants(2026, 9, one, ab, {}, avail);
+  assert.ok(greedy.unfilled > 0);
+  assert.equal(best.score.unfilled, 0);
+  assert.equal(best.schedule[dateKey(2026, 9, 2)].s, 'a');
+});
+
+test('priorytety: prośba przed dostępnością wygrywa z „Chcę”', () => {
+  const one = [{ id: 's', name: 'S', days: all }];
+  const k = dateKey(2026, 9, 1);
+  const avail = { a: { [k]: 3 } }, wants = { b: { s: 20 } };
+  assert.equal(generateMonth(2026, 9, one, people, {}, avail, {}, [], {}, wants)[k].s, 'a');
+  assert.equal(generateMonth(2026, 9, one, people, {}, avail, {}, [], {}, wants, { order: ['wants', 'avail', 'sandwich', 'bad', 'even'] })[k].s, 'b');
+});
+
+test('warianty: różne grafiki, najlepszy nie gorszy od zwykłego układania', () => {
+  const v = generateVariants(2026, 9, shifts, people);
+  const greedy = scoreMonth(2026, 9, generateMonth(2026, 9, shifts, people), shifts, people);
+  assert.ok(v.length > 1 && new Set(v.map((x) => JSON.stringify(x.schedule))).size === v.length);
+  assert.ok(v[0].score.unfilled <= greedy.unfilled);
 });
