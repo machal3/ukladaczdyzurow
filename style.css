@@ -56,6 +56,7 @@ button:disabled { background: color-mix(in srgb, var(--text) 12%, transparent); 
 .app-header h1 { flex: 1; min-width: 0; font: 400 57px/64px var(--headline); letter-spacing: -2px; }
 .bar > .tabs > button { padding: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; color: var(--muted); font-size: 12px; min-height: 80px; background: transparent; border-radius: 20px; }
 .nav-icon { display: grid; place-items: center; width: 64px; height: 32px; border-radius: 999px; }
+.nav-icon svg { width: 20px; height: 20px; }
 .bar > .tabs > button[aria-pressed=true] { color: var(--md-sys-color-on-secondary-container); }
 .tabs button[aria-pressed=true] .nav-icon { background: var(--md-sys-color-secondary-container); }
 /* MD3: warstwa stanu (hover/focus/press) tylko na pigułce ikony, nie na całym przycisku */
@@ -257,6 +258,8 @@ dialog h4 { font: 600 16px/24px var(--headline); margin: 8px 0 16px; }
 .app-row h4 { margin: 0; }
 dialog menu { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; padding: 0; }
 #person { padding-bottom: 0; }
+.person-head { position: sticky; top: -28px; z-index: 2; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; padding-block: 12px; background: var(--md-sys-color-surface-container-high); } /* top = −padding okna: przykleja się do samej krawędzi */
+.person-head h3 { min-width: 0; overflow-wrap: anywhere; }
 #person menu { position: sticky; bottom: 0; background: var(--md-sys-color-surface-container-high); padding: 16px 0 24px; }
 .ptabs { display: flex; gap: 0; padding: 0; border: 1px solid var(--md-sys-color-outline); border-radius: var(--shape-full); background: transparent; align-self: start; overflow: hidden; }
 .ptabs button { padding-inline: 24px; border-radius: 0; }
@@ -394,12 +397,12 @@ body:has(.login) { padding: 24px; min-height: 100dvh; display: grid; place-items
   dialog { padding: 24px 16px; max-height: calc(100dvh - 24px); }
   dialog h3 { font-size: 22px; }
   #person { width: calc(100vw - 16px); }
-  #person-title { position: sticky; top: -24px; z-index: 2; padding-block: 12px; background: var(--md-sys-color-surface-container-high); }
+  .person-head { top: -24px; }
   #person menu { padding-bottom: max(16px, env(safe-area-inset-bottom)); }
   .person-grid { grid-template-columns: 1fr; gap: 16px; }
   .person-grid section { padding: 16px; }
   .counts input[type=number] { font-size: 16px; width: 52px; padding-inline: 4px; }
-  .ptabs { align-self: stretch; }
+  .ptabs { flex: 1 1 100%; }
   .ptabs button { flex: 1; padding-inline: 12px; }
   .map { grid-template-columns: 1fr; }
   .map select { margin-bottom: 8px; }
