@@ -1,11 +1,12 @@
 import { dateKey, daysInMonth, weekday, shiftsForDay, generateMonth, availOf, breaksRule, LEVELS, ROLES, badOf, BAD, history, parseTable, matchPerson } from './scheduler.js';
+import { cloudLoad, cloudSave, cloudLogout } from './cloud.js';
 
 const DAYS = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So', 'Nd'];
 const STORE = 'dyzury-v1';
 const WEEKEND_LIMIT = 2; // domyślny limit dyżurów Pt/So/Nd w miesiącu, gdy osoba nie ustawiła własnego
 
-// ponytail: localStorage jako baza; backend dopiero gdy dane mają być współdzielone między osobami
-let state = load() || {
+const cloud = await cloudLoad(); // null = tryb lokalny (tylko localStorage)
+let state = cloud?.data ?? load() ?? {
   people: ['Anna Kowalska', 'Jan Nowak', 'Piotr Wiśniewski', 'Maria Zając', 'Tomasz Lis'].map(person),
   shifts: [
     { id: uid(), name: 'OITN', days: [0, 1, 2, 3, 4, 5, 6] },
@@ -30,13 +31,14 @@ if (!state.miejscaV2) {
   state.miejscaV2 = true;
   save();
 }
+if (cloud && !cloud.data) save(); // pusta chmura → wysyłamy to, co było w tej przeglądarce
 const now = new Date();
 let view = { y: now.getFullYear(), m: now.getMonth(), who: null, bad: false }; // who: osoba, której dostępność edytujemy; bad: tryb oceny gównianości dni
 
 function uid() { return Math.random().toString(36).slice(2, 10); }
 function person(name) { return { id: uid(), name, prestige: 1 }; }
 function load() { try { return JSON.parse(localStorage.getItem(STORE)); } catch { return null; } }
-function save() { try { localStorage.setItem(STORE, JSON.stringify(state)); } catch {} }
+function save() { const json = JSON.stringify(state); try { localStorage.setItem(STORE, json); } catch {} cloudSave(json); }
 const $ = (s) => document.querySelector(s);
 const esc = (s) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 const monthKeys = () => Array.from({ length: daysInMonth(view.y, view.m) }, (_, i) => dateKey(view.y, view.m, i + 1));
@@ -348,5 +350,7 @@ dlg.onclose = () => {
     }
   });
 };
+
+if (cloud) { $('#logout').hidden = false; $('#logout').onclick = cloudLogout; }
 
 render();
