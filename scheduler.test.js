@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { generateMonth, dateKey, history, badOf } from './scheduler.js';
+import { generateMonth, dateKey, history, badOf, parseTable, matchPerson } from './scheduler.js';
 
 const people = ['a', 'b', 'c', 'd'].map((id) => ({ id, name: id }));
 const all = [0, 1, 2, 3, 4, 5, 6];
@@ -151,4 +151,32 @@ test('kanapki: unika dyżuru z jednym dniem przerwy, chyba że osoba chce ten dz
   assert.equal(generateMonth(2026, 9, one, trio, {}, { a: { [k]: 3 } })[k].s, 'a'); // a miał 1.10, ale chce 3.10
   const locked = { [dateKey(2026, 9, 5)]: { s: 'b' } };
   assert.notEqual(generateMonth(2026, 9, one, people, locked)[k].s, 'b'); // b wpisany ręcznie 5.10 → nie 3.10
+});
+
+test('import tabeli: nagłówek z miejscami, dni, puste komórki i zły dzień tygodnia', () => {
+  const rows = [
+    ['', '', 'OITN', 'PN2', 'Inne'],
+    ['1.', 'czwartek', 'M. Krzysztofik', ' D.  Bulsiewicz ', 'X'],
+    ['2.', 'piątek', '', '—', ''],
+    ['', '', '', '', ''],
+    ['40', 'sobota', 'A', 'B', ''],
+  ];
+  const sh = [{ id: 'o', name: 'OITN' }, { id: 'p2', name: 'pn2' }];
+  const oct = parseTable(rows, 2026, 9, sh); // 1.10.2026 = czwartek
+  assert.deepEqual(oct.days, { 1: { o: 'M. Krzysztofik', p2: 'D. Bulsiewicz' }, 2: {} });
+  assert.equal(oct.warn.length, 1); // pominięty wiersz 40
+  assert.equal(parseTable(rows, 2026, 8, sh).warn.length, 2); // wrzesień: dni tygodnia się nie zgadzają
+  assert.equal(parseTable([['a']], 2026, 9, sh).warn.length, 1);
+});
+
+test('dopasowanie osób z tabeli: inicjał + nazwisko, samo nazwisko, niejednoznaczne → null', () => {
+  const ppl = [['a', 'Anna Niezgoda'], ['m', 'Marta Kłodzińska'], ['k1', 'Kasia Sowa'], ['k2', 'Karol Sowa']].map(([id, name]) => ({ id, name }));
+  assert.equal(matchPerson('A. Niezgoda', ppl), 'a');
+  assert.equal(matchPerson('Niezgoda', ppl), 'a');
+  assert.equal(matchPerson('M. KŁODZIŃSKA', ppl), 'm');
+  assert.equal(matchPerson('K. Sowa', ppl), null);
+  assert.equal(matchPerson('Ka. Sowa', ppl), null);
+  assert.equal(matchPerson('Kas. Sowa', ppl), 'k1');
+  assert.equal(matchPerson('B. Niezgoda', ppl), null);
+  assert.equal(matchPerson('A. Niezgoda', [{ id: 'n', name: 'Niezgoda' }]), null); // samo nazwisko nie łapie osoby z inicjałem
 });

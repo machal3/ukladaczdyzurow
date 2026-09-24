@@ -109,3 +109,43 @@ export function generateMonth(y, m, shifts, people, locked = {}, avail = {}, lim
 
 const lockedOn = (locked, y, m, d, pid) =>
   d <= daysInMonth(y, m) && Object.values(locked[dateKey(y, m, d)] || {}).includes(pid);
+
+// Import grafiku z tabeli (np. z Worda): rows = [[tekst komórki]]. Nagłówek = pierwszy wiersz z nazwą któregoś miejsca,
+// dzień = liczba w pierwszej kolumnie, nazwa dnia tygodnia (jeśli jest) sprawdzana z miesiącem y/m.
+// Zwraca { days: { dzień: { shiftId: imię z tabeli } }, warn: [tekst] }.
+const WEEKDAYS = ['poniedziałek', 'wtorek', 'środa', 'czwartek', 'piątek', 'sobota', 'niedziela'];
+const same = (a, b) => a.localeCompare(b, 'pl', { sensitivity: 'base' }) === 0;
+const clean = (s) => String(s ?? '').trim().replace(/\s+/g, ' ');
+export function parseTable(rows, y, m, shifts) {
+  rows = rows.map((r) => r.map(clean));
+  const h = rows.findIndex((r) => r.some((c) => shifts.some((s) => same(s.name, c))));
+  const warn = [];
+  if (h < 0) return { days: {}, warn: [`Brak nagłówka z nazwą miejsca (${shifts.map((s) => s.name).join(', ')}).`] };
+  const cols = rows[h].map((c) => shifts.find((s) => same(s.name, c))?.id);
+  const days = {};
+  let wrongDow = 0;
+  for (const r of rows.slice(h + 1)) {
+    if (!r.some(Boolean)) continue;
+    const d = parseInt(r[0], 10);
+    if (!(d >= 1 && d <= daysInMonth(y, m))) { warn.push(`Pominięto wiersz: ${r.filter(Boolean).join(' · ')}`); continue; }
+    const dow = WEEKDAYS.findIndex((w) => r.some((c) => same(c, w)));
+    if (dow >= 0 && dow !== weekday(y, m, d)) wrongDow++;
+    days[d] = Object.fromEntries(cols.map((sid, i) => [sid, r[i]]).filter(([sid, name]) => sid && name && !/^[-—–]+$/.test(name)));
+  }
+  if (wrongDow) warn.push(`Dni tygodnia z tabeli nie pasują do tego miesiąca (${wrongDow} dni) — czy to na pewno ten miesiąc?`);
+  return { days, warn };
+}
+
+// Kto z `people` ({ id, name }) to imię z tabeli: pełne imię i nazwisko, „M. Kowalska” (inicjał + nazwisko) albo samo nazwisko.
+// Zwraca id tylko przy jednoznacznym dopasowaniu, inaczej null.
+export function matchPerson(raw, people) {
+  const exact = people.filter((p) => same(p.name, raw));
+  if (exact.length) return exact.length === 1 ? exact[0].id : null;
+  const w = raw.split(' ');
+  const first = w.length > 1 ? w[0].replace(/\.$/, '') : '';
+  const hits = people.filter((p) => {
+    const pw = p.name.split(' ');
+    return same(pw.at(-1), w.at(-1)) && (!first || (pw.length > 1 && same(pw[0].slice(0, first.length), first)));
+  });
+  return hits.length === 1 ? hits[0].id : null;
+}

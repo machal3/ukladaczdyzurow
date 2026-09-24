@@ -1,4 +1,4 @@
-import { dateKey, daysInMonth, weekday, shiftsForDay, generateMonth, availOf, breaksRule, LEVELS, ROLES, badOf, BAD, history } from './scheduler.js';
+import { dateKey, daysInMonth, weekday, shiftsForDay, generateMonth, availOf, breaksRule, LEVELS, ROLES, badOf, BAD, history, parseTable, matchPerson } from './scheduler.js';
 
 const DAYS = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So', 'Nd'];
 const STORE = 'dyzury-v1';
@@ -19,6 +19,7 @@ state.avail ??= {}; // { personId: { 'YYYY-MM-DD': poziom 0-3 } } — patrz LEVE
 state.limits ??= {}; // { personId: { shiftId: maks. dyżurów w miesiącu, '*': maks. łącznie, we: maks. Pt/So/Nd } } — brak = bez limitu (we: WEEKEND_LIMIT)
 state.bad ??= {}; // { 'YYYY-MM-DD': gównianość 0-3 } — patrz BAD/badOf; osoba: person.past 0-3
 state.rules ??= []; // [{ id, who, with, places: [shiftId] }] — patrz breaksRule
+state.aliases ??= {}; // { 'imię z importowanej tabeli' (małe litery): personId } — zapamiętane połączenia z importu
 for (const p of state.people) p.prestige ??= 1; // 0 = Rezydent, 1–2 = Starszy asystent — patrz ROLES; p.gone = usunięta (zostaje dla przeszłych dyżurów)
 // jednorazowa migracja zapisanych danych: stare domyślne miejsca → OITN, PN1, PN2 (id zostają, więc grafik i limity też)
 if (!state.miejscaV2) {
@@ -239,6 +240,112 @@ document.querySelector('aside').onchange = (e) => {
   update(() => {
     const l = (state.limits[view.who] ??= {});
     if (n >= 0) l[sid] = n; else delete l[sid];
+  });
+};
+
+// Import grafiku z tabeli: plik .docx albo wklejony tekst → podgląd i łączenie osób → zapis jako ręczne dyżury.
+// imp = { days: { dzień: { shiftId: imię } }, warn, names: [imię], map: { imię: personId | 'new:imię' | '' (pomiń) } }
+let imp = null;
+const dlg = $('#import');
+
+// ponytail: czyta tylko pierwszą tabelę z word/document.xml (zip + natywny DecompressionStream), bez bibliotek; .doc/.odt nie
+async function docxRows(file) {
+  const buf = await file.arrayBuffer(), v = new DataView(buf);
+  let e = buf.byteLength - 22;
+  while (e > 0 && v.getUint32(e, true) !== 0x06054b50) e--; // koniec katalogu centralnego zip
+  for (let p = v.getUint32(e + 16, true), n = v.getUint16(e + 10, true); n--; ) {
+    const len = v.getUint16(p + 28, true);
+    if (new TextDecoder().decode(new Uint8Array(buf, p + 46, len)) === 'word/document.xml') {
+      const off = v.getUint32(p + 42, true);
+      const data = new Blob([new Uint8Array(buf, off + 30 + v.getUint16(off + 26, true) + v.getUint16(off + 28, true), v.getUint32(p + 20, true))]);
+      const xml = await new Response(v.getUint16(p + 10, true) ? data.stream().pipeThrough(new DecompressionStream('deflate-raw')) : data).text();
+      const all = (el, tag) => [...el.getElementsByTagName(tag)];
+      const tbl = all(new DOMParser().parseFromString(xml, 'application/xml'), 'w:tbl')[0];
+      return tbl ? all(tbl, 'w:tr').map((tr) => all(tr, 'w:tc').map((tc) => all(tc, 'w:p').map((p) => all(p, 'w:t').map((t) => t.textContent).join('')).join(' '))) : [];
+    }
+    p += 46 + len + v.getUint16(p + 30, true) + v.getUint16(p + 32, true);
+  }
+  return [];
+}
+
+function loadImport(rows) {
+  const t = parseTable(rows, view.y, view.m, state.shifts);
+  const names = [...new Set(Object.values(t.days).flatMap(Object.values))].sort((a, b) => a.localeCompare(b, 'pl'));
+  const map = {};
+  // najpierw osoby z programu (zapamiętane połączenie, potem nazwisko), reszta łączy się między sobą: „Niezgoda” → nowa „A. Niezgoda”
+  for (const n of names) map[n] = team().find((p) => p.id === state.aliases[n.toLowerCase()])?.id ?? matchPerson(n, team()) ?? '';
+  const fresh = names.filter((n) => !map[n]).map((n) => ({ id: 'new:' + n, name: n }));
+  for (const n of names) map[n] ||= matchPerson(n, [...team(), ...fresh.filter((p) => p.name !== n)]) ?? 'new:' + n;
+  imp = { ...t, names, map };
+  renderImport();
+}
+
+// 'new:X', gdy X połączono z kimś innym, idzie za X (jeden krok — bez pętli)
+const target = (v) => v.startsWith('new:') && imp.map[v.slice(4)] !== v ? imp.map[v.slice(4)] : v;
+
+function renderImport() {
+  const nameOf = Object.fromEntries(team().map((p) => [p.id, p.name]));
+  const label = (v) => !v ? `<span class="skip">pominięty</span>` : v.startsWith('new:') ? `<span class="new">${esc(v.slice(4))} (nowa)</span>` : esc(nameOf[v]);
+  const cols = state.shifts.filter((s) => Object.values(imp.days).some((d) => s.id in d));
+  const n = Object.values(imp.days).reduce((a, d) => a + Object.values(d).filter((raw) => target(imp.map[raw])).length, 0);
+  $('#import-preview').innerHTML = !imp.names.length && !imp.warn.length ? '' :
+    (imp.warn.length ? `<ul class="warn">${imp.warn.map((w) => `<li>${esc(w)}</li>`).join('')}</ul>` : '') +
+    `<h4>Połącz osoby <small>kto z programu to osoba z tabeli</small></h4><div class="map">` +
+    imp.names.map((raw, i) => `<label for="imp-${i}">${esc(raw)}</label>
+      <select id="imp-${i}" data-raw="${esc(raw)}" class="${imp.map[raw] ? imp.map[raw].startsWith('new:') ? 'new' : '' : 'skip'}">
+        <option value="">— pomiń</option>
+        <optgroup label="Osoby w programie">${team().map((p) => `<option value="${p.id}" ${imp.map[raw] === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</optgroup>
+        <optgroup label="Dodaj jako nową osobę">${imp.names.map((o) => `<option value="new:${esc(o)}" ${imp.map[raw] === 'new:' + o ? 'selected' : ''}>${esc(o)}</option>`).join('')}</optgroup>
+      </select>`).join('') + '</div>' +
+    `<h4>Podgląd <small>${Object.keys(imp.days).length} dni · ${n} dyżurów</small></h4><table class="preview"><tr><th>Dzień</th>${cols.map((s) => `<th>${esc(s.name)}</th>`).join('')}</tr>` +
+    Object.entries(imp.days).map(([d, day]) => `<tr class="${weekday(view.y, view.m, +d) > 4 ? 'weekend' : ''}"><td>${d} ${DAYS[weekday(view.y, view.m, +d)]}</td>` +
+      cols.map((s) => `<td>${s.id in day ? label(target(imp.map[day[s.id]])) : ''}</td>`).join('') + '</tr>').join('') + '</table>';
+  $('#import-ok').disabled = !n;
+  $('#import-ok').textContent = n ? `Importuj ${n} dyżurów` : 'Importuj';
+}
+
+$('#import-open').onclick = () => {
+  imp = null;
+  dlg.returnValue = '';
+  dlg.querySelector('form').reset();
+  $('#import-preview').innerHTML = '';
+  $('#import-ok').disabled = true;
+  $('#import-ok').textContent = 'Importuj';
+  $('#import-title').textContent = `Import grafiku — ${$('#month-label').textContent}`;
+  dlg.showModal();
+};
+dlg.oninput = (e) => {
+  if (e.target.name === 'paste') loadImport(e.target.value.split(/\r?\n/).map((l) => l.split('\t')));
+};
+dlg.onchange = async (e) => {
+  const { raw } = e.target.dataset;
+  if (raw !== undefined) { imp.map[raw] = e.target.value; return renderImport(); }
+  const file = e.target.files?.[0];
+  if (!file) return;
+  let rows = [];
+  try { rows = await docxRows(file); } catch {}
+  if (!rows.length) { imp = null; $('#import-preview').innerHTML = '<ul class="warn"><li>Nie znaleziono tabeli w pliku — potrzebny plik Word .docx.</li></ul>'; return; }
+  loadImport(rows);
+};
+dlg.onclose = () => {
+  if (dlg.returnValue !== 'ok' || !imp) return;
+  update(() => {
+    const ids = {};
+    for (const raw of imp.names) {
+      const v = target(imp.map[raw]);
+      if (!v.startsWith('new:')) { ids[raw] = v; continue; }
+      const name = v.slice(4);
+      let p = state.people.find((p) => sameName(p.name, name));
+      if (!p) state.people.push(p = person(name));
+      delete p.gone; // usunięta osoba o tym imieniu wraca, jak przy dodawaniu
+      ids[raw] = p.id;
+    }
+    for (const raw in ids) if (ids[raw]) state.aliases[raw.toLowerCase()] = ids[raw];
+    for (const [d, day] of Object.entries(imp.days)) {
+      const key = dateKey(view.y, view.m, +d);
+      for (const [sid, raw] of Object.entries(day)) if (ids[raw])
+        for (const obj of [state.schedule, state.manual]) (obj[key] ??= {})[sid] = ids[raw];
+    }
   });
 };
 

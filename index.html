@@ -20,6 +20,7 @@
     <div class="actions">
       <span id="status" role="status"></span>
       <button id="bad-mode" class="ghost" aria-pressed="false" title="Oceń, jak gówniany jest każdy dzień (0-3)">Gównianość</button>
+      <button id="import-open" class="ghost" title="Wczytaj grafik z tabeli (Word .docx albo wklejona)">Importuj</button>
       <button id="clear" class="ghost">Wyczyść</button>
       <button id="generate">Ułóż miesiąc</button>
     </div>
@@ -44,5 +45,19 @@
       </div>
     </aside>
   </main>
+
+  <dialog id="import" aria-labelledby="import-title">
+    <form method="dialog">
+      <h3 id="import-title"></h3>
+      <p class="hint">Tabela jak w Wordzie: nagłówek z nazwami miejsc, w pierwszej kolumnie numer dnia. Dyżury trafią do grafiku jako ręczne.</p>
+      <label class="file">Plik Word (.docx) <input type="file" name="file" accept=".docx"></label>
+      <textarea name="paste" rows="3" placeholder="…albo zaznacz tabelę w Wordzie/Excelu, skopiuj i wklej tutaj"></textarea>
+      <div id="import-preview"></div>
+      <menu>
+        <button value="cancel" class="ghost" formnovalidate>Anuluj</button>
+        <button value="ok" id="import-ok" disabled>Importuj</button>
+      </menu>
+    </form>
+  </dialog>
 </body>
 </html>

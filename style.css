@@ -153,3 +153,30 @@ aside { display: flex; flex-direction: column; gap: 16px; }
   .dow, .cell.empty { display: none; }
   .cell { min-height: 0; }
 }
+
+/* Import z tabeli */
+dialog {
+  border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); color: var(--text);
+  padding: 20px; width: min(760px, calc(100vw - 32px)); max-height: calc(100vh - 32px);
+}
+dialog::backdrop { background: rgb(0 0 0 / .4); }
+dialog form { display: flex; flex-direction: column; gap: 12px; }
+dialog h3 { font-size: 16px; font-weight: 600; }
+.hint, dialog h4 small { color: var(--muted); font-size: 12px; font-weight: 400; }
+dialog h4 { font-size: 13px; font-weight: 600; margin: 4px 0 6px; }
+.file { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+dialog textarea, dialog select { border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; background: var(--bg); font: inherit; font-size: 12px; color: inherit; }
+dialog textarea { resize: vertical; }
+.warn { color: var(--warn); font-size: 12px; padding-left: 18px; }
+.map { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; align-items: center; font-size: 13px; }
+.map select { min-width: 0; }
+.map .new { border-color: var(--maybe); }
+.map .skip { border-color: var(--warn); }
+.preview { border-collapse: collapse; font-size: 12px; width: 100%; }
+.preview th, .preview td { border-bottom: 1px solid var(--line); padding: 3px 8px; text-align: left; white-space: nowrap; }
+.preview th { color: var(--muted); font-weight: 500; }
+.preview .weekend { background: var(--weekend); }
+.preview .new { color: var(--maybe); }
+.preview .skip { color: var(--warn); text-decoration: line-through; }
+dialog menu { display: flex; justify-content: flex-end; gap: 8px; padding: 0; }
+button:disabled { opacity: .4; cursor: default; }
