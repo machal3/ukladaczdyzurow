@@ -28,21 +28,25 @@ export const badOf = (bad, y, m, d) => bad[dateKey(y, m, d)] ?? BAD_DEFAULT[week
 // ponytail: stała waga na oko (poziom 3 ≈ trzy gówniane dni); stroić, jeśli wychodzi niesprawiedliwie.
 export const PAST_WEIGHT = 3;
 
-// Gównianość z poprzednich miesięcy grafiku: punkty × ½ (miesiąc temu), × ¼, × ⅛; tragic = kto miał Tragiczny miesiąc temu.
-// Zwraca { pts: { personId: punkty }, tragic: Set(personId) } — do doliczenia jako person.hist / person.tragic.
+// Gównianość z poprzednich miesięcy grafiku: punkty × ½ (miesiąc temu), × ¼, × ⅛; tragic = data ostatniego Tragicznego
+// sprzed tego miesiąca — z całego grafiku, bez limitu wstecz (Tragiczne idą rotacyjnie, rzadko i po równo).
+// Zwraca { pts: { personId: punkty }, tragic: { personId: 'YYYY-MM-DD' } } — do doliczenia jako person.hist / person.tragic.
 export function history(schedule, bad, y, m, months = 3) {
   const pts = {};
-  const tragic = new Set();
+  const tragic = {};
   for (let i = 1; i <= months; i++) {
     const py = y + Math.floor((m - i) / 12), pm = (m - i + 12 * months) % 12;
     for (let d = 1; d <= daysInMonth(py, pm); d++) {
       const b = badOf(bad, py, pm, d);
       for (const pid of Object.values(schedule[dateKey(py, pm, d)] || {})) {
         pts[pid] = (pts[pid] || 0) + b / 2 ** i;
-        if (i === 1 && b === 3) tragic.add(pid);
       }
     }
   }
+  const start = dateKey(y, m, 1);
+  for (const [key, day] of Object.entries(schedule))
+    if (key < start && badOf(bad, +key.slice(0, 4), key.slice(5, 7) - 1, +key.slice(8)) === 3)
+      for (const pid of Object.values(day)) if (!(tragic[pid] >= key)) tragic[pid] = key;
   return { pts, tragic };
 }
 
@@ -76,7 +80,7 @@ export const shiftsForDay = (shifts, y, m, d) => shifts.filter((s) => s.days.inc
 // chyba że osoba ma person.pn1Sandwich === false), potem różne dni weekendu (w ten sam Pt/So/Nd maks. limits[pid].d4/d5/d6 dyżurów, domyślnie 1 — miękko), potem prośby: kto ma mniej dyżurów na tym miejscu, niż prosił
 // (wants = { personId: { shiftId: n, d4/d5/d6: n w ten dzień weekendu, we: n w Pt/So/Nd, '*': n łącznie } }, miękkie — nie łamie limitów ani zakazów), potem w gówniany dzień najmniejsze
 // obciążenie gównianością (person.past + person.hist z poprzednich miesięcy + ten miesiąc), potem równy podział liczby dyżurów.
-// W dzień Tragiczny na koniec kolejki idą ci, którzy mieli Tragiczny miesiąc temu (person.tragic) albo już w tym miesiącu.
+// W dzień Tragiczny najpierw ci, którzy mieli ostatni Tragiczny najdawniej albo wcale (person.tragic = data, liczy się też ten miesiąc).
 // Wpisy z `locked` (ręczne) są zachowane i liczą się do bilansu.
 // rand (np. Math.random) = remisy i kolejność miejsc w dniu losowo — do szukania wariantów (patrz generateVariants).
 // ponytail: zachłanny algorytm dzień po dniu; preferencje/limity → podmienić na solver (np. ILP) z tym samym interfejsem.
@@ -84,7 +88,7 @@ export function generateMonth(y, m, shifts, people, locked = {}, avail = {}, lim
   const result = {};
   const count = Object.fromEntries(people.map((p) => [p.id, 0]));
   const burden = Object.fromEntries(people.map((p) => [p.id, (p.past ?? 0) * PAST_WEIGHT + (p.hist ?? 0)]));
-  const tragic = Object.fromEntries(people.map((p) => [p.id, +!!p.tragic])); // 1 = miał(a) już Tragiczny
+  const tragic = Object.fromEntries(people.map((p) => [p.id, p.tragic ?? ''])); // data ostatniego Tragicznego, '' = nigdy
   const perShift = {}; // 'personId:shiftId' → liczba dyżurów; 'personId:d4..d6' → dyżury w Pt/So/Nd; '*' i 'we' — pod prośby
   const we = {}; // personId → liczba dyżurów w Pt/So/Nd
   const isWe = (d) => weekday(y, m, d) >= 4;
@@ -92,7 +96,7 @@ export function generateMonth(y, m, shifts, people, locked = {}, avail = {}, lim
     count[pid]++; perShift[`${pid}:${sid}`] = (perShift[`${pid}:${sid}`] || 0) + 1; perShift[`${pid}:*`] = count[pid];
     if (isWe(d)) { perShift[`${pid}:we`] = we[pid] = (we[pid] || 0) + 1; perShift[`${pid}:d${weekday(y, m, d)}`] = (perShift[`${pid}:d${weekday(y, m, d)}`] || 0) + 1; }
     burden[pid] += badOf(bad, y, m, d);
-    if (badOf(bad, y, m, d) === 3) tragic[pid] = 1;
+    if (badOf(bad, y, m, d) === 3) tragic[pid] = dateKey(y, m, d);
   };
   const underLimit = (pid, sid, d) => (perShift[`${pid}:${sid}`] || 0) < (limits[pid]?.[sid] ?? Infinity) &&
     count[pid] < (limits[pid]?.['*'] ?? Infinity) && (!isWe(d) || (we[pid] || 0) < (limits[pid]?.we ?? Infinity));
@@ -138,7 +142,7 @@ export function generateMonth(y, m, shifts, people, locked = {}, avail = {}, lim
         weDow: (a, b) => dowFull(a.id, d) - dowFull(b.id, d),
         wants: (a, b) => short(b.id, s.id) - short(a.id, s.id) || (isWe(d) && (short(b.id, `d${weekday(y, m, d)}`) - short(a.id, `d${weekday(y, m, d)}`) || short(b.id, 'we') - short(a.id, 'we'))) ||
           short(b.id, '*') - short(a.id, '*'),
-        bad: (a, b) => (isTragic && tragic[a.id] - tragic[b.id]) || (isBad && burden[a.id] - burden[b.id]),
+        bad: (a, b) => (isTragic && tragic[a.id].localeCompare(tragic[b.id])) || (isBad && burden[a.id] - burden[b.id]),
         even: (a, b) => count[a.id] - count[b.id],
       };
       const pick = people
@@ -270,4 +274,23 @@ export function matchPerson(raw, people) {
     return same(pw.at(-1), w.at(-1)) && (!first || (pw.length > 1 && same(pw[0].slice(0, first.length), first)));
   });
   return hits.length === 1 ? hits[0].id : null;
+}
+
+// Zakładka Osoby: szukanie po fragmentach imienia i nazwiska (bez wielkości liter i polskich znaków),
+// filtr funkcji ('rez' / 'sa') i osób bez dyżurów w miesiącu, sortowanie; count = { personId: dyżury w miesiącu }
+const fold = (s) => s.toLowerCase().replace(/ł/g, 'l').normalize('NFD').replace(/\p{M}/gu, '');
+export function listPeople(people, count, { q = '', role = null, none = false, sort = 'surname' } = {}) {
+  const words = fold(q).split(/\s+/).filter(Boolean);
+  const abc = (a, b) => a.localeCompare(b, 'pl', { sensitivity: 'base' });
+  const last = (p) => p.name.trim().split(/\s+/).at(-1);
+  const cmp = {
+    surname: (a, b) => abc(last(a), last(b)),
+    name: () => 0,
+    most: (a, b) => (count[b.id] ?? 0) - (count[a.id] ?? 0),
+    least: (a, b) => (count[a.id] ?? 0) - (count[b.id] ?? 0),
+    role: (a, b) => b.prestige - a.prestige,
+  }[sort] ?? (() => 0);
+  return people.filter((p) => words.every((w) => fold(p.name).includes(w)) &&
+    (!role || (role === 'rez') === !p.prestige) && (!none || !count[p.id]))
+    .sort((a, b) => cmp(a, b) || abc(a.name, b.name));
 }

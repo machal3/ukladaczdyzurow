@@ -3,3 +3,9 @@
 .idea
 server.js
 *.test.js
+node_modules
+dist
+.visual-check
+scripts
+eslint.config.js
+tsconfig.json

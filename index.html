@@ -4,36 +4,42 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Układacz dyżurów</title>
+  <script src="theme-init.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="theme.css">
   <link rel="stylesheet" href="style.css">
+  <script type="module" src="ui.js"></script>
   <script type="module" src="app.js"></script>
 </head>
 <body data-tab="calendar">
+  <a class="skip-link" href="#main">Przejdź do treści</a>
+  <header class="app-header"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h6v8H3V5a2 2 0 0 1 2-2Zm8 0h6a2 2 0 0 1 2 2v6h-8ZM3 13h8v8H5a2 2 0 0 1-2-2Zm10 0h8v6a2 2 0 0 1-2 2h-6Z"/></svg><h1>Układacz dyżurów</h1><button id="app-settings-open" class="ghost" type="button" aria-label="Ustawienia aplikacji" title="Ustawienia aplikacji"><svg viewBox="0 -960 960 960" aria-hidden="true"><path d="m370-80-16-128q-13-5-24.5-12T307-235l-119 50L78-375l103-78q-1-7-1-13.5v-27q0-6.5 1-13.5L78-585l110-190 119 50q11-8 23-15t24-12l16-128h220l16 128q13 5 24.5 12t22.5 15l119-50 110 190-103 78q1 7 1 13.5v27q0 6.5-2 13.5l103 78-110 190-118-50q-11 8-23 15t-24 12L590-80H370Zm70-80h79l14-106q31-8 57.5-23.5T639-327l99 41 39-68-86-65q5-14 7-29.5t2-31.5q0-16-2-31.5t-7-29.5l86-65-39-68-99 42q-22-23-48.5-38.5T533-694l-13-106h-79l-14 106q-31 8-57.5 23.5T321-633l-99-41-39 68 86 64q-5 15-7 30t-2 32q0 16 2 31t7 30l-86 65 39 68 99-42q22 23 48.5 38.5T427-266l13 106Zm42-180q58 0 99-41t41-99q0-58-41-99t-99-41q-59 0-99.5 41T342-480q0 58 40.5 99t99.5 41Zm-2-140Z"/></svg></button></header>
   <div class="bar">
     <nav class="tabs" aria-label="Widok">
-      <button class="ghost" data-tab="calendar" aria-pressed="true">Grafik</button>
-      <button class="ghost" data-tab="people" aria-pressed="false">Osoby</button>
-      <button class="ghost" data-tab="settings" aria-pressed="false">Dostosowywanie</button>
-      <button class="ghost" data-tab="help" aria-pressed="false">Instrukcja</button>
+      <div class="brand"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h6v8H3V5a2 2 0 0 1 2-2Zm8 0h6a2 2 0 0 1 2 2v6h-8ZM3 13h8v8H5a2 2 0 0 1-2-2Zm10 0h8v6a2 2 0 0 1-2 2h-6Z"/></svg></div>
+      <button class="ghost" data-tab="calendar" aria-pressed="true"><span class="nav-icon"><svg viewBox="0 -960 960 960" aria-hidden="true"><path class="icon-outline" d="M180-80q-24 0-42-18t-18-42v-620q0-24 18-42t42-18h65v-28q0-13.6 9-22.8 9-9.2 23.02-9.2t23.5 9.2Q310-861.6 310-848v28h340v-28q0-13.6 9-22.8 9-9.2 23.02-9.2t23.5 9.2Q715-861.6 715-848v28h65q24 0 42 18t18 42v620q0 24-18 42t-42 18H180Zm0-60h600v-430H180v430Zm0-490h600v-130H180v130Zm0 0v-130 130Zm300 230q-17 0-28.5-11.5T440-440q0-17 11.5-28.5T480-480q17 0 28.5 11.5T520-440q0 17-11.5 28.5T480-400Zm-188.5-11.5Q280-423 280-440t11.5-28.5Q303-480 320-480t28.5 11.5Q360-457 360-440t-11.5 28.5Q337-400 320-400t-28.5-11.5ZM640-400q-17 0-28.5-11.5T600-440q0-17 11.5-28.5T640-480q17 0 28.5 11.5T680-440q0 17-11.5 28.5T640-400ZM480-240q-17 0-28.5-11.5T440-280q0-17 11.5-28.5T480-320q17 0 28.5 11.5T520-280q0 17-11.5 28.5T480-240Zm-188.5-11.5Q280-263 280-280t11.5-28.5Q303-320 320-320t28.5 11.5Q360-297 360-280t-11.5 28.5Q337-240 320-240t-28.5-11.5ZM640-240q-17 0-28.5-11.5T600-280q0-17 11.5-28.5T640-320q17 0 28.5 11.5T680-280q0 17-11.5 28.5T640-240Z"/><path class="icon-fill" d="M180-80q-24 0-42-18t-18-42v-620q0-24 18-42t42-18h65v-28q0-13.6 9-22.8 9-9.2 23.02-9.2t23.5 9.2Q310-861.6 310-848v28h340v-28q0-13.6 9-22.8 9-9.2 23.02-9.2t23.5 9.2Q715-861.6 715-848v28h65q24 0 42 18t18 42v620q0 24-18 42t-42 18H180Zm0-60h600v-430H180v430Zm300-260q-17 0-28.5-11.5T440-440q0-17 11.5-28.5T480-480q17 0 28.5 11.5T520-440q0 17-11.5 28.5T480-400Zm-188.5-11.5Q280-423 280-440t11.5-28.5Q303-480 320-480t28.5 11.5Q360-457 360-440t-11.5 28.5Q337-400 320-400t-28.5-11.5ZM640-400q-17 0-28.5-11.5T600-440q0-17 11.5-28.5T640-480q17 0 28.5 11.5T680-440q0 17-11.5 28.5T640-400ZM480-240q-17 0-28.5-11.5T440-280q0-17 11.5-28.5T480-320q17 0 28.5 11.5T520-280q0 17-11.5 28.5T480-240Zm-188.5-11.5Q280-263 280-280t11.5-28.5Q303-320 320-320t28.5 11.5Q360-297 360-280t-11.5 28.5Q337-240 320-240t-28.5-11.5ZM640-240q-17 0-28.5-11.5T600-280q0-17 11.5-28.5T640-320q17 0 28.5 11.5T680-280q0 17-11.5 28.5T640-240Z"/></svg></span><span>Grafik</span></button>
+      <button class="ghost" data-tab="people" aria-pressed="false"><span class="nav-icon"><svg viewBox="0 -960 960 960" aria-hidden="true"><path class="icon-outline" d="M38-254q0-35 18-63.5t50-42.5q73-32 131.5-46T358-420q62 0 120 14t131 46q32 14 50.5 42.5T678-254v34q0 25-17.5 42.5T618-160H98q-25 0-42.5-17.5T38-220v-34Zm824 94H724q5-15 9.5-29.5T738-220v-34q0-63-29-101.5T622-420q69 8 130 22t99 34q33 19 52 47t19 63v34q0 25-17.5 42.5T862-160ZM250-523q-42-42-42-108t42-108q42-42 108-42t108 42q42 42 42 108t-42 108q-42 42-108 42t-108-42Zm426 0q-42 42-108 42-11 0-24.5-1.5T519-488q24-25 36.5-61.5T568-631q0-45-12.5-79.5T519-774q11-3 24.5-5t24.5-2q66 0 108 42t42 108q0 66-42 108ZM98-220h520v-34q0-16-9.5-31T585-306q-72-32-121-43t-106-11q-57 0-106.5 11T130-306q-14 6-23 21t-9 31v34Zm324.5-346.5Q448-592 448-631t-25.5-64.5Q397-721 358-721t-64.5 25.5Q268-670 268-631t25.5 64.5Q319-541 358-541t64.5-25.5ZM358-220Zm0-411Z"/><path class="icon-fill" d="M38-254q0-35 18-63.5t50-42.5q73-32 131.5-46T358-420q62 0 120 14t131 46q32 14 50.5 42.5T678-254v34q0 25-17.5 42.5T618-160H98q-25 0-42.5-17.5T38-220v-34Zm686 94q5-15 9.5-29.5T738-220v-34q0-63-29-101.5T622-420q69 8 130 22t99 34q33 19 52 47t19 63v34q0 25-17.5 42.5T862-160H724ZM250-523q-42-42-42-108t42-108q42-42 108-42t108 42q42 42 42 108t-42 108q-42 42-108 42t-108-42Zm426 0q-42 42-108 42-11 0-24.5-1.5T519-488q24-25 36.5-61.5T568-631q0-45-12.5-79.5T519-774q11-3 24.5-5t24.5-2q66 0 108 42t42 108q0 66-42 108Z"/></svg></span><span>Osoby</span></button>
+      <button class="ghost" data-tab="settings" aria-pressed="false"><span class="nav-icon"><svg viewBox="0 -960 960 960" aria-hidden="true"><path d="M435.5-128.63Q427-137.25 427-150v-165q0-12.75 8.68-21.38 8.67-8.62 21.5-8.62 12.82 0 21.32 8.62 8.5 8.63 8.5 21.38v53h323q12.75 0 21.38 8.68 8.62 8.67 8.62 21.5 0 12.82-8.62 21.32-8.63 8.5-21.38 8.5H487v52q0 12.75-8.68 21.37-8.67 8.63-21.5 8.63-12.82 0-21.32-8.63ZM150-202q-12.75 0-21.37-8.68-8.63-8.67-8.63-21.5 0-12.82 8.63-21.32 8.62-8.5 21.37-8.5h187q12.75 0 21.38 8.68 8.62 8.67 8.62 21.5 0 12.82-8.62 21.32-8.63 8.5-21.38 8.5H150Zm165.5-174.63Q307-385.25 307-398v-52H150q-12.75 0-21.37-8.68-8.63-8.67-8.63-21.5 0-12.82 8.63-21.32 8.62-8.5 21.37-8.5h157v-54q0-12.75 8.68-21.38 8.67-8.62 21.5-8.62 12.82 0 21.32 8.62 8.5 8.63 8.5 21.38v166q0 12.75-8.68 21.37-8.67 8.63-21.5 8.63-12.82 0-21.32-8.63ZM457-450q-12.75 0-21.37-8.68-8.63-8.67-8.63-21.5 0-12.82 8.63-21.32 8.62-8.5 21.37-8.5h353q12.75 0 21.38 8.68 8.62 8.67 8.62 21.5 0 12.82-8.62 21.32-8.63 8.5-21.38 8.5H457Zm144.5-173.63Q593-632.25 593-645v-165q0-12.75 8.68-21.38 8.67-8.62 21.5-8.62 12.82 0 21.32 8.62 8.5 8.63 8.5 21.38v52h157q12.75 0 21.38 8.68 8.62 8.67 8.62 21.5 0 12.82-8.62 21.32-8.63 8.5-21.38 8.5H653v53q0 12.75-8.68 21.37-8.67 8.63-21.5 8.63-12.82 0-21.32-8.63ZM150-698q-12.75 0-21.37-8.68-8.63-8.67-8.63-21.5 0-12.82 8.63-21.32 8.62-8.5 21.37-8.5h353q12.75 0 21.38 8.68 8.62 8.67 8.62 21.5 0 12.82-8.62 21.32-8.63 8.5-21.38 8.5H150Z"/></svg></span><span>Układanie</span></button>
+      <button class="ghost" data-tab="help" aria-pressed="false"><span class="nav-icon"><svg viewBox="0 -960 960 960" aria-hidden="true"><path class="icon-outline" d="M248-300q53.57 0 104.28 12.5Q403-275 452-250v-427q-45-30-97.62-46.5Q301.76-740 248-740q-38 0-74.5 9.5T100-707v434q31-14 70.5-20.5T248-300Zm264 50q50-25 98-37.5T712-300q38 0 78.5 6t69.5 16v-429q-34-17-71.82-25-37.82-8-76.18-8-54 0-104.5 16.5T512-677v427Zm-44.5 77.5Q461-174 456-178q-47-29-99.85-45-52.84-16-108.15-16-36.54 0-71.77 9T106-208q-23.1 11-44.55-3Q40-225 40-251v-463q0-15 7-27.5T68-761q42-20 87.39-29.5 45.4-9.5 92.61-9.5 63 0 122.5 17T482-731q51-35 109.5-52T712-800q46.87 0 91.93 9.5Q849-781 891-761q14 7 21.5 19.5T920-714v463q0 27.89-22.5 42.45Q875-194 853-208q-34-14-69.23-22.5Q748.54-239 712-239q-54.27 0-106.14 16Q554-207 508-178q-5 4-11.5 5.5T482-171q-8 0-14.5-1.5ZM276-489Zm284-119q0-5.52 4.02-11.34 4.03-5.82 8.98-7.66 30-11 61.34-17 31.33-6 65.91-6 21.61 0 42.68 2.5T784-640q6 2 11 7.4 5 5.39 5 12.13 0 11.47-7.5 17.47-7.5 6-18.5 3-16.8-5-35.4-7.5Q720-610 700-610q-29 0-56 5.5T591-588q-14 5-22.5-.5T560-608Zm0 220q0-5.81 4.02-11.94 4.03-6.12 8.98-8.06 30-11 61.34-16.5 31.33-5.5 65.91-5.5 21.61 0 42.68 2.5T784-420q6 2 11 7.4 5 5.39 5 12.13 0 11.47-7.5 17.47-7.5 6-18.5 3-16.8-5-35.4-7.5Q720-390 700-390q-29 0-56 5t-53 16q-14 5-22.5 0t-8.5-19Zm0-110q0-5.52 4.02-11.34 4.03-5.82 8.98-7.66 30-11 61.34-17 31.33-6 65.91-6 21.61 0 42.68 2.5T784-530q6 2 11 7.4 5 5.39 5 12.13 0 11.47-7.5 17.47-7.5 6-18.5 3-16.8-5-35.4-7.5Q720-500 700-500q-29 0-56 5.5T591-478q-14 5-22.5-.5T560-498Z"/><path class="icon-fill" d="M512-250q50-25 98-37.5T712-300q38 0 78.5 6t69.5 16v-429q-34-17-72-25t-76-8q-54 0-104.5 16.5T512-677v427Zm-44.5 77.5Q461-174 456-178q-47-29-100-45t-108-16q-37 0-72 9t-70 22q-23 11-44.5-3T40-251v-463q0-15 7-27.5T68-761q42-20 87.5-29.5T248-800q63 0 122.5 17T482-731q51-35 109.5-52T712-800q47 0 92 9.5t87 29.5q14 7 21.5 19.5T920-714v463q0 28-22.5 42.5t-44.5.5q-34-14-69-22.5t-72-8.5q-54 0-106 16t-98 45q-5 4-11.5 5.5T482-171q-8 0-14.5-1.5ZM560-608q0-6 4-11.5t9-7.5q30-11 61.5-17t65.5-6q22 0 43 2.5t41 7.5q6 2 11 7.5t5 12.5q0 11-7.5 17t-18.5 3q-17-5-35.5-7.5T700-610q-29 0-56 5.5T591-588q-14 5-22.5-.5T560-608Zm0 220q0-6 4-12t9-8q30-11 61.5-16.5T700-430q22 0 43 2.5t41 7.5q6 2 11 7.5t5 12.5q0 11-7.5 17t-18.5 3q-17-5-35.5-7.5T700-390q-29 0-56 5t-53 16q-14 5-22.5 0t-8.5-19Zm0-110q0-6 4-11.5t9-7.5q30-11 61.5-17t65.5-6q22 0 43 2.5t41 7.5q6 2 11 7.5t5 12.5q0 11-7.5 17t-18.5 3q-17-5-35.5-7.5T700-500q-29 0-56 5.5T591-478q-14 5-22.5-.5T560-498Z"/></svg></span><span>Instrukcja</span></button>
     </nav>
     <nav class="month" aria-label="Miesiąc">
-      <button id="prev" class="ghost" aria-label="Poprzedni miesiąc"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
+      <button id="prev" class="ghost" aria-label="Poprzedni miesiąc"><svg viewBox="0 -960 960 960" aria-hidden="true"><path d="m406-481 177 177q9 9 8.5 21t-9.5 21q-9 9-21.5 9t-21.5-9L341-460q-5-5-7-10t-2-11q0-6 2-11t7-10l199-199q9-9 21.5-9t21.5 9q9 9 9 21.5t-9 21.5L406-481Z"/></svg></button>
       <h2 id="month-label" aria-live="polite"></h2>
-      <button id="next" class="ghost" aria-label="Następny miesiąc"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>
+      <button id="next" class="ghost" aria-label="Następny miesiąc"><svg viewBox="0 -960 960 960" aria-hidden="true"><path d="M530-481 353-658q-9-9-8.5-21t9.5-21q9-9 21.5-9t21.5 9l198 198q5 5 7 10t2 11q0 6-2 11t-7 10L396-261q-9 9-21 8.5t-21-9.5q-9-9-9-21.5t9-21.5l176-176Z"/></svg></button>
       <button id="today" class="ghost">Dzisiaj</button>
     </nav>
     <div class="actions">
       <button id="import-open" class="ghost" title="Wczytaj grafik z tabeli (Word .docx albo wklejona)">Importuj</button>
       <button id="clear" class="ghost" title="Wyczyść grafik tego miesiąca">Wyczyść</button>
-      <button id="logout" class="ghost" hidden>Wyloguj</button>
-      <button id="generate" title="Ułóż automatycznie cały miesiąc (ręczne dyżury zostają)">Ułóż miesiąc</button>
+      <button id="generate" title="Ułóż automatycznie cały miesiąc (ręczne dyżury zostają)"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M38.6 15.1q-.25 0-.425-.1t-.275-.35l-1.45-3.4-3.65-1.6q-.25-.1-.35-.275-.1-.175-.1-.425t.1-.425q.1-.175.35-.275l3.65-1.55 1.45-3.25q.1-.25.275-.35.175-.1.425-.1t.425.1q.175.1.275.35l1.45 3.25 3.65 1.55q.25.1.35.275.1.175.1.425t-.1.425q-.1.175-.35.275l-3.65 1.6-1.45 3.4q-.1.25-.275.35-.175.1-.425.1Zm0 29.8q-.2 0-.4-.1t-.3-.35l-1.45-3.25-3.6-1.55q-.25-.1-.35-.275-.1-.175-.1-.425t.1-.425q.1-.175.35-.275l3.6-1.55 1.45-3.45q.1-.25.275-.35.175-.1.425-.1t.425.1q.175.1.275.35l1.45 3.45 3.6 1.55q.25.1.35.275.1.175.1.425t-.1.425q-.1.175-.35.275l-3.6 1.55-1.45 3.25q-.1.25-.3.35-.2.1-.4.1Zm-21.95-8.65q-.4 0-.775-.225T15.3 35.4l-3.25-6.95-7-3.15q-.4-.2-.625-.575-.225-.375-.225-.775t.225-.775q.225-.375.625-.575l7-3.15 3.25-6.9q.2-.45.575-.675.375-.225.775-.225t.775.225q.375.225.575.625l3.3 6.95 6.95 3.15q.45.2.675.575.225.375.225.775t-.225.775q-.225.375-.675.575l-6.95 3.15L18 35.4q-.2.45-.575.65-.375.2-.775.2Zm0-5.35 2.4-4.8 4.9-2.15-4.9-2.15-2.4-4.8-2.35 4.8-4.95 2.15 4.95 2.15Zm0-6.95Z"/></svg>Ułóż miesiąc</button>
     </div>
   </div>
 
   <div id="status" role="status"></div>
 
-  <main>
+  <main id="main" tabindex="-1">
     <section id="panel-variants" class="panel" hidden aria-labelledby="variants-title">
       <h3 id="variants-title">Warianty grafiku <small>równie dobre przy tej kolejności priorytetów · zaznacz, by zobaczyć w kalendarzu</small></h3>
       <div id="variants-list" class="variants"></div>
@@ -57,16 +63,32 @@
     <section id="people-tab" class="people-tab" aria-label="Osoby">
       <div class="panel" id="panel-people">
         <h3>Osoby</h3>
-        <p class="lead">Kliknij imię, by zaznaczyć dostępność w kalendarzu. „Ustawienia” (ikona suwaków) — funkcja, limity, prośby i historia. Liczba = dyżury w tym miesiącu.</p>
+        <p class="lead">Kliknij imię, by zaznaczyć dostępność w kalendarzu. „Ustawienia” — funkcja, limity, prośby i historia. Na dole karty: liczba dyżurów w oglądanym miesiącu.</p>
+        <div class="people-tools" role="search">
+          <label class="search-bar"><svg viewBox="0 -960 960 960" aria-hidden="true"><path d="M380-320q-109 0-184.5-75.5T120-580q0-109 75.5-184.5T380-840q109 0 184.5 75.5T640-580q0 44-14 83t-38 69l224 224q11 11 11 28t-11 28q-11 11-28 11t-28-11L532-372q-30 24-69 38t-83 14Zm0-80q75 0 127.5-52.5T560-580q0-75-52.5-127.5T380-760q-75 0-127.5 52.5T200-580q0 75 52.5 127.5T380-400Z"/></svg><input id="people-q" type="search" placeholder="Szukaj osoby" aria-label="Szukaj osoby" autocomplete="off" spellcheck="false"></label>
+          <label class="sort-menu"><svg viewBox="0 -960 960 960" aria-hidden="true"><path d="M160-240q-17 0-28.5-11.5T120-280q0-17 11.5-28.5T160-320h160q17 0 28.5 11.5T360-280q0 17-11.5 28.5T320-240H160Zm0-200q-17 0-28.5-11.5T120-480q0-17 11.5-28.5T160-520h400q17 0 28.5 11.5T600-480q0 17-11.5 28.5T560-440H160Zm0-200q-17 0-28.5-11.5T120-680q0-17 11.5-28.5T160-720h640q17 0 28.5 11.5T840-680q0 17-11.5 28.5T800-640H160Z"/></svg><select id="people-sort" aria-label="Sortuj osoby">
+            <option value="surname">Nazwisko A–Z</option><option value="name">Imię A–Z</option><option value="most">Najwięcej dyżurów</option><option value="least">Najmniej dyżurów</option><option value="role">Funkcja</option>
+          </select></label>
+          <div class="chips" role="group" aria-label="Filtry">
+            <button type="button" class="chip" data-filter="rez" aria-pressed="false"><svg viewBox="0 -960 960 960" aria-hidden="true"><path d="M382-354 721-693q9-9 21-9t21 9q9 9 9 21t-9 21L403-291q-9 9-21 9t-21-9L182-471q-9-9-8.5-21t9.5-21q9-9 21-9t21 9l157 159Z"/></svg><span>Rezydenci</span></button>
+            <button type="button" class="chip" data-filter="sa" aria-pressed="false"><svg viewBox="0 -960 960 960" aria-hidden="true"><path d="M382-354 721-693q9-9 21-9t21 9q9 9 9 21t-9 21L403-291q-9 9-21 9t-21-9L182-471q-9-9-8.5-21t9.5-21q9-9 21-9t21 9l157 159Z"/></svg><span>Starsi asystenci</span></button>
+            <button type="button" class="chip" data-filter="none" aria-pressed="false"><svg viewBox="0 -960 960 960" aria-hidden="true"><path d="M382-354 721-693q9-9 21-9t21 9q9 9 9 21t-9 21L403-291q-9 9-21 9t-21-9L182-471q-9-9-8.5-21t9.5-21q9-9 21-9t21 9l157 159Z"/></svg><span>Bez dyżurów w miesiącu</span></button>
+            <p id="people-count" class="people-count" aria-live="polite"></p>
+          </div>
+        </div>
         <ul id="people" class="list"></ul>
-        <form id="add-person" class="add">
-          <input name="name" placeholder="Dodaj osobę — imię i nazwisko" aria-label="Nowa osoba" autocomplete="off">
-          <button aria-label="Dodaj osobę">Dodaj</button>
-        </form>
       </div>
     </section>
 
-    <section id="settings" class="settings" aria-label="Dostosowywanie">
+    <section id="settings" class="settings" aria-label="Ustawienia układania">
+      <div class="panel" id="panel-add-person">
+        <h3>Nowa osoba</h3>
+        <p class="lead">Dodaj dyżurującego — pojawi się w zakładce Osoby i w układaniu grafiku.</p>
+        <form id="add-person" class="add">
+          <label class="filled-field"><input name="name" placeholder=" " aria-label="Nowa osoba" autocomplete="off"><span>Imię i nazwisko</span></label>
+          <button aria-label="Dodaj osobę">Dodaj</button>
+        </form>
+      </div>
       <div class="panel" id="panel-priority">
         <h3>Priorytety układania</h3>
         <p class="lead">Co liczy się najbardziej przy układaniu grafiku — od najważniejszego. Strzałkami zmieniasz kolejność.</p>
@@ -105,9 +127,9 @@
       <section id="h-start">
         <h3>1. Szybki start</h3>
         <ol>
-          <li><b>Osoby</b> — dodaj wszystkich dyżurujących. „Ustawienia” przy osobie otwierają jej ustawienia: funkcję (Rezydent / Starszy asystent), limity, prośby i historię dyżurów.</li>
+          <li><b>Osoby</b> — „Ustawienia” przy osobie otwierają jej ustawienia: funkcję (Rezydent / Starszy asystent), limity, prośby i historię dyżurów.</li>
           <li><b>Dostępność</b> — kliknij imię osoby, a kalendarz przełączy się w tryb jej dostępności. Klikanie w dzień zmienia poziom: <b>Mogę → Chcę → Nie mogę → W ostateczności → Mogę</b>. Na koniec <b>Gotowe</b>.</li>
-          <li><b>Dostosowywanie</b> — ustaw kolejność priorytetów, dodaj warunki i oceń, które dni są ciężkie (<b>Oceń dni w kalendarzu →</b>).</li>
+          <li><b>Układanie</b> — dodaj wszystkich dyżurujących (<b>Nowa osoba</b>), ustaw kolejność priorytetów, dodaj warunki i oceń, które dni są ciężkie (<b>Oceń dni w kalendarzu →</b>).</li>
           <li><b>Grafik</b> — kliknij <b>Ułóż miesiąc</b>. Jeśli jest kilka równie dobrych grafików, nad kalendarzem pojawi się panel wariantów: zaznacz wariant, by go obejrzeć, i kliknij <b>Zostaw zaznaczony</b> (albo <b>Przywróć poprzedni grafik</b>).</li>
           <li>Popraw ręcznie, co chcesz: kliknij pole dyżuru i wybierz osobę (albo „—”, by zwolnić). Ręczne wpisy zostają przy każdym kolejnym układaniu.</li>
         </ol>
@@ -142,7 +164,7 @@
         <ul>
           <li><b>historia z grafiku</b> — punkty z trzech poprzednich miesięcy, ważone: miesiąc temu × ½, dwa miesiące × ¼, trzy miesiące × ⅛,</li>
           <li><b>„Ostatnio gówniane (spoza grafiku)”</b> w ustawieniach osoby (0–3) — np. dla kogoś nowego; dodaje 0–3 × 3 punkty,</li>
-          <li>kto miał <b>Tragiczny</b> dzień w zeszłym miesiącu, dostaje Tragiczny dzień w tym miesiącu dopiero na końcu kolejki.</li>
+          <li><b>Tragiczne</b> dni idą po kolei: dostaje je ten, kto miał ostatni Tragiczny najdawniej (albo wcale) — liczy się cały zapisany grafik, bez limitu wstecz.</li>
         </ul>
         <p>Okno osoby („Ustawienia”) pokazuje, ile punktów z przeszłości liczy się przy układaniu oglądanego miesiąca.</p>
         <h4>Limity — twarde</h4>
@@ -169,21 +191,21 @@
           <li><b>„Nie mogę”</b> = zakaz dyżuru w tym dniu.</li>
           <li><b>Limity osoby</b> — łącznie, w Pt/So/Nd i na każdym miejscu.</li>
           <li><b>Najwyżej jeden rezydent dziennie</b> (licząc wpisy ręczne).</li>
-          <li><b>Warunki</b> z zakładki Dostosowywanie.</li>
+          <li><b>Warunki</b> z zakładki Układanie.</li>
           <li><b>Wolne po weekendowym OITN</b> — po OITN w sobotę wolny poniedziałek, po OITN w niedzielę wolny wtorek. Działa też w drugą stronę: kto ma ręczny dyżur w poniedziałek/wtorek, nie dostanie OITN w sobotę/niedzielę przed nim.</li>
         </ol>
       </section>
 
       <section id="h-prio">
         <h3>4. Priorytety — kogo wybrać</h3>
-        <p>Gdy kilka osób spełnia twarde zasady, algorytm porównuje je według priorytetów — <b>w kolejności z zakładki Dostosowywanie</b>. Wyższy priorytet zawsze wygrywa; niższy rozstrzyga dopiero remis na wszystkich wyższych. Domyślna kolejność:</p>
+        <p>Gdy kilka osób spełnia twarde zasady, algorytm porównuje je według priorytetów — <b>w kolejności z zakładki Układanie</b>. Wyższy priorytet zawsze wygrywa; niższy rozstrzyga dopiero remis na wszystkich wyższych. Domyślna kolejność:</p>
         <table>
           <tr><th>#</th><th>Priorytet</th><th>Kogo wybiera najpierw</th></tr>
           <tr><td>1</td><td><b>Dostępność</b></td><td>Chcę → Mogę → W ostateczności</td></tr>
           <tr><td>2</td><td><b>Bez „kanapek”</b></td><td>kogoś, kto nie miałby dyżuru co drugi dzień (np. pn i śr); nie dotyczy dni „Chcę”; wyjątek: PN1 w sobotę + dowolny dyżur w poniedziałek to kanapka preferowana (włączane/wyłączane przy osobie: „Ustawienia” → „Kanapka PN1 So + Pn”)</td></tr>
           <tr><td>3</td><td><b>Weekendy w różne dni</b></td><td>w Pt/So/Nd — kogoś, kto nie wyczerpał „tego samego dnia weekendu”</td></tr>
           <tr><td>4</td><td><b>Prośby</b></td><td>kogoś, kto ma na tym miejscu (lub w ten dzień weekendu, w Pt/So/Nd, łącznie) mniej dyżurów, niż prosił</td></tr>
-          <tr><td>5</td><td><b>Gówniane dni</b></td><td>w dzień ciężki — osobę z najmniejszym obciążeniem; w Tragiczny najpierw tych, którzy nie mieli Tragicznego ani w zeszłym, ani w tym miesiącu</td></tr>
+          <tr><td>5</td><td><b>Gówniane dni</b></td><td>w dzień ciężki — osobę z najmniejszym obciążeniem; w Tragiczny najpierw tego, kto miał ostatni Tragiczny najdawniej (cała historia)</td></tr>
           <tr><td>6</td><td><b>Równa liczba dyżurów</b></td><td>osobę z najmniejszą liczbą dyżurów w tym miesiącu</td></tr>
         </table>
         <p>Remis po wszystkich priorytetach: w pierwszym przebiegu wygrywa osoba, która <b>najdłużej nie dyżurowała</b>, w kolejnych — losowanie.</p>
@@ -196,7 +218,7 @@
         <h4>Przygotowanie</h4>
         <ol>
           <li>Bierze aktywne osoby (bez usuniętych).</li>
-          <li>Liczy obciążenie startowe: „ostatnio gówniane” × 3 + historia z 3 miesięcy (½, ¼, ⅛) i sprawdza, kto miał Tragiczny w zeszłym miesiącu.</li>
+          <li>Liczy obciążenie startowe: „ostatnio gówniane” × 3 + historia z 3 miesięcy (½, ¼, ⅛) i dla każdego datę ostatniego Tragicznego z całego grafiku.</li>
           <li>Wczytuje <b>wpisy ręczne</b> (oraz przeszłe dyżury osób usuniętych). Są nietykalne i od razu liczą się do liczby dyżurów, limitów, obciążenia i dni weekendu.</li>
         </ol>
         <h4>Dla każdego dnia i każdego miejsca do obsadzenia</h4>
@@ -239,7 +261,7 @@
         <h3>8. Gdzie zapisują się dane</h3>
         <ul>
           <li><b>Tryb lokalny</b> — wszystko w pamięci tej przeglądarki. Inna przeglądarka lub komputer = osobne dane; wyczyszczenie danych przeglądarki usuwa grafik.</li>
-          <li><b>Tryb chmury</b> — po podaniu PIN-u stan zapisuje się w bazie i wszyscy z PIN-em widzą ten sam grafik. <b>Wyloguj</b> zapomina PIN w tej przeglądarce.</li>
+          <li><b>Tryb chmury</b> — po podaniu PIN-u stan zapisuje się w bazie i wszyscy z PIN-em widzą ten sam grafik. <b>Wyloguj</b> (koło zębate w prawym górnym rogu) zapomina PIN w tej przeglądarce.</li>
         </ul>
       </section>
 
@@ -264,12 +286,21 @@
     </form>
   </dialog>
 
+  <dialog id="app-settings" aria-labelledby="app-settings-title">
+    <form method="dialog">
+      <h3 id="app-settings-title">Ustawienia aplikacji</h3>
+      <div class="app-row"><div><h4>Ciemny motyw</h4><p class="hint">Zapamiętany w tej przeglądarce.</p></div><button id="theme-toggle" class="ghost" type="button" aria-label="Włącz ciemny motyw" aria-pressed="false"><svg viewBox="0 -960 960 960" aria-hidden="true"><path d="M480-120q-150 0-255-105T120-480q0-135 79.5-229T408-830q20-5 34-1t22 15q8 10 7.5 25t-8.5 35q-9 23-14 47t-5 49q0 90 63 153t153 63q25 0 48.5-4.5T754-461q22-8 38-7t26 9q10 8 13 23t-2 36q-27 121-121 200.5T480-120Zm0-60q109 0 190-67.5T771-406q-25 11-53.5 16.5T660-384q-115 0-195.5-80.5T384-660q0-24 5-51.5t18-62.5q-98 27-162.5 109.5T180-480q0 125 87.5 212.5T480-180Zm-4-297Z"/></svg></button></div>
+      <div class="app-row" id="panel-account" hidden><div><h4>Konto</h4><p class="hint">Wylogowanie zapomina PIN w tej przeglądarce.</p></div><button id="logout" type="button" class="ghost outline">Wyloguj</button></div>
+      <menu><button>Zamknij</button></menu>
+    </form>
+  </dialog>
+
   <dialog id="import" aria-labelledby="import-title">
     <form method="dialog">
       <h3 id="import-title"></h3>
       <p class="hint">Tabela jak w Wordzie: nagłówek z nazwami miejsc, w pierwszej kolumnie numer dnia. Dyżury trafią do grafiku jako ręczne.</p>
       <label class="file"><span>Plik Word (.docx)</span> <input type="file" name="file" accept=".docx"></label>
-      <textarea name="paste" rows="3" placeholder="…albo zaznacz tabelę w Wordzie/Excelu, skopiuj i wklej tutaj"></textarea>
+      <label class="filled-field"><textarea name="paste" rows="3" placeholder=" "></textarea><span>Wklej tabelę z Worda lub Excela</span></label>
       <div id="import-preview"></div>
       <menu>
         <button value="cancel" class="ghost" formnovalidate>Anuluj</button>

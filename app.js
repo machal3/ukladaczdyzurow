@@ -1,9 +1,9 @@
-import { dateKey, daysInMonth, weekday, shiftsForDay, generateVariants, PRIORITIES, PRIORITY_ORDER, availOf, breaksRule, LEVELS, ROLES, badOf, BAD, history, parseTable, matchPerson, personLog, PAST_WEIGHT } from './scheduler.js';
+import { dateKey, daysInMonth, weekday, shiftsForDay, generateVariants, PRIORITIES, PRIORITY_ORDER, availOf, breaksRule, LEVELS, ROLES, badOf, BAD, history, parseTable, matchPerson, personLog, PAST_WEIGHT, listPeople } from './scheduler.js';
 import { cloudLoad, cloudSave, cloudLogout } from './cloud.js';
 
 const DAYS = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So', 'Nd'];
 const STORE = 'dyzury-v1';
-const GEAR = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M21 4h-7M10 4H3M21 12h-9M8 12H3M21 20h-5M12 20H3M14 2v4M8 10v4M16 18v4"/></svg>'; // suwaki = ustawienia osoby
+const GEAR = '<svg viewBox="0 -960 960 960" aria-hidden="true"><path d="M435.5-128.63Q427-137.25 427-150v-165q0-12.75 8.68-21.38 8.67-8.62 21.5-8.62 12.82 0 21.32 8.62 8.5 8.63 8.5 21.38v53h323q12.75 0 21.38 8.68 8.62 8.67 8.62 21.5 0 12.82-8.62 21.32-8.63 8.5-21.38 8.5H487v52q0 12.75-8.68 21.37-8.67 8.63-21.5 8.63-12.82 0-21.32-8.63ZM150-202q-12.75 0-21.37-8.68-8.63-8.67-8.63-21.5 0-12.82 8.63-21.32 8.62-8.5 21.37-8.5h187q12.75 0 21.38 8.68 8.62 8.67 8.62 21.5 0 12.82-8.62 21.32-8.63 8.5-21.38 8.5H150Zm165.5-174.63Q307-385.25 307-398v-52H150q-12.75 0-21.37-8.68-8.63-8.67-8.63-21.5 0-12.82 8.63-21.32 8.62-8.5 21.37-8.5h157v-54q0-12.75 8.68-21.38 8.67-8.62 21.5-8.62 12.82 0 21.32 8.62 8.5 8.63 8.5 21.38v166q0 12.75-8.68 21.37-8.67 8.63-21.5 8.63-12.82 0-21.32-8.63ZM457-450q-12.75 0-21.37-8.68-8.63-8.67-8.63-21.5 0-12.82 8.63-21.32 8.62-8.5 21.37-8.5h353q12.75 0 21.38 8.68 8.62 8.67 8.62 21.5 0 12.82-8.62 21.32-8.63 8.5-21.38 8.5H457Zm144.5-173.63Q593-632.25 593-645v-165q0-12.75 8.68-21.38 8.67-8.62 21.5-8.62 12.82 0 21.32 8.62 8.5 8.63 8.5 21.38v52h157q12.75 0 21.38 8.68 8.62 8.67 8.62 21.5 0 12.82-8.62 21.32-8.63 8.5-21.38 8.5H653v53q0 12.75-8.68 21.37-8.67 8.63-21.5 8.63-12.82 0-21.32-8.63ZM150-698q-12.75 0-21.37-8.68-8.63-8.67-8.63-21.5 0-12.82 8.63-21.32 8.62-8.5 21.37-8.5h353q12.75 0 21.38 8.68 8.62 8.67 8.62 21.5 0 12.82-8.62 21.32-8.63 8.5-21.38 8.5H150Z"/></svg>'; // Material Symbols „tune” = ustawienia osoby
 const WEEKEND_LIMIT = 2; // domyślny limit dyżurów Pt/So/Nd w miesiącu, gdy osoba nie ustawiła własnego
 
 const cloud = await cloudLoad(); // null = tryb lokalny (tylko localStorage)
@@ -36,7 +36,7 @@ if (!state.miejscaV2) {
 }
 if (cloud && !cloud.data) save(); // pusta chmura → wysyłamy to, co było w tej przeglądarce
 const now = new Date();
-let view = { y: now.getFullYear(), m: now.getMonth(), who: null, bad: false, personTab: 'settings' }; // who: osoba, której dostępność edytujemy; bad: tryb oceny gównianości dni; personTab: karta okna osoby
+let view = { y: now.getFullYear(), m: now.getMonth(), who: null, bad: false, personTab: 'settings', q: '', role: null, none: false, sort: 'surname' }; // who: osoba, której dostępność edytujemy; bad: tryb oceny gównianości dni; personTab: karta okna osoby; q/role/none/sort: szukanie, filtry i sortowanie w zakładce Osoby (patrz listPeople)
 let prevWho = null; // tryb sprzed otwarcia okna osoby
 let back = 'settings'; // karta, na którą wraca „Gotowe” — ta, z której włączono tryb
 
@@ -47,6 +47,7 @@ function save() { const json = JSON.stringify(state); try { localStorage.setItem
 const $ = (s) => document.querySelector(s);
 const esc = (s) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 const monthKeys = () => Array.from({ length: daysInMonth(view.y, view.m) }, (_, i) => dateKey(view.y, view.m, i + 1));
+const dyzury = (n) => `${n} ${n === 1 ? 'dyżur' : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? 'dyżury' : 'dyżurów'}`;
 const team = () => state.people.filter((p) => !p.gone); // aktywne osoby
 const sameName = (a, b) => a.localeCompare(b, 'pl', { sensitivity: 'base' }) === 0;
 const pick = (obj, keys) => Object.fromEntries(keys.filter((k) => obj[k]).map((k) => [k, obj[k]]));
@@ -60,7 +61,8 @@ function render() {
   const todayKey = dateKey(now.getFullYear(), now.getMonth(), now.getDate());
   const nameOf = Object.fromEntries(state.people.map((p) => [p.id, p.name]));
 
-  let html = DAYS.map((d, i) => `<div class="dow ${i > 4 ? 'weekend' : ''}">${d}</div>`).join('');
+  const dayNames = ['Poniedziałek', 'Wtorek', 'Środa', 'Czwartek', 'Piątek', 'Sobota', 'Niedziela'];
+  let html = dayNames.map((d) => `<div class="dow">${d}</div>`).join('');
   html += '<div class="cell empty"></div>'.repeat(weekday(y, m, 1));
   let empty = 0, slots = 0;
   for (let d = 1; d <= daysInMonth(y, m); d++) {
@@ -78,13 +80,14 @@ function render() {
       const why = !pid ? '' : availOf(state.avail, pid, key) === 0 ? ' — ta osoba nie może tego dnia' :
         breaksRule(state.rules, day, pid, s.id) ? ' — łamie warunek' : '';
       const clash = why && 'clash';
-      return `<label class="slot ${pid ? '' : 'unfilled'} ${manual} ${clash}" title="${esc(s.name)}${manual && ' — wpisany ręcznie'}${why}">
-        <span>${esc(s.name)}</span>
+      return `<label class="slot ${pid ? '' : 'unfilled'} ${manual} ${clash}" title="${esc(s.name)}${pid ? ` — ${esc(nameOf[pid])}` : ' — wybierz osobę'}${manual && ' — wpisany ręcznie'}${why}">
+        <span class="slot-label">${esc(s.name)}</span>
+        <span class="slot-name" aria-hidden="true">${pid ? esc(nameOf[pid]) : 'Wybierz osobę'}</span>
         <input data-key="${key}" data-shift="${s.id}" value="${pid ? esc(nameOf[pid]) : ''}" placeholder="—" autocomplete="off" role="combobox" aria-controls="picker" aria-label="${esc(s.name)}, ${d} ${monthName}">
       </label>`;
     }).join('');
-    html += `<div class="cell ${weekday(y, m, d) > 4 ? 'weekend' : ''} ${key === todayKey ? 'today' : ''}">
-      <div class="num" data-dow="${DAYS[weekday(y, m, d)]}" aria-label="${DAYS[weekday(y, m, d)]}, ${d} ${monthName}">${d}</div>${rows}</div>`;
+    html += `<div class="cell burden-${b} ${key === todayKey ? 'today' : ''}">
+      <div class="day-heading"><div class="num" aria-label="${dayNames[weekday(y, m, d)]}, ${d} ${monthName} — ${BAD[b]}">${d}</div><span class="day-name">${dayNames[weekday(y, m, d)]}</span>${key === todayKey ? '<span class="today-label">Dzisiaj</span>' : ''}</div><div class="day-slots">${rows}</div></div>`;
   }
   html += '<div class="cell empty"></div>'.repeat((7 - (weekday(y, m, 1) + daysInMonth(y, m)) % 7) % 7); // domknięcie ostatniego tygodnia
   $('#calendar').innerHTML = html;
@@ -99,10 +102,16 @@ function render() {
     const wd = weekday(y, m, +k.slice(8));
     if (wd >= 4) { whoShifts.we++; whoShifts[`d${wd}`] = (whoShifts[`d${wd}`] || 0) + 1; }
   }
-  $('#people').innerHTML = team().map((p) => `<li>
-      <button class="who ${p.id === view.who ? 'on' : ''}" data-who="${p.id}" aria-pressed="${p.id === view.who}" title="Dostępność w grafiku">${esc(p.name)}</button><span class="badge role ${p.prestige ? '' : 'rez'}" title="${ROLES[p.prestige]}">${p.prestige ? `SA ${p.prestige}` : 'Rez.'}</span><span class="badge">${count[p.id]}</span>
-      <button class="edit" data-edit="${p.id}" aria-label="Ustawienia i historia: ${esc(p.name)}" title="Ustawienia i historia">${GEAR}<span>Ustawienia</span></button>
-      <button class="x" data-del-person="${p.id}" aria-label="Usuń ${esc(p.name)}">×</button></li>`).join('');
+  const shown = listPeople(team(), count, view), filtered = view.q.trim() || view.role || view.none;
+  $('#people').innerHTML = shown.map((p) => `<li class="${p.id === view.who ? 'on' : ''}">
+      <span class="avatar ${p.prestige ? '' : 'rez'}" aria-hidden="true">${esc(p.name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase())}</span>
+      <span class="id"><button class="who ${p.id === view.who ? 'on' : ''}" data-who="${p.id}" aria-pressed="${p.id === view.who}" title="Dostępność w grafiku">${esc(p.name)}</button><span class="sub">${ROLES[p.prestige]}</span></span>
+      <button class="x" data-del-person="${p.id}" aria-label="Usuń ${esc(p.name)}">×</button>
+      <span class="foot"><span class="count"><b>${count[p.id]}</b>${dyzury(count[p.id]).replace(/^\d+ /, '')}<br>w tym miesiącu</span>
+      <button class="edit" data-edit="${p.id}" aria-label="Ustawienia i historia: ${esc(p.name)}" title="Ustawienia i historia">${GEAR}<span>Ustawienia</span></button></span></li>`).join('') ||
+    (team().length ? '<li class="no-match"><b>Nikt nie pasuje</b><span>Zmień wyszukiwanie lub filtry.</span><button type="button" class="outline" data-clear-filters>Wyczyść filtry</button></li>' : '');
+  $('#people-count').textContent = filtered ? `Pokazano ${shown.length} z ${team().length}` : '';
+  for (const b of document.querySelectorAll('[data-filter]')) b.setAttribute('aria-pressed', b.dataset.filter === 'none' ? view.none : b.dataset.filter === view.role);
   const max = Math.max(1, ...Object.values(count));
   $('#summary-list').innerHTML = team().map((p) => `<li>
       <button class="who ${p.id === view.who ? 'on' : ''}" data-who="${p.id}" aria-pressed="${p.id === view.who}" title="Dostępność w grafiku">${esc(p.name)}</button>
@@ -167,7 +176,7 @@ $('#generate').onclick = () => update(() => {
   view.bad = false;
   const keys = monthKeys();
   const h = history(state.schedule, state.bad, view.y, view.m);
-  const people = team().map((p) => ({ ...p, hist: h.pts[p.id] ?? 0, tragic: h.tragic.has(p.id) }));
+  const people = team().map((p) => ({ ...p, hist: h.pts[p.id] ?? 0, tragic: h.tragic[p.id] }));
   // przeszłe dyżury usuniętych osób zostają, jak ręczne
   const locked = pick(state.manual, keys), gone = new Set(state.people.filter((p) => p.gone).map((p) => p.id));
   const today = dateKey(now.getFullYear(), now.getMonth(), now.getDate());
@@ -193,12 +202,16 @@ $('#generate').onclick = () => update(() => {
 $('#variants-ok').onclick = () => { $('#panel-variants').hidden = true; };
 
 // Zakładki: Grafik / Osoby / Dostosowywanie (priorytety, warunki, gównianość)
+// Każda zakładka pamięta swoje przewinięcie; ponowne kliknięcie aktywnej wraca na górę.
+const scrolls = {};
 function showTab(tab) {
+  const cur = document.body.dataset.tab;
+  scrolls[cur] = tab === cur ? 0 : scrollY;
   document.body.dataset.tab = tab;
   for (const b of document.querySelectorAll('.tabs button')) b.setAttribute('aria-pressed', b.dataset.tab === tab);
+  scrollTo({ top: scrolls[tab] ?? 0, behavior: 'instant' }); // instant: html ma scroll-behavior: smooth
 }
-$('.tabs').onclick = (e) => { const t = e.target.closest('[data-tab]'); if (t) { showTab(t.dataset.tab); scrollTo(0, 0); } };
-$('.actions').addEventListener('click', (e) => { if (e.target.closest('#generate, #clear')) showTab('calendar'); });
+$('.tabs').onclick = (e) => { const t = e.target.closest('[data-tab]'); if (t) showTab(t.dataset.tab); };
 
 // „Gotowe” kończy dostępność/gównianość i wraca na kartę, z której je włączono
 $('#status').onclick = (e) => {
@@ -319,9 +332,12 @@ $('#add-rule').onsubmit = (e) => {
 };
 
 $('main').onclick = (e) => {
-  const { delPerson, delRule, who, edit, up } = e.target.dataset;
+  const { delPerson, delRule, who, edit, up, filter } = e.target.dataset;
+  if (filter === 'none') { view.none = !view.none; render(); }
+  else if (filter) { view.role = view.role === filter ? null : filter; render(); }
+  if ('clearFilters' in e.target.dataset) { Object.assign(view, { q: '', role: null, none: false }); $('#people-q').value = ''; render(); }
   if (up) update(() => { const i = +up; [state.priority[i - 1], state.priority[i]] = [state.priority[i], state.priority[i - 1]]; });
-  if (e.target.dataset.go) { showTab(e.target.dataset.go); scrollTo(0, 0); }
+  if (e.target.dataset.go) showTab(e.target.dataset.go);
   if (delRule) update(() => { state.rules = state.rules.filter((r) => r.id !== delRule); });
   // imię = tryb dostępności w kalendarzu; „Ustawienia” = okno osoby (po zamknięciu wraca poprzedni tryb, chyba że „Dostępność →”)
   if (who) { view.who = view.who === who ? null : who; view.bad = false; back = e.target.closest('#summary') ? 'calendar' : 'people'; if (view.who) showTab('calendar'); render(); }
@@ -339,10 +355,13 @@ $('main').onclick = (e) => {
   });
 };
 
+$('#people-q').oninput = (e) => { view.q = e.target.value; render(); };
+$('#people-sort').onchange = (e) => { view.sort = e.target.value; render(); };
+
 $('#person').onclose = () => { if ($('#person').returnValue !== 'avail') view.who = prevWho; render(); };
 $('#person').onclick = (e) => {
   if (e.target.dataset.ptab) { view.personTab = e.target.dataset.ptab; render(); $('#person').scrollTop = 0; return; }
-  if (e.target.dataset.go) { showTab(e.target.dataset.go); scrollTo(0, 0); }
+  if (e.target.dataset.go) showTab(e.target.dataset.go);
 };
 // Enter w polu liczby zatwierdza wartość zamiast zamykać okno (formularz method="dialog")
 $('#person').onkeydown = (e) => { if (e.key === 'Enter' && e.target.type === 'number') { e.preventDefault(); e.target.blur(); } };
@@ -373,13 +392,12 @@ function logHtml(p) {
     const per = {};
     for (const x of list) per[x.sid] = (per[x.sid] || 0) + 1;
     const we = list.filter((x) => weekday(+x.key.slice(0, 4), x.key.slice(5, 7) - 1, +x.key.slice(8)) >= 4).length; // Pt/So/Nd
-    const n = list.length, form = n === 1 ? 'dyżur' : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? 'dyżury' : 'dyżurów';
-    return [`${n} ${form}`, ...Object.entries(per).map(([sid, n]) => `${esc(shiftName[sid] ?? '(usunięte miejsce)')} ${n}`),
+    return [dyzury(list.length), ...Object.entries(per).map(([sid, n]) => `${esc(shiftName[sid] ?? '(usunięte miejsce)')} ${n}`),
       `Pt/So/Nd ${we}`, `gównianość ${list.reduce((a, x) => a + x.bad, 0)} pkt`].join(' · ');
   };
   const hist = history(state.schedule, state.bad, view.y, view.m);
   let html = `<h3>Historia dyżurów</h3><p class="hint">Razem: ${summary(log)}<br>Do układania ${monthName(view.y, view.m)} liczy się: gównianość z poprzednich miesięcy ${+(hist.pts[pid] ?? 0).toFixed(2)} pkt (ważona ½, ¼, ⅛)` +
-    ` + „ostatnio gówniane” ${p.past ?? 0} × ${PAST_WEIGHT}${hist.tragic.has(pid) ? ' · w zeszłym miesiącu miał(a) Tragiczny' : ''}</p>`;
+    ` + „ostatnio gówniane” ${p.past ?? 0} × ${PAST_WEIGHT}${hist.tragic[pid] ? ` · ostatni Tragiczny: ${hist.tragic[pid]}` : ''}</p>`;
   for (let i = 0; i < 4; i++) {
     const t = new Date(view.y, view.m - i), y = t.getFullYear(), m = t.getMonth();
     const list = log.filter((x) => x.key.startsWith(dateKey(y, m, 1).slice(0, 8))).reverse(); // najnowsze na górze
@@ -457,6 +475,7 @@ function renderImport() {
   $('#import-ok').textContent = n ? `Importuj ${n} dyżurów` : 'Importuj';
 }
 
+$('#app-settings-open').onclick = () => $('#app-settings').showModal();
 $('#import-open').onclick = () => {
   imp = null;
   dlg.returnValue = '';
@@ -502,6 +521,6 @@ dlg.onclose = () => {
   });
 };
 
-if (cloud) { $('#logout').hidden = false; $('#logout').onclick = cloudLogout; }
+if (cloud) { $('#panel-account').hidden = false; $('#logout').onclick = cloudLogout; }
 
 render();

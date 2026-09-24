@@ -25,11 +25,11 @@ Ta sama instrukcja jest w aplikacji, w zakładce **Instrukcja**.
 
 ## 1. Szybki start
 
-1. **Osoby** — dodaj wszystkich dyżurujących. Przy każdej osobie ⚙ otwiera jej ustawienia: funkcję
+1. **Osoby** — przy każdej osobie ⚙ otwiera jej ustawienia: funkcję
    (Rezydent / Starszy asystent), limity, prośby i historię dyżurów.
 2. **Dostępność** — kliknij imię osoby, a kalendarz przełączy się w tryb jej dostępności. Klikanie w dzień zmienia
    poziom: **Mogę → Chcę → Nie mogę → W ostateczności → Mogę**. Na koniec **Gotowe**.
-3. **Dostosowywanie** — ustaw kolejność priorytetów, dodaj warunki („gdy X dyżuruje z Y, to X jest na…”) i oceń,
+3. **Układanie** — dodaj wszystkich dyżurujących (**Nowa osoba**), ustaw kolejność priorytetów, dodaj warunki („gdy X dyżuruje z Y, to X jest na…”) i oceń,
    które dni są ciężkie (**Oceń dni w kalendarzu →**).
 4. **Grafik** — przejdź do miesiąca i kliknij **Ułóż miesiąc**. Jeśli jest kilka równie dobrych grafików, nad
    kalendarzem pojawi się panel wariantów — zaznacz wariant, by go obejrzeć, i kliknij **Zostaw zaznaczony**
@@ -126,7 +126,7 @@ Tych zasad algorytm **nigdy** nie łamie. Jeśli żadna osoba ich nie spełnia, 
 3. **„Nie mogę” = zakaz** dyżuru w tym dniu.
 4. **Limity osoby** — łącznie, w Pt/So/Nd i na każdym miejscu (patrz wyżej).
 5. **Najwyżej jeden rezydent dziennie** (licząc wpisy ręczne).
-6. **Warunki** z zakładki Dostosowywanie.
+6. **Warunki** z zakładki Ustawienia.
 7. **Wolne po weekendowym OITN** — po OITN w **sobotę** wolny **poniedziałek**, po OITN w **niedzielę**
    wolny **wtorek**. Działa też w drugą stronę: kto ma ręczny dyżur w poniedziałek/wtorek, nie dostanie OITN
    w sobotę/niedzielę przed nim. (OITN jest rozpoznawany po nazwie miejsca.)
@@ -136,7 +136,7 @@ Tych zasad algorytm **nigdy** nie łamie. Jeśli żadna osoba ich nie spełnia, 
 ## 4. Priorytety — co liczy się przy wyborze osoby
 
 Gdy kilka osób spełnia twarde zasady, algorytm porównuje je według priorytetów — **w kolejności ustawionej w
-zakładce Dostosowywanie** (strzałki ↑↓). Wyższy priorytet zawsze wygrywa; niższy rozstrzyga dopiero remis na
+zakładce Ustawienia** (strzałki ↑↓). Wyższy priorytet zawsze wygrywa; niższy rozstrzyga dopiero remis na
 wszystkich wyższych. Domyślna kolejność:
 
 | # | Priorytet | Kogo wybiera najpierw |
@@ -233,7 +233,7 @@ inne grafiki mają **dokładnie taką samą ocenę** we wszystkich kryteriach, p
 - **Tryb lokalny** (domyślny) — wszystko w pamięci przeglądarki (localStorage). Inna przeglądarka lub inny
   komputer = osobne dane. Wyczyszczenie danych przeglądarki usuwa grafik.
 - **Tryb chmury** — gdy w `config.js` ustawiony jest Supabase, aplikacja prosi o PIN i zapisuje stan w bazie;
-  wszyscy z PIN-em widzą ten sam grafik. **Wyloguj** zapomina PIN w tej przeglądarce.
+  wszyscy z PIN-em widzą ten sam grafik. **Wyloguj** (w Ustawieniach) zapomina PIN w tej przeglądarce.
 
 ---
 
@@ -251,11 +251,20 @@ inne grafiki mają **dokładnie taką samą ocenę** we wszystkich kryteriach, p
 
 ## 10. Dla programistów
 
-Vanilla JS (moduły ES), bez kroku budowania i bez zależności. Wymaga Node ≥ 20.11.
+Vanilla JS (moduły ES), bez zależności uruchomieniowych. Zależności npm służą do generowania
+motywu i kontroli kodu. Narzędzia deweloperskie wymagają Node ≥ 22.13 (zalecany Node 24).
+Gotowy `theme.css` jest w repozytorium, więc serwer lokalny i dotychczasowy hosting statyczny
+nadal działają bez obowiązkowego budowania.
 
 ```sh
-npm start   # serwer lokalny: http://127.0.0.1:3000
-npm test    # testy (node:test)
+npm ci           # zależności deweloperskie z lockfile
+npm start        # serwer lokalny: http://127.0.0.1:3000
+npm test         # testy algorytmu (node:test)
+npm run test:ui  # testy integracyjne DOM, bez połączenia z chmurą
+npm run lint     # ESLint
+npm run typecheck # ścisła kontrola typów ui.js przez TypeScript / JSDoc
+npm run build    # kontrola typów, palety i statyczny artefakt dist/
+npm run theme    # regenerowanie theme.css po zmianie koloru bazowego
 node --test --test-name-pattern="fragment nazwy testu"
 ```
 
@@ -265,8 +274,26 @@ node --test --test-name-pattern="fragment nazwy testu"
 | `scheduler.test.js` | testy algorytmu |
 | `app.js` | interfejs i stan (localStorage `dyzury-v1`) |
 | `index.html`, `style.css` | strona |
+| `ui.js` | motyw, ripple, etykiety i nagłówki; bez dostępu do stanu grafiku |
+| `theme.css`, `scripts/theme.mjs` | palety HCT i role kolorów M3; seed `#236a4c` |
+| `ui.test.js` | integracja formularzy, nawigacji, importu i ręcznych przypisań |
+| `scripts/build.mjs` | powtarzalny build statyczny do `dist/` |
 | `cloud.js`, `config.js`, `supabase.sql` | opcjonalny tryb chmury (Supabase, dostęp przez PIN) |
 | `server.js` | minimalny serwer plików do pracy lokalnej |
 
 Zmiany logiki układania wprowadzaj w `scheduler.js` razem z testem. `generateMonth` ma stały interfejs — można go
 podmienić na mocniejszy solver (np. ILP) bez zmian w UI.
+
+### System wizualny
+
+Material You: zielony motyw Tonal Spot, chłodny kolor tertiary, tonalne powierzchnie bez cieni,
+rail na komputerze i dolna nawigacja z FAB na telefonie. Kolory są generowane przez
+Material Color Utilities 0.3.0 (wersja 0.4.0 ma niepoprawny import ESM w Node).
+Role i poziomy powierzchni odpowiadają [dokumentacji Material 3](https://github.com/material-components/material-web/blob/main/docs/theming/color.md).
+Motyw domyślnie podąża za systemem. Przycisk w nawigacji zapisuje wybór jasny/ciemny
+pod osobnym kluczem `dyzury-theme`, niezależnym od `dyzury-v1`.
+
+Ruch używa `cubic-bezier(.2, 0, 0, 1)` i respektuje `prefers-reduced-motion`.
+Kontrolki zachowują natywne elementy, nazwy, identyfikatory i zdarzenia.
+Projekt pozostaje JavaScriptem; ścisła kontrola TypeScript obejmuje `ui.js` i `theme-init.js`,
+a ESLint wszystkie pliki JS. Testy DOM nie zastępują oceny wizualnej w przeglądarce.

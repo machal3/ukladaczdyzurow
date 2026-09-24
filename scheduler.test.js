@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { generateMonth, generateVariants, scoreMonth, dateKey, history, badOf, parseTable, matchPerson, personLog } from './scheduler.js';
+import { generateMonth, generateVariants, scoreMonth, dateKey, history, badOf, parseTable, matchPerson, personLog, listPeople } from './scheduler.js';
 
 const people = ['a', 'b', 'c', 'd'].map((id) => ({ id, name: id }));
 const all = [0, 1, 2, 3, 4, 5, 6];
@@ -124,23 +124,25 @@ test('warunek: gdy a dyżuruje z b, a jest tylko na s2', () => {
   assert.ok(together > 0); // warunek nie zabrania wspólnych dyżurów, tylko wymusza miejsce
 });
 
-test('historia: punkty z poprzednich miesięcy × ½, ¼, ⅛ (także przez przełom roku), Tragiczny miesiąc temu', () => {
+test('historia: punkty z poprzednich miesięcy × ½, ¼, ⅛ (także przez przełom roku), ostatni Tragiczny z całej historii', () => {
   const schedule = {
     '2026-12-01': { s1: 'a' }, // miesiąc temu, oceniony na 3
     '2026-11-02': { s1: 'b' }, // 2 miesiące temu, oceniony na 2
     '2026-10-05': { s1: 'c' }, // 3 miesiące temu, oceniony na 2
-    '2026-09-07': { s1: 'd' }, // 4 miesiące temu → już się nie liczy
+    '2026-09-07': { s1: 'd' }, // 4 miesiące temu → punkty już się nie liczą, Tragiczny tak
+    '2024-03-04': { s1: 'd' }, // dawny Tragiczny d — nowszy wygrywa
+    '2027-01-04': { s1: 'b' }, // ten miesiąc — nie historia
   };
-  const bad = { '2026-12-01': 3, '2026-11-02': 2, '2026-10-05': 2, '2026-09-07': 3 };
+  const bad = { '2026-12-01': 3, '2026-11-02': 2, '2026-10-05': 2, '2026-09-07': 3, '2024-03-04': 3, '2027-01-04': 3 };
   const h = history(schedule, bad, 2027, 0);
   assert.deepEqual(h.pts, { a: 1.5, b: 0.5, c: 0.25 });
-  assert.deepEqual([...h.tragic], ['a']);
+  assert.deepEqual(h.tragic, { a: '2026-12-01', d: '2026-09-07' });
 });
 
-test('Tragiczny: kto miał Tragiczny miesiąc temu, idzie na koniec kolejki (ale nie jest zablokowany)', () => {
+test('Tragiczny: kto miał ostatni Tragiczny najdawniej (albo wcale), idzie pierwszy; kto niedawno — na koniec, ale nie jest zablokowany', () => {
   const one = [{ id: 's', name: 'S', days: all }];
   const k = dateKey(2026, 9, 1);
-  const ppl = people.map((p) => (p.id === 'a' ? { ...p, tragic: true } : { ...p, past: 1 })); // a ma najmniejsze obciążenie
+  const ppl = people.map((p) => (p.id === 'a' ? { ...p, tragic: '2026-09-01' } : { ...p, past: 1 })); // a ma najmniejsze obciążenie
   assert.equal(generateMonth(2026, 9, one, ppl, {}, {}, {}, [], { [k]: 2 })[k].s, 'a');
   assert.notEqual(generateMonth(2026, 9, one, ppl, {}, {}, {}, [], { [k]: 3 })[k].s, 'a');
   const onlyA = { b: { [k]: 0 }, c: { [k]: 0 }, d: { [k]: 0 } };
@@ -309,4 +311,34 @@ test('prośby łącznie i w Pt/So/Nd: osoba dostaje tyle, ile prosiła, liczy si
     assert.equal(scoreMonth(2026, 9, out, one, people, {}, {}, wants).wants, 0);
   }
   assert.equal(scoreMonth(2026, 9, {}, one, people, {}, {}, { a: { '*': 3, we: 2 } }).wants, 5);
+});
+
+test('listPeople: szukanie bez polskich znaków, filtry i sortowanie', () => {
+  const ppl = [
+    { id: 'a', name: 'Łukasz Żak', prestige: 0 },
+    { id: 'b', name: 'Anna Kowalska', prestige: 2 },
+    { id: 'c', name: 'Jan Nowak', prestige: 1 },
+  ];
+  const count = { a: 3, b: 0, c: 5 };
+  const ids = (opts) => listPeople(ppl, count, opts).map((p) => p.id);
+  assert.deepEqual(ids(), ['b', 'c', 'a']); // nazwisko A–Z
+  assert.deepEqual(ids({ q: 'lukasz ZAK' }), ['a']);
+  assert.deepEqual(ids({ q: 'an' }), ['b', 'c']);
+  assert.deepEqual(ids({ role: 'rez' }), ['a']);
+  assert.deepEqual(ids({ role: 'sa', sort: 'most' }), ['c', 'b']);
+  assert.deepEqual(ids({ none: true }), ['b']);
+  assert.deepEqual(ids({ sort: 'name' }), ['b', 'c', 'a']);
+  assert.deepEqual(ids({ sort: 'least' }), ['b', 'a', 'c']);
+  assert.deepEqual(ids({ sort: 'role' }), ['b', 'c', 'a']);
+});
+
+test('Tragiczny: rotacja po dacie ostatniego Tragicznego, także w obrębie miesiąca', () => {
+  const one = [{ id: 's', name: 'S', days: all }];
+  const tr = { a: '2026-01-05', b: '2024-06-01', c: '2025-03-02', d: '2026-08-07' };
+  const ppl = people.map((p) => ({ ...p, tragic: tr[p.id] }));
+  const days = [1, 5, 9, 13, 17].map((d) => dateKey(2026, 9, d));
+  const off = Object.fromEntries([...Array(31)].map((_, i) => dateKey(2026, 9, i + 1)).filter((k) => !days.includes(k)).map((k) => [k, 0]));
+  const avail = Object.fromEntries(people.map((p) => [p.id, off])); // tylko Tragiczne dni do obsadzenia
+  const out = generateMonth(2026, 9, one, ppl, {}, avail, {}, [], Object.fromEntries(days.map((k) => [k, 3])));
+  assert.deepEqual(days.map((k) => out[k].s), ['b', 'c', 'a', 'd', 'b']);
 });
