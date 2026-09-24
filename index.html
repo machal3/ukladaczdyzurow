@@ -3,45 +3,97 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#f3f4f1" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0d1012" media="(prefers-color-scheme: dark)">
   <title>Układacz dyżurów</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap">
   <link rel="stylesheet" href="style.css">
   <script type="module" src="app.js"></script>
 </head>
 <body data-tab="calendar">
-  <header>
-    <span id="status" role="status"></span>
+  <header class="app-header">
+    <div class="brand-mark" aria-hidden="true">✳</div>
+    <div>
+      <p class="eyebrow">Planowanie obsady</p>
+      <h1>Układacz dyżurów</h1>
+    </div>
+    <p class="header-help">Wszystkie dyżury i ustalenia w jednym miejscu.</p>
   </header>
-
   <div class="bar">
     <nav class="tabs" aria-label="Widok">
-      <button class="ghost" data-tab="calendar" aria-pressed="true">Grafik</button>
-      <button class="ghost" data-tab="settings" aria-pressed="false">Dostosowywanie</button>
+      <button class="ghost" data-tab="calendar" aria-pressed="true"><span aria-hidden="true">▦</span> Grafik</button>
+      <button class="ghost" data-tab="settings" aria-pressed="false"><span aria-hidden="true">⚙</span> Dostosowywanie</button>
     </nav>
-    <nav class="month">
+    <nav class="month" aria-label="Miesiąc">
       <button id="prev" class="ghost" aria-label="Poprzedni miesiąc">‹</button>
-      <h2 id="month-label"></h2>
+      <h2 id="month-label" aria-live="polite"></h2>
       <button id="next" class="ghost" aria-label="Następny miesiąc">›</button>
       <button id="today" class="ghost">Dzisiaj</button>
     </nav>
     <div class="actions">
       <button id="import-open" class="ghost" title="Wczytaj grafik z tabeli (Word .docx albo wklejona)">Importuj</button>
-      <button id="clear" class="ghost">Wyczyść</button>
-      <button id="generate">Ułóż miesiąc</button>
+      <button id="clear" class="ghost" title="Wyczyść grafik tego miesiąca">Wyczyść</button>
       <button id="logout" class="ghost" hidden>Wyloguj</button>
+      <button id="generate" title="Ułóż automatycznie cały miesiąc (ręczne dyżury zostają)"><span aria-hidden="true">✦</span> Ułóż miesiąc</button>
     </div>
   </div>
 
+  <div id="status" role="status"></div>
+
   <main>
+    <section id="overview" class="overview panel" aria-label="Podsumowanie miesiąca">
+      <div class="overview-heading">
+        <span class="eyebrow">Przegląd miesiąca</span>
+        <strong id="overview-label">Grafik</strong>
+      </div>
+      <div class="overview-progress">
+        <div class="progress-caption"><span>Obsadzone dyżury</span><strong id="coverage-text">0 z 0</strong></div>
+        <div id="coverage-bar" class="progress-track" role="progressbar" aria-label="Obsadzone dyżury" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span></span></div>
+      </div>
+      <div class="overview-meta"><span id="people-count">0 osób</span><span id="empty-count">0 wolnych miejsc</span></div>
+      <button id="jump-empty" class="ghost outline" hidden>Pokaż pierwszy wolny dyżur <span aria-hidden="true">↗</span></button>
+      <details class="legend-details"><summary>Oznaczenia w grafiku</summary>
+        <ul class="legend" aria-label="Legenda">
+          <li><i class="slot-mark manual"></i>ręcznie wpisany</li>
+          <li><i class="slot-mark unfilled"></i>nieobsadzony</li>
+          <li><i class="slot-mark clash"></i>nie może / łamie warunek</li>
+          <li><i class="dot b2"></i><i class="dot b3"></i>gówniany / tragiczny dzień</li>
+        </ul>
+      </details>
+    </section>
     <section id="panel-variants" class="panel" hidden aria-labelledby="variants-title">
       <h3 id="variants-title">Warianty grafiku <small>równie dobre przy tej kolejności priorytetów · zaznacz, by zobaczyć w kalendarzu</small></h3>
       <div id="variants-list" class="variants"></div>
       <menu><button class="ghost" id="variants-undo">Przywróć poprzedni grafik</button><button id="variants-ok">Zostaw zaznaczony</button></menu>
     </section>
-    <section id="calendar" class="calendar" aria-label="Grafik miesiąca"></section>
+
+    <div class="board">
+      <section id="calendar" class="calendar" aria-label="Grafik miesiąca"></section>
+      <aside id="summary" class="panel summary" aria-labelledby="summary-title">
+        <h3 id="summary-title">Obsada miesiąca</h3>
+        <ul id="summary-list" class="list"></ul>
+        <p class="hint">Kliknij osobę, by zaznaczać jej dostępność w kalendarzu.</p>
+        <ul class="legend" aria-label="Legenda">
+          <li><i class="slot-mark manual"></i>ręcznie wpisany</li>
+          <li><i class="slot-mark unfilled"></i>nieobsadzony</li>
+          <li><i class="slot-mark clash"></i>nie może / łamie warunek</li>
+          <li><i class="dot b2"></i><i class="dot b3"></i>gówniany / tragiczny dzień</li>
+        </ul>
+      </aside>
+    </div>
 
     <section id="settings" class="settings" aria-label="Dostosowywanie">
+      <div class="panel" id="panel-people">
+        <h3>Osoby</h3>
+        <p class="lead">Kliknij imię, by zaznaczyć dostępność w kalendarzu. ⚙ — funkcja, limity, prośby i historia. Liczba = dyżury w tym miesiącu.</p>
+        <ul id="people" class="list"></ul>
+        <form id="add-person" class="add">
+          <input name="name" placeholder="Dodaj osobę — imię i nazwisko" aria-label="Nowa osoba" autocomplete="off">
+          <button aria-label="Dodaj osobę">+</button>
+        </form>
+      </div>
       <div class="panel" id="panel-priority">
         <h3>Priorytety układania</h3>
         <p class="lead">Co liczy się najbardziej przy układaniu grafiku — od najważniejszego. Strzałkami zmieniasz kolejność.</p>
@@ -59,15 +111,6 @@
         <p class="lead">Jak ciężki jest każdy dzień (0–3). Układanie dzieli gówniane dni sprawiedliwie między osoby.</p>
         <button id="bad-mode" class="ghost outline" aria-pressed="false">Oceń dni w kalendarzu →</button>
       </div>
-      <div class="panel" id="panel-people">
-        <h3>Osoby</h3>
-        <p class="lead">Kliknij imię, by zaznaczyć dostępność w kalendarzu. ⚙ — funkcja, limity, prośby i historia. Liczba = dyżury w tym miesiącu.</p>
-        <ul id="people" class="list"></ul>
-        <form id="add-person" class="add">
-          <input name="name" placeholder="Imię i nazwisko" aria-label="Nowa osoba" autocomplete="off">
-          <button aria-label="Dodaj osobę">+</button>
-        </form>
-      </div>
     </section>
   </main>
 
@@ -83,7 +126,7 @@
     <form method="dialog">
       <h3 id="import-title"></h3>
       <p class="hint">Tabela jak w Wordzie: nagłówek z nazwami miejsc, w pierwszej kolumnie numer dnia. Dyżury trafią do grafiku jako ręczne.</p>
-      <label class="file">Plik Word (.docx) <input type="file" name="file" accept=".docx"></label>
+      <label class="file"><span>Plik Word (.docx)</span> <input type="file" name="file" accept=".docx"></label>
       <textarea name="paste" rows="3" placeholder="…albo zaznacz tabelę w Wordzie/Excelu, skopiuj i wklej tutaj"></textarea>
       <div id="import-preview"></div>
       <menu>
