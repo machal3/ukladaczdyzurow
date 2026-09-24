@@ -85,32 +85,33 @@ function render() {
 
   // Statystyki miesiąca
   const count = Object.fromEntries(team().map((p) => [p.id, 0]));
-  const whoShifts = { we: 0, bad: 0 }; // shiftId → dyżury wybranej osoby w tym miesiącu, we = w Pt/So/Nd, bad = pkt gównianości
+  const whoShifts = { we: 0 }; // shiftId → dyżury wybranej osoby w tym miesiącu, we = w Pt/So/Nd
   for (const k of monthKeys()) for (const [sid, pid] of Object.entries(state.schedule[k] || {})) {
     if (pid in count) count[pid]++;
     if (pid !== view.who) continue;
     whoShifts[sid] = (whoShifts[sid] || 0) + 1;
     if (weekday(y, m, +k.slice(8)) >= 4) whoShifts.we++;
-    whoShifts.bad += badOf(state.bad, y, m, +k.slice(8));
   }
-  const hist = history(state.schedule, state.bad, y, m);
-  const limitsRow = (p) => `<li class="limits"><button class="to-cal" data-go="calendar">Dostępność w grafiku →</button>` +
-    `<button class="ghost log-open" data-log>Historia dyżurów</button><label><span>Funkcja</span><select data-prestige aria-label="Funkcja">` +
-    ROLES.map((r, i) => `<option value="${i}" ${i === p.prestige ? 'selected' : ''}>${r}</option>`).join('') + `</select></label>` +
-    `<label><span>Ostatnio gówniane (spoza grafiku)</span><select data-past aria-label="Jak gówniane dyżury miała ostatnio poza grafikiem">` +
-    BAD.map((_, i) => `<option value="${i}" ${i === (p.past ?? 0) ? 'selected' : ''}>${i}</option>`).join('') +
-    `</select></label><small>Gównianość w tym miesiącu: ${whoShifts.bad} pkt · z poprzednich: ${+(hist.pts[p.id] ?? 0).toFixed(1)} pkt` +
-    `${hist.tragic.has(p.id) ? ' · miał(a) Tragiczny — teraz omijany(a)' : ''}</small>` +
-    limitsFor(p.id);
-  const limitsFor = (pid) => `<small>Limit w miesiącu (puste = bez limitu)</small>` +
-    [{ id: '*', name: 'Łącznie' }, { id: 'we', name: 'Pt/So/Nd' }, ...state.shifts].map((s) => `<label><span>${esc(s.name)}</span><small>${s.id === '*' ? count[pid] : whoShifts[s.id] || 0} /</small>
-      <input type="number" min="0" step="1" placeholder="${s.id === 'we' ? WEEKEND_LIMIT : '∞'}" data-limit="${s.id}" value="${state.limits[pid]?.[s.id] ?? ''}" aria-label="Limit: ${esc(s.name)}"></label>`).join('') +
-    `<small>Prośby w miesiącu (ile chce na danym miejscu)</small>` +
-    state.shifts.map((s) => `<label><span>${esc(s.name)}</span><small>${whoShifts[s.id] || 0} /</small>
-      <input type="number" min="0" step="1" placeholder="—" data-want="${s.id}" value="${state.wants[pid]?.[s.id] ?? ''}" aria-label="Prośba: ${esc(s.name)}"></label>`).join('') + '</li>';
   $('#people').innerHTML = team().map((p) => `<li>
-      <button class="who ${p.id === view.who ? 'on' : ''}" data-who="${p.id}" aria-pressed="${p.id === view.who}" title="Edytuj dostępność i limity">${esc(p.name)}</button><span class="badge" title="${ROLES[p.prestige]}">${p.prestige ? `SA ${p.prestige}` : 'Rez.'}</span><span class="badge">${count[p.id]}</span>
-      <button class="x" data-del-person="${p.id}" aria-label="Usuń ${esc(p.name)}">×</button></li>${p.id === view.who ? limitsRow(p) : ''}`).join('');
+      <button class="who ${p.id === view.who ? 'on' : ''}" data-who="${p.id}" aria-pressed="${p.id === view.who}" title="Dostępność w grafiku, ustawienia i historia">${esc(p.name)}</button><span class="badge" title="${ROLES[p.prestige]}">${p.prestige ? `SA ${p.prestige}` : 'Rez.'}</span><span class="badge">${count[p.id]}</span>
+      <button class="x" data-del-person="${p.id}" aria-label="Usuń ${esc(p.name)}">×</button></li>`).join('');
+  // Okno osoby: ustawienia (limity i prośby dotyczą oglądanego miesiąca) + historia dyżurów
+  const who = state.people.find((p) => p.id === view.who);
+  if (who && $('#person').open) {
+    $('#person-title').textContent = `${who.name} — ${$('#month-label').textContent}`;
+    $('#person-body').innerHTML = `<button class="to-cal" data-go="calendar">Dostępność w grafiku →</button><div class="person-grid">` +
+      `<section class="limits"><h4>Osoba</h4><label><span>Funkcja</span><select data-prestige aria-label="Funkcja">` +
+      ROLES.map((r, i) => `<option value="${i}" ${i === who.prestige ? 'selected' : ''}>${r}</option>`).join('') + `</select></label>` +
+      `<label><span>Ostatnio gówniane (spoza grafiku)</span><select data-past aria-label="Jak gówniane dyżury miała ostatnio poza grafikiem">` +
+      BAD.map((_, i) => `<option value="${i}" ${i === (who.past ?? 0) ? 'selected' : ''}>${i}</option>`).join('') + `</select></label></section>` +
+      `<section class="limits"><h4>Limit w miesiącu <small>puste = bez limitu</small></h4>` +
+      [{ id: '*', name: 'Łącznie' }, { id: 'we', name: 'Pt/So/Nd' }, ...state.shifts].map((s) => `<label><span>${esc(s.name)}</span><small>${s.id === '*' ? count[who.id] : whoShifts[s.id] || 0} /</small>
+        <input type="number" min="0" step="1" placeholder="${s.id === 'we' ? WEEKEND_LIMIT : '∞'}" data-limit="${s.id}" value="${state.limits[who.id]?.[s.id] ?? ''}" aria-label="Limit: ${esc(s.name)}"></label>`).join('') + '</section>' +
+      `<section class="limits"><h4>Prośby w miesiącu <small>ile chce na miejscu</small></h4>` +
+      state.shifts.map((s) => `<label><span>${esc(s.name)}</span><small>${whoShifts[s.id] || 0} /</small>
+        <input type="number" min="0" step="1" placeholder="—" data-want="${s.id}" value="${state.wants[who.id]?.[s.id] ?? ''}" aria-label="Prośba: ${esc(s.name)}"></label>`).join('') + '</section></div>' +
+      logHtml(who);
+  }
   const shiftName = Object.fromEntries(state.shifts.map((s) => [s.id, s.name]));
   $('#rules').innerHTML = state.rules.map((r) => `<li>
       <span>Gdy <b>${esc(nameOf[r.who])}</b> dyżuruje z <b>${esc(nameOf[r.with])}</b>, jest w: ${esc(r.places.map((id) => shiftName[id]).filter(Boolean).join(', ') || '—')}</span>
@@ -231,9 +232,8 @@ $('#add-rule').onsubmit = (e) => {
 document.querySelector('aside').onclick = (e) => {
   const { delPerson, delRule, who } = e.target.dataset;
   if (e.target.dataset.go) { showTab(e.target.dataset.go); scrollTo(0, 0); }
-  if ('log' in e.target.dataset) openLog(view.who);
   if (delRule) update(() => { state.rules = state.rules.filter((r) => r.id !== delRule); });
-  if (who) { view.who = view.who === who ? null : who; view.bad = false; render(); }
+  if (who) { view.who = view.who === who ? null : who; view.bad = false; if (view.who) $('#person').showModal(); render(); }
   if (delPerson && confirm(`Usunąć ${state.people.find((p) => p.id === delPerson).name}? Przeszłe dyżury zostaną w grafiku, przyszłe zostaną zwolnione.`)) update(() => {
     state.people.find((p) => p.id === delPerson).gone = true;
     const today = dateKey(now.getFullYear(), now.getMonth(), now.getDate());
@@ -247,7 +247,10 @@ document.querySelector('aside').onclick = (e) => {
   });
 };
 
-document.querySelector('aside').onchange = (e) => {
+$('#person').onclick = (e) => { if (e.target.dataset.go) { showTab(e.target.dataset.go); scrollTo(0, 0); } };
+// Enter w polu liczby zatwierdza wartość zamiast zamykać okno (formularz method="dialog")
+$('#person').onkeydown = (e) => { if (e.key === 'Enter' && e.target.type === 'number') { e.preventDefault(); e.target.blur(); } };
+$('#person').onchange = (e) => {
   if ('past' in e.target.dataset)
     return update(() => { state.people.find((p) => p.id === view.who).past = +e.target.value; });
   if ('prestige' in e.target.dataset)
@@ -261,9 +264,9 @@ document.querySelector('aside').onchange = (e) => {
   });
 };
 
-// Historia osoby: każdy dyżur z oglądanego miesiąca i 3 poprzednich — data, miejsce, gównianość, przerwa, ręczny/zaplanowany
-function openLog(pid) {
-  const p = state.people.find((p) => p.id === pid);
+// Historia osoby p: każdy dyżur z oglądanego miesiąca i 3 poprzednich — data, miejsce, gównianość, przerwa, ręczny/zaplanowany
+function logHtml(p) {
+  const pid = p.id;
   const shiftName = Object.fromEntries(state.shifts.map((s) => [s.id, s.name]));
   const today = dateKey(now.getFullYear(), now.getMonth(), now.getDate());
   const log = personLog(state.schedule, state.bad, pid, view.y, view.m);
@@ -277,24 +280,22 @@ function openLog(pid) {
       `Pt/So/Nd ${we}`, `gównianość ${list.reduce((a, x) => a + x.bad, 0)} pkt`].join(' · ');
   };
   const hist = history(state.schedule, state.bad, view.y, view.m);
-  let html = `<p class="hint">Razem: ${summary(log)}<br>Do układania ${monthName(view.y, view.m)} liczy się: gównianość z poprzednich miesięcy ${+(hist.pts[pid] ?? 0).toFixed(2)} pkt (ważona ½, ¼, ⅛)` +
+  let html = `<h3>Historia dyżurów</h3><p class="hint">Razem: ${summary(log)}<br>Do układania ${monthName(view.y, view.m)} liczy się: gównianość z poprzednich miesięcy ${+(hist.pts[pid] ?? 0).toFixed(2)} pkt (ważona ½, ¼, ⅛)` +
     ` + „ostatnio gówniane” ${p.past ?? 0} × ${PAST_WEIGHT}${hist.tragic.has(pid) ? ' · w zeszłym miesiącu miał(a) Tragiczny' : ''}</p>`;
   for (let i = 0; i < 4; i++) {
     const t = new Date(view.y, view.m - i), y = t.getFullYear(), m = t.getMonth();
     const list = log.filter((x) => x.key.startsWith(dateKey(y, m, 1).slice(0, 8))).reverse(); // najnowsze na górze
     html += `<h4>${monthName(y, m)} <small>${summary(list)}</small></h4>` + (!list.length ? '' :
-      `<table class="preview"><tr><th>Dzień</th><th>Miejsce</th><th>Gównianość</th><th>Przerwa</th><th></th></tr>` +
+      `<table class="preview"><tr><th>Dzień</th><th>Miejsce</th><th>Gównianość</th><th>Przerwa</th></tr>` +
       list.map((x) => {
         const d = +x.key.slice(8);
+        const note = [state.manual[x.key]?.[x.sid] === pid && 'ręczny', x.key > today && 'zaplanowany'].filter(Boolean).join(', ');
         return `<tr class="${weekday(y, m, d) > 4 ? 'weekend' : ''}"><td>${d} ${DAYS[weekday(y, m, d)]}</td>` +
-          `<td>${esc(shiftName[x.sid] ?? '(usunięte miejsce)')}</td><td>${BAD[x.bad]}</td>` +
-          `<td>${x.gap === null ? '—' : x.gap === 1 ? '1 dzień' : `${x.gap} dni`}</td>` +
-          `<td>${[state.manual[x.key]?.[x.sid] === pid && 'ręczny', x.key > today && 'zaplanowany'].filter(Boolean).join(', ')}</td></tr>`;
+          `<td>${esc(shiftName[x.sid] ?? '(usunięte miejsce)')}${note && ` <small class="hint">${note}</small>`}</td><td>${BAD[x.bad]}</td>` +
+          `<td>${x.gap === null ? '—' : x.gap === 1 ? '1 dzień' : `${x.gap} dni`}</td></tr>`;
       }).join('') + '</table>');
   }
-  $('#log-title').textContent = `${p.name} — dyżury`;
-  $('#log-body').innerHTML = html;
-  $('#person-log').showModal();
+  return html;
 }
 
 // Import grafiku z tabeli: plik .docx albo wklejony tekst → podgląd i łączenie osób → zapis jako ręczne dyżury.

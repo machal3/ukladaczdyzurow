@@ -71,8 +71,8 @@ button.ghost[aria-pressed="true"] { background: var(--line); }
 button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 .tabs, .to-cal { display: none; }
-.log-open { align-self: flex-start; margin-bottom: 4px; border: 1px solid var(--line); }
-#log-body .preview { table-layout: fixed; }
+#person-body .preview { table-layout: fixed; }
+.person-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px 24px; margin-bottom: 16px; }
 html { touch-action: manipulation; } /* bez powiększania przy szybkim stukaniu w dni */
 main { display: grid; grid-template-columns: 1fr 300px; gap: 24px; align-items: start; }
 
@@ -130,7 +130,7 @@ aside { display: flex; flex-direction: column; gap: 16px; }
 .list li > :first-child { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .badge { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .x { background: none; color: var(--muted); padding: 2px 6px; font-size: 16px; line-height: 1; opacity: .5; }
-.list li.limits { flex-direction: column; align-items: stretch; gap: 4px; padding: 8px 0 10px; }
+.limits { display: flex; flex-direction: column; gap: 4px; }
 .limits label { display: flex; align-items: center; gap: 6px; font-size: 12px; }
 .limits span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .limits select { border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; background: var(--bg); }
@@ -201,6 +201,8 @@ aside { display: flex; flex-direction: column; gap: 16px; }
   .avail { padding: 10px; }
   aside { gap: 12px; }
   #import-preview { overflow-x: auto; }
+  #person-body .preview { table-layout: auto; }
+  #person-body .preview :is(th, td) { white-space: normal; padding: 3px 4px; }
   dialog { padding: 16px; }
 }
 /* Dotyk: większe cele, × zawsze widoczny, 16px w polach (iOS nie powiększa strony przy fokusie) */
@@ -218,6 +220,7 @@ aside { display: flex; flex-direction: column; gap: 16px; }
 dialog {
   border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); color: var(--text);
   padding: 20px; width: min(760px, calc(100vw - 32px)); max-height: calc(100vh - 32px);
+  margin: auto; /* * { margin: 0 } zdejmuje domyślne wyśrodkowanie */
 }
 dialog::backdrop { background: rgb(0 0 0 / .4); }
 dialog form { display: flex; flex-direction: column; gap: 12px; }

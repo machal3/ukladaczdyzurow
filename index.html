@@ -32,7 +32,7 @@
 
     <aside>
       <div class="panel" id="panel-people">
-        <h3>Osoby <small>klik = dostępność i limity · liczba dyżurów</small></h3>
+        <h3>Osoby <small>klik = dostępność, ustawienia i historia · liczba dyżurów</small></h3>
         <ul id="people" class="list"></ul>
         <form id="add-person" class="add">
           <input name="name" placeholder="Imię i nazwisko" aria-label="Nowa osoba" autocomplete="off">
@@ -53,10 +53,10 @@
     <button class="ghost" data-tab="rules" aria-pressed="false">Warunki</button>
   </nav>
 
-  <dialog id="person-log" aria-labelledby="log-title">
+  <dialog id="person" aria-labelledby="person-title">
     <form method="dialog">
-      <h3 id="log-title"></h3>
-      <div id="log-body"></div>
+      <h3 id="person-title"></h3>
+      <div id="person-body"></div>
       <menu><button>Zamknij</button></menu>
     </form>
   </dialog>
