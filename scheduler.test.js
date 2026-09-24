@@ -40,12 +40,12 @@ test('za mało ludzi → dyżur zostaje pusty zamiast łamać zasady', () => {
   assert.equal(Object.values(out['2026-10-02']).length, 0); // obie osoby miały dyżur 1.10
 });
 
-test('obecność: Chcę > Mogę > Jeśli trzeba > Nie ma opcji', () => {
+test('dostępność: Chcę > Mogę > W ostateczności, Nie mogę = nigdy', () => {
   const k = dateKey(2026, 9, 1);
   const one = [{ id: 's', name: 'S', days: all }];
   const pick = (avail) => generateMonth(2026, 9, one, people, {}, avail)[k].s;
   assert.equal(pick({ d: { [k]: 3 } }), 'd');                                   // chce, mimo że ostatni na liście
   assert.equal(pick({ a: { [k]: 1 }, b: { [k]: 0 } }), 'c');                    // domyślne „Mogę” wygrywa
   assert.equal(pick({ a: { [k]: 0 }, b: { [k]: 1 }, c: { [k]: 0 }, d: { [k]: 0 } }), 'b');
-  assert.equal(pick(Object.fromEntries(people.map((p) => [p.id, { [k]: 0 }]))), 'a'); // w ostateczności i tak ktoś
+  assert.equal(pick(Object.fromEntries(people.map((p) => [p.id, { [k]: 0 }]))), undefined); // wszyscy „Nie mogę” → pusto
 });

@@ -1,4 +1,4 @@
-import { dateKey, daysInMonth, weekday, shiftsForDay, generateMonth } from './scheduler.js';
+import { dateKey, daysInMonth, weekday, shiftsForDay, generateMonth, availOf, LEVELS } from './scheduler.js';
 
 const DAYS = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So', 'Nd'];
 const STORE = 'dyzury-v1';
@@ -13,8 +13,9 @@ let state = load() || {
   schedule: {}, // { 'YYYY-MM-DD': { shiftId: personId } }
   manual: {},   // ręczne przypisania — zachowane przy ponownym układaniu
 };
+state.avail ??= {}; // { personId: { 'YYYY-MM-DD': poziom 0-3 } } — patrz LEVELS
 const now = new Date();
-let view = { y: now.getFullYear(), m: now.getMonth() };
+let view = { y: now.getFullYear(), m: now.getMonth(), who: null }; // who: osoba, której dostępność edytujemy
 
 function uid() { return Math.random().toString(36).slice(2, 10); }
 function person(name) { return { id: uid(), name }; }
@@ -40,11 +41,14 @@ function render() {
   for (let d = 1; d <= daysInMonth(y, m); d++) {
     const key = dateKey(y, m, d);
     const day = state.schedule[key] || {};
-    const rows = shiftsForDay(state.shifts, y, m, d).map((s) => {
+    const lvl = view.who && availOf(state.avail, view.who, key);
+    const rows = view.who ? `<button class="avail lvl-${lvl}" data-avail="${key}">${LEVELS[lvl]}</button>` :
+      shiftsForDay(state.shifts, y, m, d).map((s) => {
       const pid = nameOf[day[s.id]] ? day[s.id] : '';
       if (!pid) empty++;
       const manual = state.manual[key]?.[s.id] ? 'manual' : '';
-      return `<label class="slot ${pid ? '' : 'unfilled'} ${manual}" title="${esc(s.name)}">
+      const clash = pid && availOf(state.avail, pid, key) === 0 ? 'clash' : '';
+      return `<label class="slot ${pid ? '' : 'unfilled'} ${manual} ${clash}" title="${esc(s.name)}${clash && ' — ta osoba nie może tego dnia'}">
         <span>${esc(s.name)}</span>
         <select data-key="${key}" data-shift="${s.id}" aria-label="${esc(s.name)}, ${d}">${options(pid)}</select>
       </label>`;
@@ -58,24 +62,38 @@ function render() {
   const count = Object.fromEntries(state.people.map((p) => [p.id, 0]));
   for (const k of monthKeys()) for (const pid of Object.values(state.schedule[k] || {})) if (pid in count) count[pid]++;
   $('#people').innerHTML = state.people.map((p) => `<li>
-      <span>${esc(p.name)}</span><span class="badge">${count[p.id]}</span>
+      <button class="who ${p.id === view.who ? 'on' : ''}" data-who="${p.id}" aria-pressed="${p.id === view.who}" title="Edytuj dostępność">${esc(p.name)}</button><span class="badge">${count[p.id]}</span>
       <button class="x" data-del-person="${p.id}" aria-label="Usuń ${esc(p.name)}">×</button></li>`).join('');
   $('#shifts').innerHTML = state.shifts.map((s) => `<li>
       <span>${esc(s.name)}</span>
       <span class="days">${DAYS.map((d, i) => `<button class="day ${s.days.includes(i) ? 'on' : ''}" data-toggle="${s.id}" data-day="${i}" aria-pressed="${s.days.includes(i)}">${d[0]}</button>`).join('')}</span>
       <button class="x" data-del-shift="${s.id}" aria-label="Usuń ${esc(s.name)}">×</button></li>`).join('');
-  $('#status').textContent = empty ? `Nieobsadzone: ${empty}` : '';
+  $('#status').textContent = view.who ? `Dostępność: ${nameOf[view.who]} — klikaj dni, by zmienić` :
+    empty ? `Nieobsadzone: ${empty}` : '';
+  $('#status').classList.toggle('info', !!view.who);
 }
 
 function update(fn) { fn(); save(); render(); }
 
-$('#prev').onclick = () => { view = view.m ? { y: view.y, m: view.m - 1 } : { y: view.y - 1, m: 11 }; render(); };
-$('#next').onclick = () => { view = view.m < 11 ? { y: view.y, m: view.m + 1 } : { y: view.y + 1, m: 0 }; render(); };
+$('#prev').onclick = () => { view = { ...view, ...(view.m ? { m: view.m - 1 } : { y: view.y - 1, m: 11 }) }; render(); };
+$('#next').onclick = () => { view = { ...view, ...(view.m < 11 ? { m: view.m + 1 } : { y: view.y + 1, m: 0 }) }; render(); };
 
 $('#generate').onclick = () => update(() => {
+  view.who = null;
   const keys = monthKeys();
-  Object.assign(state.schedule, generateMonth(view.y, view.m, state.shifts, state.people, pick(state.manual, keys)));
+  Object.assign(state.schedule, generateMonth(view.y, view.m, state.shifts, state.people, pick(state.manual, keys), state.avail));
 });
+
+// Klik w dzień w trybie dostępności: Mogę → Chcę → Nie mogę → W ostateczności → Mogę
+$('#calendar').onclick = (e) => {
+  const key = e.target.dataset.avail;
+  if (!key) return;
+  update(() => {
+    const a = (state.avail[view.who] ??= {});
+    const next = (availOf(state.avail, view.who, key) + 1) % LEVELS.length;
+    if (next === 2) delete a[key]; else a[key] = next;
+  });
+};
 
 $('#clear').onclick = () => {
   if (!confirm('Wyczyścić grafik tego miesiąca (łącznie z ręcznymi zmianami)?')) return;
@@ -107,8 +125,13 @@ $('#add-shift').onsubmit = (e) => {
 };
 
 document.querySelector('aside').onclick = (e) => {
-  const { delPerson, delShift, toggle, day } = e.target.dataset;
-  if (delPerson) update(() => { state.people = state.people.filter((p) => p.id !== delPerson); });
+  const { delPerson, delShift, toggle, day, who } = e.target.dataset;
+  if (who) { view.who = view.who === who ? null : who; render(); }
+  if (delPerson) update(() => {
+    state.people = state.people.filter((p) => p.id !== delPerson);
+    delete state.avail[delPerson];
+    if (view.who === delPerson) view.who = null;
+  });
   if (delShift) update(() => { state.shifts = state.shifts.filter((s) => s.id !== delShift); });
   if (toggle) update(() => {
     const s = state.shifts.find((s) => s.id === toggle);
