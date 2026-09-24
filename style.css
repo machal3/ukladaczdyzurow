@@ -125,9 +125,6 @@ aside { display: flex; flex-direction: column; gap: 16px; }
 .limits label { display: flex; align-items: center; gap: 6px; font-size: 12px; }
 .limits span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .limits input { width: 56px; border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; background: var(--bg); }
-.days { display: flex; gap: 2px; }
-.day { padding: 0; width: 20px; height: 20px; font-size: 10px; border-radius: 50%; background: var(--line); color: var(--muted); }
-.day.on { background: var(--accent); color: #fff; }
 
 .add { display: flex; gap: 6px; margin-top: 10px; }
 .add input {

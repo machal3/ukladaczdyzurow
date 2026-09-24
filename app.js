@@ -82,10 +82,6 @@ function render() {
   $('#people').innerHTML = state.people.map((p) => `<li>
       <button class="who ${p.id === view.who ? 'on' : ''}" data-who="${p.id}" aria-pressed="${p.id === view.who}" title="Edytuj dostępność i limity">${esc(p.name)}</button><span class="badge">${count[p.id]}</span>
       <button class="x" data-del-person="${p.id}" aria-label="Usuń ${esc(p.name)}">×</button></li>${p.id === view.who ? limitsRow(p.id) : ''}`).join('');
-  $('#shifts').innerHTML = state.shifts.map((s) => `<li>
-      <span>${esc(s.name)}</span>
-      <span class="days">${DAYS.map((d, i) => `<button class="day ${s.days.includes(i) ? 'on' : ''}" data-toggle="${s.id}" data-day="${i}" aria-pressed="${s.days.includes(i)}">${d[0]}</button>`).join('')}</span>
-      <button class="x" data-del-shift="${s.id}" aria-label="Usuń ${esc(s.name)}">×</button></li>`).join('');
   $('#status').textContent = view.who ? `Dostępność: ${nameOf[view.who]} — klikaj dni, by zmienić` :
     empty ? `Nieobsadzone: ${empty}` : '';
   $('#status').classList.toggle('info', !!view.who);
@@ -135,27 +131,14 @@ $('#add-person').onsubmit = (e) => {
   e.target.reset();
 };
 
-$('#add-shift').onsubmit = (e) => {
-  e.preventDefault();
-  const name = e.target.name.value.trim();
-  if (name) update(() => state.shifts.push({ id: uid(), name, days: [0, 1, 2, 3, 4, 5, 6] }));
-  e.target.reset();
-};
-
 document.querySelector('aside').onclick = (e) => {
-  const { delPerson, delShift, toggle, day, who } = e.target.dataset;
+  const { delPerson, who } = e.target.dataset;
   if (who) { view.who = view.who === who ? null : who; render(); }
   if (delPerson) update(() => {
     state.people = state.people.filter((p) => p.id !== delPerson);
     delete state.avail[delPerson];
     delete state.limits[delPerson];
     if (view.who === delPerson) view.who = null;
-  });
-  if (delShift) update(() => { state.shifts = state.shifts.filter((s) => s.id !== delShift); });
-  if (toggle) update(() => {
-    const s = state.shifts.find((s) => s.id === toggle);
-    const i = +day;
-    s.days = s.days.includes(i) ? s.days.filter((x) => x !== i) : [...s.days, i].sort();
   });
 };
 
