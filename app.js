@@ -79,7 +79,7 @@ function render() {
       </label>`;
     }).join('');
     html += `<div class="cell ${weekday(y, m, d) > 4 ? 'weekend' : ''} ${key === todayKey ? 'today' : ''}">
-      <div class="num">${d}</div>${rows}</div>`;
+      <div class="num" data-dow="${DAYS[weekday(y, m, d)]}">${d}</div>${rows}</div>`;
   }
   $('#calendar').innerHTML = html;
 
