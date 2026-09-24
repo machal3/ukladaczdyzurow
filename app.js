@@ -35,7 +35,7 @@ if (!state.miejscaV2) {
 }
 if (cloud && !cloud.data) save(); // pusta chmura → wysyłamy to, co było w tej przeglądarce
 const now = new Date();
-let view = { y: now.getFullYear(), m: now.getMonth(), who: null, bad: false }; // who: osoba, której dostępność edytujemy; bad: tryb oceny gównianości dni
+let view = { y: now.getFullYear(), m: now.getMonth(), who: null, bad: false, personTab: 'settings' }; // who: osoba, której dostępność edytujemy; bad: tryb oceny gównianości dni; personTab: karta okna osoby
 let prevWho = null; // tryb sprzed otwarcia okna osoby
 let back = 'settings'; // karta, na którą wraca „Gotowe” — ta, z której włączono tryb
 
@@ -110,7 +110,8 @@ function render() {
   const who = state.people.find((p) => p.id === view.who);
   if (who && $('#person').open) {
     $('#person-title').textContent = `${who.name} — ${$('#month-label').textContent}`;
-    $('#person-body').innerHTML = `<div class="person-grid">` +
+    for (const b of document.querySelectorAll('[data-ptab]')) b.setAttribute('aria-pressed', b.dataset.ptab === view.personTab);
+    $('#person-body').innerHTML = view.personTab === 'history' ? logHtml(who) : `<div class="person-grid">` +
       `<section class="limits"><h4>Osoba</h4><label><span>Funkcja</span><select data-prestige aria-label="Funkcja">` +
       ROLES.map((r, i) => `<option value="${i}" ${i === who.prestige ? 'selected' : ''}>${r}</option>`).join('') + `</select></label>` +
       `<label><span>Ostatnio gówniane (spoza grafiku)</span><select data-past aria-label="Jak gówniane dyżury miała ostatnio poza grafikiem">` +
@@ -126,8 +127,7 @@ function render() {
       state.shifts.map((s) => `<label><span>${esc(s.name)}</span><small>${whoShifts[s.id] || 0} /</small>
         <input type="number" min="0" step="1" placeholder="—" data-want="${s.id}" value="${state.wants[who.id]?.[s.id] ?? ''}" aria-label="Prośba: ${esc(s.name)}"></label>`).join('') +
       ['Pt', 'So', 'Nd'].map((n, i) => `<label><span>${n}</span><small>${whoShifts[`d${i + 4}`] || 0} /</small>
-        <input type="number" min="0" step="1" placeholder="—" data-want="d${i + 4}" value="${state.wants[who.id]?.[`d${i + 4}`] ?? ''}" aria-label="Prośba: ${n}"></label>`).join('') + '</section></div>' +
-      logHtml(who);
+        <input type="number" min="0" step="1" placeholder="—" data-want="d${i + 4}" value="${state.wants[who.id]?.[`d${i + 4}`] ?? ''}" aria-label="Prośba: ${n}"></label>`).join('') + '</section></div>';
   }
   const shiftName = Object.fromEntries(state.shifts.map((s) => [s.id, s.name]));
   $('#rules').innerHTML = state.rules.map((r) => `<li>
@@ -326,7 +326,7 @@ $('main').onclick = (e) => {
   if (delRule) update(() => { state.rules = state.rules.filter((r) => r.id !== delRule); });
   // imię = tryb dostępności w kalendarzu; ⚙ = okno ustawień (po zamknięciu wraca poprzedni tryb, chyba że „Dostępność →”)
   if (who) { view.who = view.who === who ? null : who; view.bad = false; back = e.target.closest('#summary') ? 'calendar' : 'people'; if (view.who) showTab('calendar'); render(); }
-  if (edit) { prevWho = view.who; view.who = edit; view.bad = false; $('#person').returnValue = ''; $('#person').showModal(); render(); }
+  if (edit) { prevWho = view.who; view.who = edit; view.bad = false; view.personTab = 'settings'; $('#person').returnValue = ''; $('#person').showModal(); render(); }
   if (delPerson && confirm(`Usunąć ${state.people.find((p) => p.id === delPerson).name}? Przeszłe dyżury zostaną w grafiku, przyszłe zostaną zwolnione.`)) update(() => {
     state.people.find((p) => p.id === delPerson).gone = true;
     const today = dateKey(now.getFullYear(), now.getMonth(), now.getDate());
@@ -341,7 +341,10 @@ $('main').onclick = (e) => {
 };
 
 $('#person').onclose = () => { if ($('#person').returnValue !== 'avail') view.who = prevWho; render(); };
-$('#person').onclick = (e) => { if (e.target.dataset.go) { showTab(e.target.dataset.go); scrollTo(0, 0); } };
+$('#person').onclick = (e) => {
+  if (e.target.dataset.ptab) { view.personTab = e.target.dataset.ptab; render(); $('#person').scrollTop = 0; return; }
+  if (e.target.dataset.go) { showTab(e.target.dataset.go); scrollTo(0, 0); }
+};
 // Enter w polu liczby zatwierdza wartość zamiast zamykać okno (formularz method="dialog")
 $('#person').onkeydown = (e) => { if (e.key === 'Enter' && e.target.type === 'number') { e.preventDefault(); e.target.blur(); } };
 $('#person').onchange = (e) => {

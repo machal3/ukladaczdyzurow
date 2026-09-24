@@ -327,6 +327,9 @@ dialog menu { display: flex; justify-content: flex-end; gap: 8px; padding: 0; }
   }
   .tabs button { flex: 1; padding: 16px 4px 14px; border-bottom: 0; border-top: 1.5px solid transparent; margin-top: -1px; }
   .tabs button[aria-pressed="true"] { border-top-color: var(--text); }
+  .ptabs { position: static; padding: 0; background: none; border-top: 0; }
+  .ptabs button { padding: 10px 4px; border-top: 0; border-bottom: 1.5px solid transparent; margin: 0; }
+  .ptabs button[aria-pressed="true"] { border-bottom-color: var(--text); }
   #status { margin-top: -8px; }
   #status > span:first-child { flex: 1 1 60%; }
   #status [data-done] { order: 1; }
