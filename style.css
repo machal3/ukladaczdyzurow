@@ -69,11 +69,12 @@ button:disabled { opacity: .35; cursor: default; }
 .tabs button { padding: 10px 0; border-radius: 0; color: var(--muted); background: none; border-bottom: 1.5px solid transparent; }
 .tabs button[aria-pressed="true"] { color: var(--text); border-bottom-color: var(--text); background: none; }
 @media (hover: hover) { .tabs button:hover { background: none; color: var(--text); } }
-.month { display: flex; align-items: center; gap: 4px; }
+.month { display: flex; align-items: center; gap: 6px; }
 .month h2 { font-size: 18px; font-weight: 600; letter-spacing: -.01em; min-width: 180px; text-align: center; text-transform: capitalize; }
-.month button { padding: 8px 14px; color: var(--muted); font-size: 18px; line-height: 1; }
-#today { font-size: 15px; }
-#today.here { color: var(--text); }
+.month button { display: grid; place-items: center; height: 38px; min-width: 38px; padding: 0; border: 1px solid var(--line); color: var(--text); }
+.month svg { pointer-events: none; }
+#today { padding: 0 16px; margin-left: 6px; }
+#today.here { color: var(--muted); } /* już oglądamy bieżący miesiąc */
 .actions { justify-self: end; display: flex; align-items: center; gap: 4px; }
 .actions .ghost { color: var(--muted); }
 #generate { margin-left: 8px; }
@@ -315,7 +316,7 @@ dialog menu { display: flex; justify-content: flex-end; gap: 8px; padding: 0; }
   .bar { display: flex; flex-direction: column; align-items: stretch; gap: 12px; margin-bottom: 20px; }
   .month { order: -1; }
   .month h2 { font-size: 22px; }
-  .month button { padding: 6px 12px; }
+  .month button { height: 42px; min-width: 42px; }
   .actions { flex-wrap: wrap; gap: 8px; }
   .actions button { flex: 1; padding: 9px 4px; }
   .actions .ghost { border: 1px solid var(--line); color: var(--text); }
