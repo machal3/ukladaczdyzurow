@@ -46,7 +46,7 @@ button, input, select { font: inherit; color: inherit; }
 
 header {
   display: flex; align-items: center; gap: 24px; flex-wrap: wrap;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 }
 h1 { font-size: 15px; font-weight: 600; color: var(--muted); }
 .month { display: flex; align-items: center; gap: 4px; }
@@ -72,9 +72,11 @@ button.ghost[aria-pressed="true"] { background: var(--line); }
 button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 /* Zakładki: Grafik / Dostosowywanie */
-.tabs { display: inline-flex; gap: 4px; padding: 4px; margin-bottom: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+.bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
+.tabs { display: inline-flex; gap: 4px; padding: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
 .tabs button { padding: 7px 18px; color: var(--muted); }
 .tabs button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
+.outline { border: 1px solid var(--line); }
 body[data-tab="calendar"] #settings,
 body[data-tab="settings"] #calendar, body[data-tab="settings"] #panel-variants { display: none; }
 #person-body .preview { table-layout: fixed; }
@@ -184,11 +186,11 @@ main { display: flex; flex-direction: column; gap: 16px; }
   .month button { font-size: 22px; padding: 4px 16px; }
   #status { flex-basis: 100%; margin: 0; }
   #status:empty { display: none; }
-  /* wszystkie przyciski widoczne naraz, równe; przy 5 (tryb chmury) zawijają się do drugiego rzędu */
+  .bar { display: block; margin-bottom: 12px; }
+  /* wszystkie przyciski widoczne naraz, równe */
   .actions { width: 100%; display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: 6px; }
   .actions button { padding: 8px 4px; font-size: 13px; }
   .actions .ghost { background: var(--surface); border: 1px solid var(--line); }
-  .actions .ghost[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
   #generate { order: -1; }
   /* zakładki na dole ekranu, pod kciukiem */
   .tabs {

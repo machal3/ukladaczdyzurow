@@ -128,7 +128,7 @@ function render() {
   $('#priority').innerHTML = state.priority.map((k, i) => `<li><span>${i + 1}. ${PRIORITIES[k]}</span>
       <button class="x" data-up="${i}" ${i ? '' : 'disabled'} aria-label="Wyżej: ${PRIORITIES[k]}">↑</button>
       <button class="x" data-up="${i + 1}" ${i < state.priority.length - 1 ? '' : 'disabled'} aria-label="Niżej: ${PRIORITIES[k]}">↓</button></li>`).join('');
-  $('#status').innerHTML = view.bad ? 'Gównianość dni — klikaj dni, by zmienić' :
+  $('#status').innerHTML = view.bad ? 'Gównianość dni — klikaj dni, by zmienić <button class="ghost" data-done>Gotowe</button>' :
     view.who ? `Dostępność: ${esc(nameOf[view.who])} — klikaj dni, by zmienić <button class="ghost" data-done>Gotowe</button>` :
     empty ? `Nieobsadzone: ${empty}` : '';
   $('#status').classList.toggle('info', !!view.who || view.bad);
@@ -176,11 +176,11 @@ function showTab(tab) {
   for (const b of document.querySelectorAll('.tabs button')) b.setAttribute('aria-pressed', b.dataset.tab === tab);
 }
 $('.tabs').onclick = (e) => { if (e.target.dataset.tab) { showTab(e.target.dataset.tab); scrollTo(0, 0); } };
-$('.actions').addEventListener('click', (e) => { if (e.target.closest('#generate, #bad-mode, #clear')) showTab('calendar'); });
+$('.actions').addEventListener('click', (e) => { if (e.target.closest('#generate, #clear')) showTab('calendar'); });
 
-// „Gotowe” kończy dostępność i wraca do listy osób, skąd się ją włącza
-$('#status').onclick = (e) => { if ('done' in e.target.dataset) { view.who = null; showTab('settings'); render(); } };
-$('#bad-mode').onclick = () => { view.bad = !view.bad; view.who = null; render(); };
+// „Gotowe” kończy dostępność/gównianość i wraca do karty Dostosowywanie, skąd się je włącza
+$('#status').onclick = (e) => { if ('done' in e.target.dataset) { view.who = null; view.bad = false; showTab('settings'); render(); } };
+$('#bad-mode').onclick = () => { view.bad = !view.bad; view.who = null; if (view.bad) showTab('calendar'); render(); };
 
 // Klik w dzień w trybie dostępności: Mogę → Chcę → Nie mogę → W ostateczności → Mogę
 // W trybie gównianości: 0 → 1 → 2 → 3 → 0 (wartość równa domyślnej nie jest zapisywana)

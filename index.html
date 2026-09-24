@@ -18,19 +18,20 @@
       <button id="next" class="ghost" aria-label="Następny miesiąc">›</button>
     </nav>
     <span id="status" role="status"></span>
+  </header>
+
+  <div class="bar">
+    <nav class="tabs" aria-label="Widok">
+      <button class="ghost" data-tab="calendar" aria-pressed="true">Grafik</button>
+      <button class="ghost" data-tab="settings" aria-pressed="false">Dostosowywanie</button>
+    </nav>
     <div class="actions">
-      <button id="bad-mode" class="ghost" aria-pressed="false" title="Oceń, jak gówniany jest każdy dzień (0-3)">Gównianość</button>
       <button id="import-open" class="ghost" title="Wczytaj grafik z tabeli (Word .docx albo wklejona)">Importuj</button>
       <button id="clear" class="ghost">Wyczyść</button>
       <button id="generate">Ułóż miesiąc</button>
       <button id="logout" class="ghost" hidden>Wyloguj</button>
     </div>
-  </header>
-
-  <nav class="tabs" aria-label="Widok">
-    <button class="ghost" data-tab="calendar" aria-pressed="true">Grafik</button>
-    <button class="ghost" data-tab="settings" aria-pressed="false">Dostosowywanie</button>
-  </nav>
+  </div>
 
   <main>
     <section id="panel-variants" class="panel" hidden aria-labelledby="variants-title">
@@ -52,6 +53,11 @@
         <p class="lead">Gdzie ktoś ma dyżurować, kiedy trafi na ten sam dzień z wybraną osobą.</p>
         <ul id="rules" class="list"></ul>
         <form id="add-rule" class="rule-form"></form>
+      </div>
+      <div class="panel" id="panel-bad">
+        <h3>Gównianość dni</h3>
+        <p class="lead">Jak ciężki jest każdy dzień (0–3). Układanie dzieli gówniane dni sprawiedliwie między osoby.</p>
+        <button id="bad-mode" class="ghost outline" aria-pressed="false">Oceń dni w kalendarzu →</button>
       </div>
       <div class="panel" id="panel-people">
         <h3>Osoby</h3>
