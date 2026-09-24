@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { generateMonth, dateKey } from './scheduler.js';
+import { generateMonth, dateKey, history } from './scheduler.js';
 
 const people = ['a', 'b', 'c', 'd'].map((id) => ({ id, name: id }));
 const all = [0, 1, 2, 3, 4, 5, 6];
@@ -111,4 +111,27 @@ test('warunek: gdy a dyżuruje z b, a jest tylko na s2', () => {
   for (const day of Object.values(out))
     if (Object.values(day).includes('a') && Object.values(day).includes('b')) { together++; assert.equal(day.s2, 'a', JSON.stringify(day)); }
   assert.ok(together > 0); // warunek nie zabrania wspólnych dyżurów, tylko wymusza miejsce
+});
+
+test('historia: punkty z poprzednich miesięcy × ½, ¼, ⅛ (także przez przełom roku), Tragiczny miesiąc temu', () => {
+  const schedule = {
+    '2026-12-01': { s1: 'a' }, // miesiąc temu, oceniony na 3
+    '2026-11-02': { s1: 'b' }, // 2 miesiące temu, oceniony na 2
+    '2026-10-05': { s1: 'c' }, // 3 miesiące temu, oceniony na 2
+    '2026-09-07': { s1: 'd' }, // 4 miesiące temu → już się nie liczy
+  };
+  const bad = { '2026-12-01': 3, '2026-11-02': 2, '2026-10-05': 2, '2026-09-07': 3 };
+  const h = history(schedule, bad, 2027, 0);
+  assert.deepEqual(h.pts, { a: 1.5, b: 0.5, c: 0.25 });
+  assert.deepEqual([...h.tragic], ['a']);
+});
+
+test('Tragiczny: kto miał Tragiczny miesiąc temu, idzie na koniec kolejki (ale nie jest zablokowany)', () => {
+  const one = [{ id: 's', name: 'S', days: all }];
+  const k = dateKey(2026, 9, 1);
+  const ppl = people.map((p) => (p.id === 'a' ? { ...p, tragic: true } : { ...p, past: 1 })); // a ma najmniejsze obciążenie
+  assert.equal(generateMonth(2026, 9, one, ppl, {}, {}, {}, [], { [k]: 2 })[k].s, 'a');
+  assert.notEqual(generateMonth(2026, 9, one, ppl, {}, {}, {}, [], { [k]: 3 })[k].s, 'a');
+  const onlyA = { b: { [k]: 0 }, c: { [k]: 0 }, d: { [k]: 0 } };
+  assert.equal(generateMonth(2026, 9, one, ppl, {}, onlyA, {}, [], { [k]: 3 })[k].s, 'a');
 });

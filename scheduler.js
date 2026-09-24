@@ -26,6 +26,24 @@ export const badOf = (bad, y, m, d) => bad[dateKey(y, m, d)] ?? (weekday(y, m, d
 // ponytail: stała waga na oko (poziom 3 ≈ trzy gówniane dni); stroić, jeśli wychodzi niesprawiedliwie.
 export const PAST_WEIGHT = 3;
 
+// Gównianość z poprzednich miesięcy grafiku: punkty × ½ (miesiąc temu), × ¼, × ⅛; tragic = kto miał Tragiczny miesiąc temu.
+// Zwraca { pts: { personId: punkty }, tragic: Set(personId) } — do doliczenia jako person.hist / person.tragic.
+export function history(schedule, bad, y, m, months = 3) {
+  const pts = {};
+  const tragic = new Set();
+  for (let i = 1; i <= months; i++) {
+    const py = y + Math.floor((m - i) / 12), pm = (m - i + 12 * months) % 12;
+    for (let d = 1; d <= daysInMonth(py, pm); d++) {
+      const b = badOf(bad, py, pm, d);
+      for (const pid of Object.values(schedule[dateKey(py, pm, d)] || {})) {
+        pts[pid] = (pts[pid] || 0) + b / 2 ** i;
+        if (i === 1 && b === 3) tragic.add(pid);
+      }
+    }
+  }
+  return { pts, tragic };
+}
+
 // Dyżury, które trzeba obstawić danego dnia.
 export const shiftsForDay = (shifts, y, m, d) => shifts.filter((s) => s.days.includes(weekday(y, m, d)));
 
@@ -34,13 +52,15 @@ export const shiftsForDay = (shifts, y, m, d) => shifts.filter((s) => s.days.inc
 // nikt ponad swój miesięczny limit na danym dyżurze: limits = { personId: { shiftId: n, '*': n łącznie, we: n w Pt/So/Nd } } (brak = bez limitu),
 // maks. jeden rezydent dziennie (licząc ręczne wpisy), warunki z `rules` (patrz breaksRule).
 // Kolejność wyboru: najpierw dostępność (Chcę > Mogę > W ostateczności), potem w gówniany dzień najmniejsze
-// obciążenie gównianością (ostatnio + ten miesiąc), potem równy podział liczby dyżurów.
+// obciążenie gównianością (person.past + person.hist z poprzednich miesięcy + ten miesiąc), potem równy podział liczby dyżurów.
+// W dzień Tragiczny na koniec kolejki idą ci, którzy mieli Tragiczny miesiąc temu (person.tragic) albo już w tym miesiącu.
 // Wpisy z `locked` (ręczne) są zachowane i liczą się do bilansu.
 // ponytail: zachłanny algorytm dzień po dniu; preferencje/limity → podmienić na solver (np. ILP) z tym samym interfejsem.
 export function generateMonth(y, m, shifts, people, locked = {}, avail = {}, limits = {}, rules = [], bad = {}) {
   const result = {};
   const count = Object.fromEntries(people.map((p) => [p.id, 0]));
-  const burden = Object.fromEntries(people.map((p) => [p.id, (p.past ?? 0) * PAST_WEIGHT]));
+  const burden = Object.fromEntries(people.map((p) => [p.id, (p.past ?? 0) * PAST_WEIGHT + (p.hist ?? 0)]));
+  const tragic = Object.fromEntries(people.map((p) => [p.id, +!!p.tragic])); // 1 = miał(a) już Tragiczny
   const perShift = {}; // 'personId:shiftId' → liczba dyżurów
   const we = {}; // personId → liczba dyżurów w Pt/So/Nd
   const isWe = (d) => weekday(y, m, d) >= 4;
@@ -48,6 +68,7 @@ export function generateMonth(y, m, shifts, people, locked = {}, avail = {}, lim
     count[pid]++; perShift[`${pid}:${sid}`] = (perShift[`${pid}:${sid}`] || 0) + 1;
     if (isWe(d)) we[pid] = (we[pid] || 0) + 1;
     burden[pid] += badOf(bad, y, m, d);
+    if (badOf(bad, y, m, d) === 3) tragic[pid] = 1;
   };
   const underLimit = (pid, sid, d) => (perShift[`${pid}:${sid}`] || 0) < (limits[pid]?.[sid] ?? Infinity) &&
     count[pid] < (limits[pid]?.['*'] ?? Infinity) && (!isWe(d) || (we[pid] || 0) < (limits[pid]?.we ?? Infinity));
@@ -62,6 +83,7 @@ export function generateMonth(y, m, shifts, people, locked = {}, avail = {}, lim
     const busy = new Set(Object.values(day));
     let hasResident = [...busy].some((pid) => resident.has(pid));
     const isBad = badOf(bad, y, m, d) > 0;
+    const isTragic = badOf(bad, y, m, d) === 3;
 
     for (const s of shiftsForDay(shifts, y, m, d)) {
       if (day[s.id]) continue;
@@ -69,7 +91,7 @@ export function generateMonth(y, m, shifts, people, locked = {}, avail = {}, lim
         .filter((p) => availOf(avail, p.id, key) > 0 && !busy.has(p.id) && lastDay[p.id] !== d - 1 && !lockedOn(locked, y, m, d + 1, p.id) && underLimit(p.id, s.id, d) &&
           !(hasResident && resident.has(p.id)) && !breaksRule(rules, day, p.id, s.id))
         .sort((a, b) => availOf(avail, b.id, key) - availOf(avail, a.id, key) ||
-          (isBad && burden[a.id] - burden[b.id]) || count[a.id] - count[b.id] || (lastDay[a.id] ?? -99) - (lastDay[b.id] ?? -99))[0];
+          (isTragic && tragic[a.id] - tragic[b.id]) || (isBad && burden[a.id] - burden[b.id]) || count[a.id] - count[b.id] || (lastDay[a.id] ?? -99) - (lastDay[b.id] ?? -99))[0];
       if (!pick) continue; // brak wolnej osoby → dyżur zostaje pusty, widoczny w UI
       day[s.id] = pick.id;
       busy.add(pick.id);

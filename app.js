@@ -1,4 +1,4 @@
-import { dateKey, daysInMonth, weekday, shiftsForDay, generateMonth, availOf, breaksRule, LEVELS, ROLES, badOf, BAD } from './scheduler.js';
+import { dateKey, daysInMonth, weekday, shiftsForDay, generateMonth, availOf, breaksRule, LEVELS, ROLES, badOf, BAD, history } from './scheduler.js';
 
 const DAYS = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So', 'Nd'];
 const STORE = 'dyzury-v1';
@@ -87,11 +87,13 @@ function render() {
     if (weekday(y, m, +k.slice(8)) >= 4) whoShifts.we++;
     whoShifts.bad += badOf(state.bad, y, m, +k.slice(8));
   }
+  const hist = history(state.schedule, state.bad, y, m);
   const limitsRow = (p) => `<li class="limits"><label><span>Funkcja</span><select data-prestige aria-label="Funkcja">` +
     ROLES.map((r, i) => `<option value="${i}" ${i === p.prestige ? 'selected' : ''}>${r}</option>`).join('') + `</select></label>` +
-    `<label><span>Ostatnio gówniane dyżury</span><select data-past aria-label="Jak gówniane dyżury miała ostatnio">` +
+    `<label><span>Ostatnio gówniane (spoza grafiku)</span><select data-past aria-label="Jak gówniane dyżury miała ostatnio poza grafikiem">` +
     BAD.map((_, i) => `<option value="${i}" ${i === (p.past ?? 0) ? 'selected' : ''}>${i}</option>`).join('') +
-    `</select></label><small>Gównianość w tym miesiącu: ${whoShifts.bad} pkt</small>` +
+    `</select></label><small>Gównianość w tym miesiącu: ${whoShifts.bad} pkt · z poprzednich: ${+(hist.pts[p.id] ?? 0).toFixed(1)} pkt` +
+    `${hist.tragic.has(p.id) ? ' · miał(a) Tragiczny — teraz omijany(a)' : ''}</small>` +
     limitsFor(p.id);
   const limitsFor = (pid) => `<small>Limit w miesiącu (puste = bez limitu)</small>` +
     [{ id: '*', name: 'Łącznie' }, { id: 'we', name: 'Pt/So/Nd' }, ...state.shifts].map((s) => `<label><span>${esc(s.name)}</span><small>${s.id === '*' ? count[pid] : whoShifts[s.id] || 0} /</small>
@@ -125,7 +127,9 @@ $('#generate').onclick = () => update(() => {
   view.who = null;
   view.bad = false;
   const keys = monthKeys();
-  Object.assign(state.schedule, generateMonth(view.y, view.m, state.shifts, state.people, pick(state.manual, keys), state.avail,
+  const h = history(state.schedule, state.bad, view.y, view.m);
+  const people = state.people.map((p) => ({ ...p, hist: h.pts[p.id] ?? 0, tragic: h.tragic.has(p.id) }));
+  Object.assign(state.schedule, generateMonth(view.y, view.m, state.shifts, people, pick(state.manual, keys), state.avail,
     Object.fromEntries(state.people.map((p) => [p.id, { we: WEEKEND_LIMIT, ...state.limits[p.id] }])), state.rules, state.bad));
 });
 
