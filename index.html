@@ -27,6 +27,11 @@
     </div>
   </header>
 
+  <nav class="tabs" aria-label="Widok">
+    <button class="ghost" data-tab="calendar" aria-pressed="true">Grafik</button>
+    <button class="ghost" data-tab="settings" aria-pressed="false">Dostosowywanie</button>
+  </nav>
+
   <main>
     <section id="panel-variants" class="panel" hidden aria-labelledby="variants-title">
       <h3 id="variants-title">Warianty grafiku <small>równie dobre przy tej kolejności priorytetów · zaznacz, by zobaczyć w kalendarzu</small></h3>
@@ -35,33 +40,30 @@
     </section>
     <section id="calendar" class="calendar" aria-label="Grafik miesiąca"></section>
 
-    <aside>
+    <section id="settings" class="settings" aria-label="Dostosowywanie">
+      <div class="panel" id="panel-priority">
+        <h3>Priorytety układania</h3>
+        <p class="lead">Co liczy się najbardziej przy układaniu grafiku — od najważniejszego. Strzałkami zmieniasz kolejność.</p>
+        <ol id="priority" class="list"></ol>
+        <p class="hint">Twarde zasady (Nie mogę, limity, dzień po dniu, jeden rezydent, warunki) obowiązują zawsze.</p>
+      </div>
+      <div class="panel" id="panel-rules">
+        <h3>Warunki</h3>
+        <p class="lead">Gdzie ktoś ma dyżurować, kiedy trafi na ten sam dzień z wybraną osobą.</p>
+        <ul id="rules" class="list"></ul>
+        <form id="add-rule" class="rule-form"></form>
+      </div>
       <div class="panel" id="panel-people">
-        <h3>Osoby <small>imię = dostępność · ⚙ = ustawienia i historia</small></h3>
+        <h3>Osoby</h3>
+        <p class="lead">Kliknij imię, by zaznaczyć dostępność w kalendarzu. ⚙ — funkcja, limity, prośby i historia. Liczba = dyżury w tym miesiącu.</p>
         <ul id="people" class="list"></ul>
         <form id="add-person" class="add">
           <input name="name" placeholder="Imię i nazwisko" aria-label="Nowa osoba" autocomplete="off">
           <button aria-label="Dodaj osobę">+</button>
         </form>
       </div>
-      <div class="panel" id="panel-rules">
-        <h3>Warunki <small>gdy dyżurują razem</small></h3>
-        <ul id="rules" class="list"></ul>
-        <form id="add-rule" class="rule-form"></form>
-      </div>
-      <div class="panel" id="panel-priority">
-        <h3>Priorytety układania <small>od najważniejszego</small></h3>
-        <ol id="priority" class="list"></ol>
-        <p class="hint">Twarde zasady (Nie mogę, limity, dzień po dniu, jeden rezydent, warunki) obowiązują zawsze.</p>
-      </div>
-    </aside>
+    </section>
   </main>
-
-  <nav class="tabs" aria-label="Widok">
-    <button class="ghost" data-tab="calendar" aria-pressed="true">Grafik</button>
-    <button class="ghost" data-tab="people" aria-pressed="false">Osoby</button>
-    <button class="ghost" data-tab="rules" aria-pressed="false">Warunki</button>
-  </nav>
 
   <dialog id="person" aria-labelledby="person-title">
     <form method="dialog">

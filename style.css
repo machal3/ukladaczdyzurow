@@ -71,7 +71,12 @@ button.ghost { background: transparent; color: var(--text); }
 button.ghost[aria-pressed="true"] { background: var(--line); }
 button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
-.tabs, .to-cal { display: none; }
+/* Zakładki: Grafik / Dostosowywanie */
+.tabs { display: inline-flex; gap: 4px; padding: 4px; margin-bottom: 16px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
+.tabs button { padding: 7px 18px; color: var(--muted); }
+.tabs button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
+body[data-tab="calendar"] #settings,
+body[data-tab="settings"] #calendar, body[data-tab="settings"] #panel-variants { display: none; }
 #person-body .preview { table-layout: fixed; }
 #person-body .preview :is(th, td):first-child { width: 20%; }
 #person-body .preview :is(th, td):nth-child(2) { width: 30%; white-space: normal; }
@@ -79,7 +84,7 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 #person-title:focus { outline: none; } /* fokus startowy okna — żeby telefon nie otwierał klawiatury na pierwszym polu */
 .person-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px 24px; margin-bottom: 16px; }
 html { touch-action: manipulation; } /* bez powiększania przy szybkim stukaniu w dni */
-main { display: grid; grid-template-columns: 1fr 300px; gap: 24px; align-items: start; }
+main { display: flex; flex-direction: column; gap: 16px; }
 
 /* Kalendarz */
 .calendar {
@@ -123,8 +128,13 @@ main { display: grid; grid-template-columns: 1fr 300px; gap: 24px; align-items: 
 .lvl-3 { background: var(--ok-soft); color: var(--ok); }
 .bad-3 { background: var(--warn); color: var(--bg); font-weight: 600; }
 
-/* Panel boczny */
-aside { display: flex; flex-direction: column; gap: 16px; }
+/* Karta Dostosowywanie: priorytety, warunki, osoby */
+.settings { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; align-items: start; }
+.settings .panel { padding: 20px; }
+.settings .panel h3 { font-size: 16px; margin-bottom: 4px; }
+.lead { color: var(--muted); font-size: 13px; margin-bottom: 14px; }
+.settings .hint { margin-top: 12px; }
+.settings .list li { padding: 8px 0; }
 .panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; }
 .panel h3 { font-size: 13px; font-weight: 600; margin-bottom: 10px; display: flex; justify-content: space-between; align-items: baseline; }
 .panel small { font-weight: 400; color: var(--muted); font-size: 11px; }
@@ -137,7 +147,6 @@ aside { display: flex; flex-direction: column; gap: 16px; }
 .x { background: none; color: var(--muted); padding: 2px 6px; font-size: 16px; line-height: 1; opacity: .5; }
 .x:disabled { visibility: hidden; }
 #priority li > :first-child { white-space: normal; }
-#panel-variants { grid-column: 1 / -1; }
 #panel-variants menu { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; padding: 0; margin-top: 12px; }
 .variants { display: flex; flex-direction: column; gap: 10px; }
 .variants .chk { align-items: flex-start; gap: 8px; }
@@ -162,9 +171,6 @@ aside { display: flex; flex-direction: column; gap: 16px; }
 .rule-form legend { float: left; margin-right: 8px; }
 .chk { display: flex; align-items: center; gap: 4px; }
 
-@media (max-width: 1000px) {
-  main { grid-template-columns: 1fr; }
-}
 /* Telefon: kalendarz jako lista dni, przyklejony nagłówek ze statusem */
 @media (max-width: 760px) {
   body { padding: 0 12px calc(72px + env(safe-area-inset-bottom)); }
@@ -184,20 +190,15 @@ aside { display: flex; flex-direction: column; gap: 16px; }
   .actions .ghost { background: var(--surface); border: 1px solid var(--line); }
   .actions .ghost[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
   #generate { order: -1; }
-  /* zakładki: Grafik / Osoby / Warunki */
+  /* zakładki na dole ekranu, pod kciukiem */
   .tabs {
-    display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 1;
-    background: var(--surface); border-top: 1px solid var(--line);
+    display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 1; margin: 0;
+    border: 0; border-top: 1px solid var(--line); border-radius: 0;
     padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); gap: 6px;
   }
-  .tabs button { flex: 1; padding: 12px 4px; font-weight: 600; color: var(--muted); }
-  .tabs button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
-  body[data-tab="calendar"] aside,
-  body[data-tab="people"] #calendar, body[data-tab="people"] #panel-rules, body[data-tab="people"] #panel-priority,
-  body[data-tab="rules"] #calendar, body[data-tab="rules"] #panel-people,
-  body[data-tab="people"] #panel-variants, body[data-tab="rules"] #panel-variants { display: none; }
-  .to-cal { display: block; align-self: flex-start; margin-bottom: 4px; padding: 8px 12px; }
-  .panel { padding: 12px 14px; }
+  .tabs button { flex: 1; padding: 12px 4px; font-weight: 600; }
+  .panel, .settings .panel { padding: 14px; }
+  .settings { gap: 12px; grid-template-columns: 1fr; }
   .panel h3 { font-size: 15px; flex-wrap: wrap; gap: 2px 8px; }
   .list li { padding: 4px 0; }
   .who { font-size: 15px; }
@@ -211,7 +212,6 @@ aside { display: flex; flex-direction: column; gap: 16px; }
   .weekend .num { color: var(--warn); }
   .slot span { max-width: none; width: 44px; }
   .avail { padding: 10px; }
-  aside { gap: 12px; }
   #import-preview { overflow-x: auto; }
   /* okno osoby: pełny ekran, tytuł u góry i przyciski na dole zawsze widoczne */
   #person { width: 100%; height: 100%; max-width: none; max-height: none; border: 0; border-radius: 0; padding: 0 16px; }

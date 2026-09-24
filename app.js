@@ -170,7 +170,7 @@ $('#generate').onclick = () => update(() => {
 });
 $('#variants-ok').onclick = () => { $('#panel-variants').hidden = true; };
 
-// Zakładki na telefonie (na szerokim ekranie ukryte, wszystko widać naraz)
+// Zakładki: Grafik / Dostosowywanie (priorytety, warunki, osoby)
 function showTab(tab) {
   document.body.dataset.tab = tab;
   for (const b of document.querySelectorAll('.tabs button')) b.setAttribute('aria-pressed', b.dataset.tab === tab);
@@ -178,7 +178,8 @@ function showTab(tab) {
 $('.tabs').onclick = (e) => { if (e.target.dataset.tab) { showTab(e.target.dataset.tab); scrollTo(0, 0); } };
 $('.actions').addEventListener('click', (e) => { if (e.target.closest('#generate, #bad-mode, #clear')) showTab('calendar'); });
 
-$('#status').onclick = (e) => { if ('done' in e.target.dataset) { view.who = null; render(); } };
+// „Gotowe” kończy dostępność i wraca do listy osób, skąd się ją włącza
+$('#status').onclick = (e) => { if ('done' in e.target.dataset) { view.who = null; showTab('settings'); render(); } };
 $('#bad-mode').onclick = () => { view.bad = !view.bad; view.who = null; render(); };
 
 // Klik w dzień w trybie dostępności: Mogę → Chcę → Nie mogę → W ostateczności → Mogę
@@ -251,7 +252,7 @@ $('#add-rule').onsubmit = (e) => {
   update(() => state.rules.push({ id: uid(), who: f.who.value, with: f.with.value, places }));
 };
 
-document.querySelector('aside').onclick = (e) => {
+$('#settings').onclick = (e) => {
   const { delPerson, delRule, who, edit, up } = e.target.dataset;
   if (up) update(() => { const i = +up; [state.priority[i - 1], state.priority[i]] = [state.priority[i], state.priority[i - 1]]; });
   if (e.target.dataset.go) { showTab(e.target.dataset.go); scrollTo(0, 0); }
