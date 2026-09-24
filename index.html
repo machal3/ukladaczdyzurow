@@ -12,11 +12,6 @@
 <body data-tab="calendar">
   <header>
     <h1>Układacz dyżurów</h1>
-    <nav class="month">
-      <button id="prev" class="ghost" aria-label="Poprzedni miesiąc">‹</button>
-      <h2 id="month-label"></h2>
-      <button id="next" class="ghost" aria-label="Następny miesiąc">›</button>
-    </nav>
     <span id="status" role="status"></span>
   </header>
 
@@ -24,6 +19,11 @@
     <nav class="tabs" aria-label="Widok">
       <button class="ghost" data-tab="calendar" aria-pressed="true">Grafik</button>
       <button class="ghost" data-tab="settings" aria-pressed="false">Dostosowywanie</button>
+    </nav>
+    <nav class="month">
+      <button id="prev" class="ghost" aria-label="Poprzedni miesiąc">‹</button>
+      <h2 id="month-label"></h2>
+      <button id="next" class="ghost" aria-label="Następny miesiąc">›</button>
     </nav>
     <div class="actions">
       <button id="import-open" class="ghost" title="Wczytaj grafik z tabeli (Word .docx albo wklejona)">Importuj</button>
