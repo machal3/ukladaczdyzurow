@@ -258,8 +258,11 @@ dialog h4 { font: 600 16px/24px var(--headline); margin: 8px 0 16px; }
 .app-row h4 { margin: 0; }
 dialog menu { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; padding: 0; }
 #person { padding-bottom: 0; }
-.person-head { position: sticky; top: -28px; z-index: 2; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; padding-block: 12px; background: var(--md-sys-color-surface-container-high); } /* top = −padding okna: przykleja się do samej krawędzi */
-.person-head h3 { min-width: 0; overflow-wrap: anywhere; }
+.person-head { position: sticky; top: -28px; z-index: 2; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; padding-block: 20px; background: var(--md-sys-color-surface-container-high); } /* top = −padding okna: przykleja się do samej krawędzi */
+.person-head h3 { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.person-close { width: 48px; height: 48px; padding: 12px; margin-right: -8px; color: var(--md-sys-color-on-surface-variant); } /* MD3 standard icon button */
+button.outlined { display: inline-flex; align-items: center; gap: 8px; padding: 10px 24px 10px 16px; background: transparent; color: var(--md-sys-color-primary); border: 1px solid var(--md-sys-color-outline); } /* MD3 outlined button z ikoną */
+button.outlined svg { width: 18px; height: 18px; }
 #person menu { position: sticky; bottom: 0; background: var(--md-sys-color-surface-container-high); padding: 16px 0 24px; }
 .ptabs { display: flex; gap: 0; padding: 0; border: 1px solid var(--md-sys-color-outline); border-radius: var(--shape-full); background: transparent; align-self: start; overflow: hidden; }
 .ptabs button { padding-inline: 24px; border-radius: 0; }
@@ -402,7 +405,7 @@ body:has(.login) { padding: 24px; min-height: 100dvh; display: grid; place-items
   .person-grid { grid-template-columns: 1fr; gap: 16px; }
   .person-grid section { padding: 16px; }
   .counts input[type=number] { font-size: 16px; width: 52px; padding-inline: 4px; }
-  .ptabs { flex: 1 1 100%; }
+  .ptabs { flex: 1 1 100%; order: 1; } /* X zostaje obok imienia, karty pod spodem */
   .ptabs button { flex: 1; padding-inline: 12px; }
   .map { grid-template-columns: 1fr; }
   .map select { margin-bottom: 8px; }
