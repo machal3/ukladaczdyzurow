@@ -3,6 +3,7 @@ import { cloudLoad, cloudSave, cloudLogout } from './cloud.js';
 
 const DAYS = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So', 'Nd'];
 const STORE = 'dyzury-v1';
+const GEAR = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M21 4h-7M10 4H3M21 12h-9M8 12H3M21 20h-5M12 20H3M14 2v4M8 10v4M16 18v4"/></svg>'; // suwaki = ustawienia osoby
 const WEEKEND_LIMIT = 2; // domyślny limit dyżurów Pt/So/Nd w miesiącu, gdy osoba nie ustawiła własnego
 
 const cloud = await cloudLoad(); // null = tryb lokalny (tylko localStorage)
@@ -100,7 +101,7 @@ function render() {
   }
   $('#people').innerHTML = team().map((p) => `<li>
       <button class="who ${p.id === view.who ? 'on' : ''}" data-who="${p.id}" aria-pressed="${p.id === view.who}" title="Dostępność w grafiku">${esc(p.name)}</button><span class="badge role ${p.prestige ? '' : 'rez'}" title="${ROLES[p.prestige]}">${p.prestige ? `SA ${p.prestige}` : 'Rez.'}</span><span class="badge">${count[p.id]}</span>
-      <button class="edit" data-edit="${p.id}" aria-label="Ustawienia i historia: ${esc(p.name)}" title="Ustawienia i historia">⚙ Ustawienia</button>
+      <button class="edit" data-edit="${p.id}" aria-label="Ustawienia i historia: ${esc(p.name)}" title="Ustawienia i historia">${GEAR}<span>Ustawienia</span></button>
       <button class="x" data-del-person="${p.id}" aria-label="Usuń ${esc(p.name)}">×</button></li>`).join('');
   const max = Math.max(1, ...Object.values(count));
   $('#summary-list').innerHTML = team().map((p) => `<li>
@@ -322,7 +323,7 @@ $('main').onclick = (e) => {
   if (up) update(() => { const i = +up; [state.priority[i - 1], state.priority[i]] = [state.priority[i], state.priority[i - 1]]; });
   if (e.target.dataset.go) { showTab(e.target.dataset.go); scrollTo(0, 0); }
   if (delRule) update(() => { state.rules = state.rules.filter((r) => r.id !== delRule); });
-  // imię = tryb dostępności w kalendarzu; ⚙ = okno ustawień (po zamknięciu wraca poprzedni tryb, chyba że „Dostępność →”)
+  // imię = tryb dostępności w kalendarzu; „Ustawienia” = okno osoby (po zamknięciu wraca poprzedni tryb, chyba że „Dostępność →”)
   if (who) { view.who = view.who === who ? null : who; view.bad = false; back = e.target.closest('#summary') ? 'calendar' : 'people'; if (view.who) showTab('calendar'); render(); }
   if (edit) { prevWho = view.who; view.who = edit; view.bad = false; view.personTab = 'settings'; $('#person').returnValue = ''; $('#person').showModal(); render(); }
   if (delPerson && confirm(`Usunąć ${state.people.find((p) => p.id === delPerson).name}? Przeszłe dyżury zostaną w grafiku, przyszłe zostaną zwolnione.`)) update(() => {

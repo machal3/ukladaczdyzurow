@@ -206,7 +206,12 @@ body:not([data-tab="calendar"]) .board, body:not([data-tab="calendar"]) #panel-v
 .x { background: none; color: var(--muted); padding: 8px 10px; font-size: 16px; line-height: 1; opacity: .5; }
 @media (hover: hover) { .x:hover { background: var(--faint); } }
 .x:disabled { visibility: hidden; }
-.edit { background: var(--accent-soft); color: var(--strong); padding: 8px 18px; min-width: 132px; font-size: 14px; }
+/* „Ustawienia” przy osobie: obrysowana pigułka jak przyciski miesiąca, ikona + napis */
+.edit { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-width: 136px; padding: 7px 16px; font-size: 13px; border: 1px solid var(--line); background: var(--bg); color: var(--text); }
+.edit svg { color: var(--strong); flex: none; }
+.edit > * { pointer-events: none; } /* klik trafia w sam przycisk (data-edit) */
+@media (hover: hover) { .edit:hover { background: var(--accent-soft); border-color: transparent; color: var(--strong); opacity: 1; } }
+#people .badge:not(.role) { min-width: 24px; } /* liczby dyżurów w jednej kolumnie */
 #priority li > :first-child { white-space: normal; display: flex; gap: 12px; }
 .rank { font-style: normal; font-weight: 600; color: var(--strong); font-variant-numeric: tabular-nums; min-width: 1ch; }
 
@@ -358,6 +363,8 @@ dialog menu { display: flex; justify-content: flex-end; gap: 8px; padding: 0; }
   .panel { padding: 16px; }
   .settings { gap: 16px; grid-template-columns: 1fr; }
   .who { font-size: 15px; }
+  .edit { min-width: 52px; padding: 8px 14px; } /* telefon: sama ikona, żeby imię się mieściło */
+  .edit span { display: none; }
   .calendar { grid-template-columns: 1fr; }
   .dow, .cell.empty { display: none; }
   .cell { min-height: 56px; padding: 10px 8px 10px 60px; gap: 2px; }

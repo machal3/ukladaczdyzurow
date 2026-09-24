@@ -57,7 +57,7 @@
     <section id="people-tab" class="people-tab" aria-label="Osoby">
       <div class="panel" id="panel-people">
         <h3>Osoby</h3>
-        <p class="lead">Kliknij imię, by zaznaczyć dostępność w kalendarzu. „⚙ Ustawienia” — funkcja, limity, prośby i historia. Liczba = dyżury w tym miesiącu.</p>
+        <p class="lead">Kliknij imię, by zaznaczyć dostępność w kalendarzu. „Ustawienia” (ikona suwaków) — funkcja, limity, prośby i historia. Liczba = dyżury w tym miesiącu.</p>
         <ul id="people" class="list"></ul>
         <form id="add-person" class="add">
           <input name="name" placeholder="Dodaj osobę — imię i nazwisko" aria-label="Nowa osoba" autocomplete="off">
@@ -105,7 +105,7 @@
       <section id="h-start">
         <h3>1. Szybki start</h3>
         <ol>
-          <li><b>Osoby</b> — dodaj wszystkich dyżurujących. ⚙ przy osobie otwiera jej ustawienia: funkcję (Rezydent / Starszy asystent), limity, prośby i historię dyżurów.</li>
+          <li><b>Osoby</b> — dodaj wszystkich dyżurujących. „Ustawienia” przy osobie otwierają jej ustawienia: funkcję (Rezydent / Starszy asystent), limity, prośby i historię dyżurów.</li>
           <li><b>Dostępność</b> — kliknij imię osoby, a kalendarz przełączy się w tryb jej dostępności. Klikanie w dzień zmienia poziom: <b>Mogę → Chcę → Nie mogę → W ostateczności → Mogę</b>. Na koniec <b>Gotowe</b>.</li>
           <li><b>Dostosowywanie</b> — ustaw kolejność priorytetów, dodaj warunki i oceń, które dni są ciężkie (<b>Oceń dni w kalendarzu →</b>).</li>
           <li><b>Grafik</b> — kliknij <b>Ułóż miesiąc</b>. Jeśli jest kilka równie dobrych grafików, nad kalendarzem pojawi się panel wariantów: zaznacz wariant, by go obejrzeć, i kliknij <b>Zostaw zaznaczony</b> (albo <b>Przywróć poprzedni grafik</b>).</li>
@@ -144,7 +144,7 @@
           <li><b>„Ostatnio gówniane (spoza grafiku)”</b> w ustawieniach osoby (0–3) — np. dla kogoś nowego; dodaje 0–3 × 3 punkty,</li>
           <li>kto miał <b>Tragiczny</b> dzień w zeszłym miesiącu, dostaje Tragiczny dzień w tym miesiącu dopiero na końcu kolejki.</li>
         </ul>
-        <p>Okno osoby (⚙) pokazuje, ile punktów z przeszłości liczy się przy układaniu oglądanego miesiąca.</p>
+        <p>Okno osoby („Ustawienia”) pokazuje, ile punktów z przeszłości liczy się przy układaniu oglądanego miesiąca.</p>
         <h4>Limity — twarde</h4>
         <p>W obrębie miesiąca, puste pole = bez limitu:</p>
         <ul>
@@ -180,7 +180,7 @@
         <table>
           <tr><th>#</th><th>Priorytet</th><th>Kogo wybiera najpierw</th></tr>
           <tr><td>1</td><td><b>Dostępność</b></td><td>Chcę → Mogę → W ostateczności</td></tr>
-          <tr><td>2</td><td><b>Bez „kanapek”</b></td><td>kogoś, kto nie miałby dyżuru co drugi dzień (np. pn i śr); nie dotyczy dni „Chcę”; wyjątek: PN1 w sobotę + dowolny dyżur w poniedziałek to kanapka preferowana (włączane/wyłączane przy osobie: ⚙ → „Kanapka PN1 So + Pn”)</td></tr>
+          <tr><td>2</td><td><b>Bez „kanapek”</b></td><td>kogoś, kto nie miałby dyżuru co drugi dzień (np. pn i śr); nie dotyczy dni „Chcę”; wyjątek: PN1 w sobotę + dowolny dyżur w poniedziałek to kanapka preferowana (włączane/wyłączane przy osobie: „Ustawienia” → „Kanapka PN1 So + Pn”)</td></tr>
           <tr><td>3</td><td><b>Weekendy w różne dni</b></td><td>w Pt/So/Nd — kogoś, kto nie wyczerpał „tego samego dnia weekendu”</td></tr>
           <tr><td>4</td><td><b>Prośby</b></td><td>kogoś, kto ma na tym miejscu (lub w ten dzień weekendu, w Pt/So/Nd, łącznie) mniej dyżurów, niż prosił</td></tr>
           <tr><td>5</td><td><b>Gówniane dni</b></td><td>w dzień ciężki — osobę z najmniejszym obciążeniem; w Tragiczny najpierw tych, którzy nie mieli Tragicznego ani w zeszłym, ani w tym miesiącu</td></tr>
