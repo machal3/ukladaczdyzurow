@@ -180,7 +180,8 @@ export function scoreMonth(y, m, schedule, shifts, people, avail = {}, bad = {},
 }
 
 // Najlepsze różne grafiki: zwykły przebieg + `tries` przebiegów z losowymi remisami, porównane leksykograficznie
-// (najpierw nieobsadzone, potem kryteria w kolejności `order`). Zwraca do `keep` wariantów: [{ schedule, score }].
+// (najpierw nieobsadzone, potem kryteria w kolejności `order`). Zwraca najlepszy i (do `keep` łącznie) te,
+// które są z nim na remis we wszystkich kryteriach: [{ schedule, score }].
 // ponytail: losowe restarty zamiast solvera; więcej prób = lepiej, ale wolniej (~ms na próbę).
 export function generateVariants(y, m, shifts, people, locked = {}, avail = {}, limits = {}, rules = [], bad = {}, wants = {},
   { order = PRIORITY_ORDER, tries = 200, keep = 3, rand = Math.random } = {}) {
@@ -193,7 +194,8 @@ export function generateVariants(y, m, shifts, people, locked = {}, avail = {}, 
     if (!seen.has(id)) seen.set(id, { schedule, score: scoreMonth(y, m, schedule, shifts, people, avail, bad, wants) });
   }
   const cmp = (a, b) => { const ka = key(a.score), kb = key(b.score); return ka.reduce((r, v, i) => r || v - kb[i], 0); };
-  return [...seen.values()].sort(cmp).slice(0, keep);
+  const all = [...seen.values()].sort(cmp);
+  return all.filter((v) => !cmp(v, all[0])).slice(0, keep);
 }
 
 // Import grafiku z tabeli (np. z Worda): rows = [[tekst komórki]]. Nagłówek = pierwszy wiersz z nazwą któregoś miejsca,

@@ -226,9 +226,10 @@ test('priorytety: prośba przed dostępnością wygrywa z „Chcę”', () => {
   assert.equal(generateMonth(2026, 9, one, people, {}, avail, {}, [], {}, wants, { order: ['wants', 'avail', 'sandwich', 'bad', 'even'] })[k].s, 'b');
 });
 
-test('warianty: różne grafiki, najlepszy nie gorszy od zwykłego układania', () => {
+test('warianty: tylko równie dobre (remis we wszystkich kryteriach), różne, nie gorsze od zwykłego układania', () => {
   const v = generateVariants(2026, 9, shifts, people);
   const greedy = scoreMonth(2026, 9, generateMonth(2026, 9, shifts, people), shifts, people);
   assert.ok(v.length > 1 && new Set(v.map((x) => JSON.stringify(x.schedule))).size === v.length);
   assert.ok(v[0].score.unfilled <= greedy.unfilled);
+  for (const x of v) assert.deepEqual(x.score, { ...v[0].score, spread: x.score.spread, lastResort: x.score.lastResort });
 });
