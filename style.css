@@ -259,6 +259,9 @@ dialog h4 { font: 600 16px/24px var(--headline); margin: 8px 0 16px; }
 #app-settings { width: min(480px, calc(100vw - 32px)); }
 .app-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
 .app-row h4 { margin: 0; }
+.swatches { display: flex; gap: 8px; }
+.swatch { min-height: 0; min-width: 0; width: 32px; height: 32px; padding: 0; background: var(--swatch); border: 2px solid transparent; outline-offset: 2px; }
+.swatch[aria-pressed=true] { border-color: var(--md-sys-color-on-surface); }
 dialog menu { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; padding: 0; }
 /* Okno osoby: nagłówek i przyciski stoją, przewija się tylko treść; stała wysokość, więc zmiana karty nie przesuwa okna. */
 #person[open] { display: flex; flex-direction: column; overflow: hidden; padding: 0; height: min(760px, calc(100dvh - 48px)); -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }

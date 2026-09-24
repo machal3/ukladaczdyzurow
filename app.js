@@ -473,6 +473,8 @@ function renderImport() {
   $('#import-ok').textContent = n ? `Importuj ${n} dyżurów` : 'Importuj';
 }
 
+document.querySelectorAll('dialog').forEach((d) => d.addEventListener('click', (e) => { if (e.target === d) d.close(); }));
+
 $('#app-settings-open').onclick = () => $('#app-settings').showModal();
 $('#import-open').onclick = () => {
   imp = null;

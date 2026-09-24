@@ -292,6 +292,14 @@
     <form method="dialog">
       <h3 id="app-settings-title">Ustawienia aplikacji</h3>
       <div class="app-row"><div><h4>Ciemny motyw</h4><p class="hint">Zapamiętany w tej przeglądarce.</p></div><button id="theme-toggle" class="ghost" type="button" aria-label="Włącz ciemny motyw" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"/></svg></button></div>
+      <div class="app-row"><div><h4>Kolor motywu</h4><p class="hint">Palety Material Design 3.</p></div>
+        <div class="swatches" role="radiogroup" aria-label="Kolor motywu">
+          <button class="swatch" type="button" data-color-theme-pick="zielony" style="--swatch: #226a4c" role="radio" aria-label="Zielony"></button>
+          <button class="swatch" type="button" data-color-theme-pick="niebieski" style="--swatch: #4b5c92" role="radio" aria-label="Niebieski"></button>
+          <button class="swatch" type="button" data-color-theme-pick="fioletowy" style="--swatch: #65558f" role="radio" aria-label="Fioletowy"></button>
+          <button class="swatch" type="button" data-color-theme-pick="bursztynowy" style="--swatch: #865319" role="radio" aria-label="Bursztynowy"></button>
+        </div>
+      </div>
       <div class="app-row" id="panel-account" hidden><div><h4>Konto</h4><p class="hint">Wylogowanie zapomina PIN w tej przeglądarce.</p></div><button id="logout" type="button" class="ghost outline">Wyloguj</button></div>
       <menu><button>Zamknij</button></menu>
     </form>

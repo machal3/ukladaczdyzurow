@@ -2,16 +2,20 @@ import { argbFromHex, hexFromArgb, Hct, TonalPalette, SchemeTonalSpot, MaterialD
 import { writeFile } from 'node:fs/promises';
 
 // Jedno źródło wszystkich palet HCT. Wygenerowany CSS działa również bez bundlera.
-const seed = '#236a4c';
-const source = Hct.fromInt(argbFromHex(seed));
-const light = new SchemeTonalSpot(source, false, 0);
-const palettesByName = Object.fromEntries(['primary', 'secondary', 'tertiary', 'neutral', 'neutralVariant', 'error'].map((name) => [name, light[`${name}Palette`]]));
+// Pierwszy motyw jest domyślny: trafia do gołego :root (bez data-color-theme), więc
+// użytkownicy bez zapisanego wyboru nic nie tracą.
+const themes = [
+  { name: 'zielony', seed: '#236a4c' },
+  { name: 'niebieski', seed: '#2260ea' },
+  { name: 'fioletowy', seed: '#6750a4' },
+  { name: 'bursztynowy', seed: '#8b5000' },
+];
 const quality = {
   weakDay: TonalPalette.fromInt(argbFromHex('#ad7b00')),
   badDay: TonalPalette.fromInt(argbFromHex('#b24b00')),
 };
 const kebab = (name) => name.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
-const roles = (dark) => {
+const roles = (source, dark) => {
   const scheme = new SchemeTonalSpot(source, dark, 0);
   return Object.entries(MaterialDynamicColors)
     .filter(([, color]) => typeof color?.getArgb === 'function')
@@ -22,7 +26,23 @@ const roles = (dark) => {
       return [`  --md-semantic-color-${base}-container: ${hexFromArgb(palette.tone(background))};`, `  --md-semantic-color-on-${base}-container: ${hexFromArgb(palette.tone(foreground))};`];
     })).join('\n');
 };
-const palettes = Object.entries(palettesByName).flatMap(([name, palette]) =>
-  [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 95, 99, 100].map((tone) =>
-    `  --md-ref-palette-${kebab(name)}-${tone}: ${hexFromArgb(palette.tone(tone))};`)).join('\n');
-await writeFile(new URL('../theme.css', import.meta.url), `/* Wygenerowane przez npm run theme. Seed: ${seed}. */\n:root {\n${palettes}\n${roles(false)}\n  color-scheme: light;\n}\n@media (prefers-color-scheme: dark) {\n  :root {\n${roles(true)}\n    color-scheme: dark;\n  }\n}\n:root[data-theme="light"] {\n${roles(false)}\n  color-scheme: light;\n}\n:root[data-theme="dark"] {\n${roles(true)}\n  color-scheme: dark;\n}\n`);
+const refPalette = (source) => {
+  const light = new SchemeTonalSpot(source, false, 0);
+  const palettesByName = Object.fromEntries(['primary', 'secondary', 'tertiary', 'neutral', 'neutralVariant', 'error'].map((name) => [name, light[`${name}Palette`]]));
+  return Object.entries(palettesByName).flatMap(([name, palette]) =>
+    [0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 95, 99, 100].map((tone) =>
+      `  --md-ref-palette-${kebab(name)}-${tone}: ${hexFromArgb(palette.tone(tone))};`)).join('\n');
+};
+const css = themes.map(({ name, seed }, index) => {
+  const source = Hct.fromInt(argbFromHex(seed));
+  const base = index === 0 ? ':root' : `:root[data-color-theme="${name}"]`;
+  const comment = `/* Motyw ${name}. Seed: ${seed}. */`;
+  return [
+    comment,
+    `${base} {\n${index === 0 ? `${refPalette(source)}\n` : ''}${roles(source, false)}\n  color-scheme: light;\n}`,
+    `@media (prefers-color-scheme: dark) {\n  ${base} {\n${roles(source, true)}\n    color-scheme: dark;\n  }\n}`,
+    `${base}[data-theme="light"] {\n${roles(source, false)}\n  color-scheme: light;\n}`,
+    `${base}[data-theme="dark"] {\n${roles(source, true)}\n  color-scheme: dark;\n}`,
+  ].join('\n');
+}).join('\n');
+await writeFile(new URL('../theme.css', import.meta.url), `/* Wygenerowane przez npm run theme. */\n${css}\n`);

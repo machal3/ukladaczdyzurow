@@ -60,6 +60,18 @@ test('nawigacja i motyw nie zmieniają zapisanych danych grafiku', async (t) => 
   assert.equal(w.localStorage.getItem('dyzury-v1'), saved);
 });
 
+test('wybór koloru motywu zapisuje się i wraca po odświeżeniu', async (t) => {
+  const { w, $ } = await setup(t);
+  $('[data-color-theme-pick="niebieski"]').click();
+  assert.equal(w.document.documentElement.dataset.colorTheme, 'niebieski');
+  assert.equal($('[data-color-theme-pick="niebieski"]').getAttribute('aria-pressed'), 'true');
+  assert.equal($('[data-color-theme-pick="zielony"]').getAttribute('aria-pressed'), 'false');
+  assert.equal(w.localStorage.getItem('dyzury-color-theme'), 'niebieski');
+  $('[data-color-theme-pick="zielony"]').click();
+  assert.equal(w.document.documentElement.dataset.colorTheme, undefined);
+  assert.equal(w.localStorage.getItem('dyzury-color-theme'), null);
+});
+
 test('dodawanie osoby i switch w oknie ustawień zachowują zapis i zdarzenia', async (t) => {
   const { w, $, tick, state } = await setup(t);
   const form = $('#add-person');

@@ -6,6 +6,21 @@ try {
   if (saved === 'light' || saved === 'dark') root.dataset.theme = saved;
 } catch { /* Motyw systemowy, jeśli pamięć przeglądarki jest niedostępna. */ }
 
+function updateColorThemeButtons() {
+  const current = root.dataset.colorTheme || 'zielony';
+  document.querySelectorAll('[data-color-theme-pick]').forEach((button) => button.setAttribute('aria-pressed', String(/** @type {HTMLElement} */ (button).dataset.colorThemePick === current)));
+}
+document.addEventListener('click', (event) => {
+  const target = event.target instanceof Element ? event.target.closest('[data-color-theme-pick]') : null;
+  if (!(target instanceof HTMLElement)) return;
+  const button = target;
+  event.stopPropagation();
+  const name = button.dataset.colorThemePick ?? 'zielony';
+  if (name === 'zielony') delete root.dataset.colorTheme; else root.dataset.colorTheme = name;
+  try { if (name === 'zielony') localStorage.removeItem('dyzury-color-theme'); else localStorage.setItem('dyzury-color-theme', name); } catch { /* Motyw działa bez zapisu. */ }
+  updateColorThemeButtons();
+}, true);
+
 const systemTheme = matchMedia('(prefers-color-scheme: dark)');
 function updateThemeButton() {
   const dark = root.dataset.theme ? root.dataset.theme === 'dark' : systemTheme.matches;
@@ -45,6 +60,7 @@ onScroll();
 // Pływające etykiety bez zmiany kontrolek i powiązanych z nimi zdarzeń.
 function decorate() {
   updateThemeButton();
+  updateColorThemeButtons();
   document.querySelectorAll('input[data-pn1sandwich]').forEach((input) => input.setAttribute('role', 'switch'));
   document.querySelectorAll('.field:has(select), .rule-form > label:has(select)').forEach((label) => label.classList.add('filled-select'));
 }
