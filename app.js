@@ -14,6 +14,7 @@ let state = load() || {
   manual: {},   // ręczne przypisania — zachowane przy ponownym układaniu
 };
 state.avail ??= {}; // { personId: { 'YYYY-MM-DD': poziom 0-3 } } — patrz LEVELS
+state.limits ??= {}; // { personId: { shiftId: maks. dyżurów w miesiącu } } — brak = bez limitu
 const now = new Date();
 let view = { y: now.getFullYear(), m: now.getMonth(), who: null }; // who: osoba, której dostępność edytujemy
 
@@ -60,10 +61,17 @@ function render() {
 
   // Statystyki miesiąca
   const count = Object.fromEntries(state.people.map((p) => [p.id, 0]));
-  for (const k of monthKeys()) for (const pid of Object.values(state.schedule[k] || {})) if (pid in count) count[pid]++;
+  const whoShifts = {}; // shiftId → dyżury wybranej osoby w tym miesiącu
+  for (const k of monthKeys()) for (const [sid, pid] of Object.entries(state.schedule[k] || {})) {
+    if (pid in count) count[pid]++;
+    if (pid === view.who) whoShifts[sid] = (whoShifts[sid] || 0) + 1;
+  }
+  const limitsRow = (pid) => `<li class="limits"><small>Limit w miesiącu (puste = bez limitu)</small>` +
+    state.shifts.map((s) => `<label><span>${esc(s.name)}</span><small>${whoShifts[s.id] || 0} /</small>
+      <input type="number" min="0" step="1" placeholder="∞" data-limit="${s.id}" value="${state.limits[pid]?.[s.id] ?? ''}" aria-label="Limit: ${esc(s.name)}"></label>`).join('') + '</li>';
   $('#people').innerHTML = state.people.map((p) => `<li>
-      <button class="who ${p.id === view.who ? 'on' : ''}" data-who="${p.id}" aria-pressed="${p.id === view.who}" title="Edytuj dostępność">${esc(p.name)}</button><span class="badge">${count[p.id]}</span>
-      <button class="x" data-del-person="${p.id}" aria-label="Usuń ${esc(p.name)}">×</button></li>`).join('');
+      <button class="who ${p.id === view.who ? 'on' : ''}" data-who="${p.id}" aria-pressed="${p.id === view.who}" title="Edytuj dostępność i limity">${esc(p.name)}</button><span class="badge">${count[p.id]}</span>
+      <button class="x" data-del-person="${p.id}" aria-label="Usuń ${esc(p.name)}">×</button></li>${p.id === view.who ? limitsRow(p.id) : ''}`).join('');
   $('#shifts').innerHTML = state.shifts.map((s) => `<li>
       <span>${esc(s.name)}</span>
       <span class="days">${DAYS.map((d, i) => `<button class="day ${s.days.includes(i) ? 'on' : ''}" data-toggle="${s.id}" data-day="${i}" aria-pressed="${s.days.includes(i)}">${d[0]}</button>`).join('')}</span>
@@ -81,7 +89,7 @@ $('#next').onclick = () => { view = { ...view, ...(view.m < 11 ? { m: view.m + 1
 $('#generate').onclick = () => update(() => {
   view.who = null;
   const keys = monthKeys();
-  Object.assign(state.schedule, generateMonth(view.y, view.m, state.shifts, state.people, pick(state.manual, keys), state.avail));
+  Object.assign(state.schedule, generateMonth(view.y, view.m, state.shifts, state.people, pick(state.manual, keys), state.avail, state.limits));
 });
 
 // Klik w dzień w trybie dostępności: Mogę → Chcę → Nie mogę → W ostateczności → Mogę
@@ -130,6 +138,7 @@ document.querySelector('aside').onclick = (e) => {
   if (delPerson) update(() => {
     state.people = state.people.filter((p) => p.id !== delPerson);
     delete state.avail[delPerson];
+    delete state.limits[delPerson];
     if (view.who === delPerson) view.who = null;
   });
   if (delShift) update(() => { state.shifts = state.shifts.filter((s) => s.id !== delShift); });
@@ -137,6 +146,16 @@ document.querySelector('aside').onclick = (e) => {
     const s = state.shifts.find((s) => s.id === toggle);
     const i = +day;
     s.days = s.days.includes(i) ? s.days.filter((x) => x !== i) : [...s.days, i].sort();
+  });
+};
+
+document.querySelector('aside').onchange = (e) => {
+  const sid = e.target.dataset.limit;
+  if (!sid) return;
+  const n = parseInt(e.target.value, 10);
+  update(() => {
+    const l = (state.limits[view.who] ??= {});
+    if (n >= 0) l[sid] = n; else delete l[sid];
   });
 };
 
