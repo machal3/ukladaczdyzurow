@@ -22,7 +22,7 @@ body { font: var(--type-body); color: var(--text); background: var(--page); --gu
 button, input, select, textarea { font: inherit; color: inherit; }
 button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
 button, input, select, textarea, .cell, .nav-icon { transition: background-color 220ms var(--motion), color 220ms var(--motion), border-radius 220ms var(--motion), transform 220ms var(--motion); }
-svg { width: 24px; height: 24px; fill: currentColor; flex: none; pointer-events: none; } /* ikony: Material Symbols Rounded 400 (Apache 2.0) */
+svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; pointer-events: none; } /* ikony: Lucide (ISC), jak w Ministrantappce */
 b, strong { font-weight: 700; }
 button { position: relative; isolation: isolate; border: 0; border-radius: 999px; min-height: 48px; padding: 12px 24px; background: var(--strong); color: var(--on-strong); font-weight: 600; font-size: 14px; cursor: pointer; overflow: hidden; }
 button > * { pointer-events: none; }
@@ -50,9 +50,9 @@ button:disabled { background: color-mix(in srgb, var(--text) 12%, transparent); 
 .bar > .tabs { position: fixed; inset: 0 auto 0 0; width: 104px; padding: 40px 8px 24px; display: flex; flex-direction: column; align-items: stretch; gap: 12px; background: var(--page); z-index: 10; transition: background-color 220ms var(--motion); }
 /* Jak w Ministrantappce: logo w szynie na wysokości dużego tytułu, tytuł przypięty u góry. */
 .brand { display: flex; justify-content: center; margin-bottom: 46px; }
-.brand > svg { width: 44px; height: 44px; fill: var(--strong); }
+.brand > svg { width: 44px; height: 44px; fill: var(--strong); stroke: none; }
 .app-header { position: sticky; top: 0; z-index: 9; display: flex; align-items: center; gap: 8px; margin: 0 calc(-1 * var(--gutter)) 32px; padding: 24px var(--gutter); background: var(--page); }
-.app-header > svg { display: none; width: 30px; height: 30px; fill: var(--strong); }
+.app-header > svg { display: none; width: 30px; height: 30px; fill: var(--strong); stroke: none; }
 .app-header h1 { flex: 1; min-width: 0; font: 400 57px/64px var(--headline); letter-spacing: -2px; }
 .bar > .tabs > button { padding: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px; color: var(--muted); font-size: 12px; min-height: 80px; background: transparent; border-radius: 20px; }
 .nav-icon { display: grid; place-items: center; width: 64px; height: 32px; border-radius: 999px; }
@@ -62,8 +62,7 @@ button:disabled { background: color-mix(in srgb, var(--text) 12%, transparent); 
 .bar > .tabs > button::before { display: none; }
 .bar > .tabs > button:enabled:is(:hover, :focus-visible) .nav-icon { background-image: linear-gradient(color-mix(in srgb, currentColor 8%, transparent) 0 0); }
 .bar > .tabs > button:enabled:active .nav-icon { background-image: linear-gradient(color-mix(in srgb, currentColor 12%, transparent) 0 0); }
-.icon-fill, .tabs button[aria-pressed=true] .icon-outline { display: none; }
-.tabs button[aria-pressed=true] .icon-fill { display: inline; }
+.tabs button[aria-pressed=true] .nav-icon svg { stroke-width: 2.5; }
 #theme-toggle, #app-settings-open { flex: none; width: 48px; height: 48px; padding: 12px; background: var(--md-sys-color-surface-container-highest); }
 h1 { font: var(--type-display); letter-spacing: -.025em; text-wrap: balance; }
 .month { display: flex; align-items: center; gap: 8px; min-width: 0; }
