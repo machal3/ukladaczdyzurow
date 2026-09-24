@@ -53,12 +53,13 @@ export const shiftsForDay = (shifts, y, m, d) => shifts.filter((s) => s.days.inc
 // nikt ponad swój miesięczny limit na danym dyżurze: limits = { personId: { shiftId: n, '*': n łącznie, we: n w Pt/So/Nd } } (brak = bez limitu),
 // maks. jeden rezydent dziennie (licząc ręczne wpisy), warunki z `rules` (patrz breaksRule).
 // Kolejność wyboru: najpierw dostępność (Chcę > Mogę > W ostateczności), potem unikanie „kanapek” (dyżur z jednym dniem
-// przerwy, np. pn i śr — chyba że osoba chce ten dzień), potem w gówniany dzień najmniejsze
+// przerwy, np. pn i śr — chyba że osoba chce ten dzień), potem prośby: kto ma mniej dyżurów na tym miejscu, niż prosił
+// (wants = { personId: { shiftId: n } }, miękkie — nie łamie limitów ani zakazów), potem w gówniany dzień najmniejsze
 // obciążenie gównianością (person.past + person.hist z poprzednich miesięcy + ten miesiąc), potem równy podział liczby dyżurów.
 // W dzień Tragiczny na koniec kolejki idą ci, którzy mieli Tragiczny miesiąc temu (person.tragic) albo już w tym miesiącu.
 // Wpisy z `locked` (ręczne) są zachowane i liczą się do bilansu.
 // ponytail: zachłanny algorytm dzień po dniu; preferencje/limity → podmienić na solver (np. ILP) z tym samym interfejsem.
-export function generateMonth(y, m, shifts, people, locked = {}, avail = {}, limits = {}, rules = [], bad = {}) {
+export function generateMonth(y, m, shifts, people, locked = {}, avail = {}, limits = {}, rules = [], bad = {}, wants = {}) {
   const result = {};
   const count = Object.fromEntries(people.map((p) => [p.id, 0]));
   const burden = Object.fromEntries(people.map((p) => [p.id, (p.past ?? 0) * PAST_WEIGHT + (p.hist ?? 0)]));
@@ -74,6 +75,7 @@ export function generateMonth(y, m, shifts, people, locked = {}, avail = {}, lim
   };
   const underLimit = (pid, sid, d) => (perShift[`${pid}:${sid}`] || 0) < (limits[pid]?.[sid] ?? Infinity) &&
     count[pid] < (limits[pid]?.['*'] ?? Infinity) && (!isWe(d) || (we[pid] || 0) < (limits[pid]?.we ?? Infinity));
+  const short = (pid, sid) => +((perShift[`${pid}:${sid}`] || 0) < (wants[pid]?.[sid] ?? 0)); // 1 = jeszcze poniżej prośby
   const lastDay = {};
   const resident = new Set(people.filter(isResident).map((p) => p.id));
   for (const [key, day] of Object.entries(locked))
@@ -93,7 +95,7 @@ export function generateMonth(y, m, shifts, people, locked = {}, avail = {}, lim
       const pick = people
         .filter((p) => availOf(avail, p.id, key) > 0 && !busy.has(p.id) && lastDay[p.id] !== d - 1 && !lockedOn(locked, y, m, d + 1, p.id) && underLimit(p.id, s.id, d) &&
           !(hasResident && resident.has(p.id)) && !breaksRule(rules, day, p.id, s.id))
-        .sort((a, b) => availOf(avail, b.id, key) - availOf(avail, a.id, key) || sandwich(a.id) - sandwich(b.id) ||
+        .sort((a, b) => availOf(avail, b.id, key) - availOf(avail, a.id, key) || sandwich(a.id) - sandwich(b.id) || short(b.id, s.id) - short(a.id, s.id) ||
           (isTragic && tragic[a.id] - tragic[b.id]) || (isBad && burden[a.id] - burden[b.id]) || count[a.id] - count[b.id] || (lastDay[a.id] ?? -99) - (lastDay[b.id] ?? -99))[0];
       if (!pick) continue; // brak wolnej osoby → dyżur zostaje pusty, widoczny w UI
       day[s.id] = pick.id;

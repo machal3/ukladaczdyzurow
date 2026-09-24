@@ -180,3 +180,10 @@ test('dopasowanie osób z tabeli: inicjał + nazwisko, samo nazwisko, niejednozn
   assert.equal(matchPerson('B. Niezgoda', ppl), null);
   assert.equal(matchPerson('A. Niezgoda', [{ id: 'n', name: 'Niezgoda' }]), null); // samo nazwisko nie łapie osoby z inicjałem
 });
+
+test('prośby: osoba dostaje tyle dyżurów na miejscu, ile prosiła, a potem wraca do równego podziału', () => {
+  const one = [{ id: 's', name: 'S', days: all }];
+  const n = (wants) => Object.values(generateMonth(2026, 9, one, people, {}, {}, {}, [], {}, wants)).filter((day) => day.s === 'a').length;
+  assert.ok(n({}) < 10);
+  assert.equal(n({ a: { s: 10 } }), 10);
+});

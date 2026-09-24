@@ -18,6 +18,7 @@ let state = cloud?.data ?? load() ?? {
 };
 state.avail ??= {}; // { personId: { 'YYYY-MM-DD': poziom 0-3 } } — patrz LEVELS
 state.limits ??= {}; // { personId: { shiftId: maks. dyżurów w miesiącu, '*': maks. łącznie, we: maks. Pt/So/Nd } } — brak = bez limitu (we: WEEKEND_LIMIT)
+state.wants ??= {}; // { personId: { shiftId: ile dyżurów chce w miesiącu } } — prośby, miękkie (patrz generateMonth)
 state.bad ??= {}; // { 'YYYY-MM-DD': gównianość 0-3 } — patrz BAD/badOf; osoba: person.past 0-3
 state.rules ??= []; // [{ id, who, with, places: [shiftId] }] — patrz breaksRule
 state.aliases ??= {}; // { 'imię z importowanej tabeli' (małe litery): personId } — zapamiętane połączenia z importu
@@ -102,7 +103,10 @@ function render() {
     limitsFor(p.id);
   const limitsFor = (pid) => `<small>Limit w miesiącu (puste = bez limitu)</small>` +
     [{ id: '*', name: 'Łącznie' }, { id: 'we', name: 'Pt/So/Nd' }, ...state.shifts].map((s) => `<label><span>${esc(s.name)}</span><small>${s.id === '*' ? count[pid] : whoShifts[s.id] || 0} /</small>
-      <input type="number" min="0" step="1" placeholder="${s.id === 'we' ? WEEKEND_LIMIT : '∞'}" data-limit="${s.id}" value="${state.limits[pid]?.[s.id] ?? ''}" aria-label="Limit: ${esc(s.name)}"></label>`).join('') + '</li>';
+      <input type="number" min="0" step="1" placeholder="${s.id === 'we' ? WEEKEND_LIMIT : '∞'}" data-limit="${s.id}" value="${state.limits[pid]?.[s.id] ?? ''}" aria-label="Limit: ${esc(s.name)}"></label>`).join('') +
+    `<small>Prośby w miesiącu (ile chce na danym miejscu)</small>` +
+    state.shifts.map((s) => `<label><span>${esc(s.name)}</span><small>${whoShifts[s.id] || 0} /</small>
+      <input type="number" min="0" step="1" placeholder="—" data-want="${s.id}" value="${state.wants[pid]?.[s.id] ?? ''}" aria-label="Prośba: ${esc(s.name)}"></label>`).join('') + '</li>';
   $('#people').innerHTML = team().map((p) => `<li>
       <button class="who ${p.id === view.who ? 'on' : ''}" data-who="${p.id}" aria-pressed="${p.id === view.who}" title="Edytuj dostępność i limity">${esc(p.name)}</button><span class="badge" title="${ROLES[p.prestige]}">${p.prestige ? `SA ${p.prestige}` : 'Rez.'}</span><span class="badge">${count[p.id]}</span>
       <button class="x" data-del-person="${p.id}" aria-label="Usuń ${esc(p.name)}">×</button></li>${p.id === view.who ? limitsRow(p) : ''}`).join('');
@@ -140,7 +144,7 @@ $('#generate').onclick = () => update(() => {
   for (const k of keys) if (k < today) for (const [sid, pid] of Object.entries(state.schedule[k] || {}))
     if (gone.has(pid)) (locked[k] = { ...locked[k] })[sid] = pid;
   Object.assign(state.schedule, generateMonth(view.y, view.m, state.shifts, people, locked, state.avail,
-    Object.fromEntries(team().map((p) => [p.id, { we: WEEKEND_LIMIT, ...state.limits[p.id] }])), state.rules, state.bad));
+    Object.fromEntries(team().map((p) => [p.id, { we: WEEKEND_LIMIT, ...state.limits[p.id] }])), state.rules, state.bad, state.wants));
 });
 
 $('#bad-mode').onclick = () => { view.bad = !view.bad; view.who = null; render(); };
@@ -226,6 +230,7 @@ document.querySelector('aside').onclick = (e) => {
       if (k >= today) for (const sid in day) if (day[sid] === delPerson) delete day[sid];
     delete state.avail[delPerson];
     delete state.limits[delPerson];
+    delete state.wants[delPerson];
     state.rules = state.rules.filter((r) => r.who !== delPerson && r.with !== delPerson);
     if (view.who === delPerson) view.who = null;
   });
@@ -236,11 +241,11 @@ document.querySelector('aside').onchange = (e) => {
     return update(() => { state.people.find((p) => p.id === view.who).past = +e.target.value; });
   if ('prestige' in e.target.dataset)
     return update(() => { state.people.find((p) => p.id === view.who).prestige = +e.target.value; });
-  const sid = e.target.dataset.limit;
+  const { limit, want } = e.target.dataset, sid = limit ?? want;
   if (!sid) return;
   const n = parseInt(e.target.value, 10);
   update(() => {
-    const l = (state.limits[view.who] ??= {});
+    const l = ((limit ? state.limits : state.wants)[view.who] ??= {});
     if (n >= 0) l[sid] = n; else delete l[sid];
   });
 };
