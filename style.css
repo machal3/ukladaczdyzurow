@@ -71,6 +71,8 @@ button.ghost[aria-pressed="true"] { background: var(--line); }
 button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
 .tabs, .to-cal { display: none; }
+.log-open { align-self: flex-start; margin-bottom: 4px; border: 1px solid var(--line); }
+#log-body .preview { table-layout: fixed; }
 html { touch-action: manipulation; } /* bez powiększania przy szybkim stukaniu w dni */
 main { display: grid; grid-template-columns: 1fr 300px; gap: 24px; align-items: start; }
 

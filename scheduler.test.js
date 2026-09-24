@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { generateMonth, dateKey, history, badOf, parseTable, matchPerson } from './scheduler.js';
+import { generateMonth, dateKey, history, badOf, parseTable, matchPerson, personLog } from './scheduler.js';
 
 const people = ['a', 'b', 'c', 'd'].map((id) => ({ id, name: id }));
 const all = [0, 1, 2, 3, 4, 5, 6];
@@ -186,4 +186,23 @@ test('prośby: osoba dostaje tyle dyżurów na miejscu, ile prosiła, a potem wr
   const n = (wants) => Object.values(generateMonth(2026, 9, one, people, {}, {}, {}, [], {}, wants)).filter((day) => day.s === 'a').length;
   assert.ok(n({}) < 10);
   assert.equal(n({ a: { s: 10 } }), 10);
+});
+
+test('historia osoby: okno miesięcy, gównianość dnia, przerwa liczona też sprzed okna i przez przełom roku', () => {
+  const schedule = {
+    '2025-08-30': { s1: 'a' }, // przed oknem — liczy się tylko do przerwy
+    '2025-09-02': { s1: 'b', s2: 'a' },
+    '2025-12-31': { s1: 'a' },
+    '2026-01-05': { s2: 'a' }, // pn
+    '2026-01-09': { s1: 'a' }, // pt → domyślnie Gówniany
+    '2026-02-01': { s1: 'a' }, // po oknie
+  };
+  const log = personLog(schedule, { '2026-01-05': 3 }, 'a', 2026, 0); // styczeń + 3 poprzednie = paź–sty
+  assert.deepEqual(log.map((x) => [x.key, x.sid, x.bad, x.gap]), [
+    ['2025-12-31', 's1', 0, 120], // śr,
+    ['2026-01-05', 's2', 3, 5],
+    ['2026-01-09', 's1', 2, 4],
+  ]);
+  assert.equal(personLog(schedule, {}, 'a', 2025, 8, 1)[0].gap, 3);
+  assert.equal(personLog(schedule, {}, 'a', 2025, 7, 1)[0].gap, null);
 });

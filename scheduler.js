@@ -45,6 +45,22 @@ export function history(schedule, bad, y, m, months = 3) {
   return { pts, tragic };
 }
 
+// Wszystkie dyżury osoby pid w miesiącu y/m i `months` - 1 poprzednich, chronologicznie:
+// [{ key, sid, bad: gównianość dnia, gap: dni od poprzedniego dyżuru (też sprzed okna; null = pierwszy w grafiku) }]
+export function personLog(schedule, bad, pid, y, m, months = 4) {
+  const start = new Date(y, m - months + 1);
+  const from = dateKey(start.getFullYear(), start.getMonth(), 1), to = dateKey(y, m, daysInMonth(y, m));
+  const out = [];
+  let prev = null;
+  for (const key of Object.keys(schedule).sort()) for (const [sid, p] of Object.entries(schedule[key])) {
+    if (p !== pid) continue;
+    const [py, pm, pd] = key.split('-').map(Number);
+    if (key >= from && key <= to) out.push({ key, sid, bad: badOf(bad, py, pm - 1, pd), gap: prev && (Date.parse(key) - Date.parse(prev)) / 864e5 });
+    prev = key;
+  }
+  return out;
+}
+
 // Dyżury, które trzeba obstawić danego dnia.
 export const shiftsForDay = (shifts, y, m, d) => shifts.filter((s) => s.days.includes(weekday(y, m, d)));
 

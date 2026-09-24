@@ -1,4 +1,4 @@
-import { dateKey, daysInMonth, weekday, shiftsForDay, generateMonth, availOf, breaksRule, LEVELS, ROLES, badOf, BAD, history, parseTable, matchPerson } from './scheduler.js';
+import { dateKey, daysInMonth, weekday, shiftsForDay, generateMonth, availOf, breaksRule, LEVELS, ROLES, badOf, BAD, history, parseTable, matchPerson, personLog, PAST_WEIGHT } from './scheduler.js';
 import { cloudLoad, cloudSave, cloudLogout } from './cloud.js';
 
 const DAYS = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So', 'Nd'];
@@ -94,7 +94,8 @@ function render() {
     whoShifts.bad += badOf(state.bad, y, m, +k.slice(8));
   }
   const hist = history(state.schedule, state.bad, y, m);
-  const limitsRow = (p) => `<li class="limits"><button class="to-cal" data-go="calendar">Dostępność w grafiku →</button><label><span>Funkcja</span><select data-prestige aria-label="Funkcja">` +
+  const limitsRow = (p) => `<li class="limits"><button class="to-cal" data-go="calendar">Dostępność w grafiku →</button>` +
+    `<button class="ghost log-open" data-log>Historia dyżurów</button><label><span>Funkcja</span><select data-prestige aria-label="Funkcja">` +
     ROLES.map((r, i) => `<option value="${i}" ${i === p.prestige ? 'selected' : ''}>${r}</option>`).join('') + `</select></label>` +
     `<label><span>Ostatnio gówniane (spoza grafiku)</span><select data-past aria-label="Jak gówniane dyżury miała ostatnio poza grafikiem">` +
     BAD.map((_, i) => `<option value="${i}" ${i === (p.past ?? 0) ? 'selected' : ''}>${i}</option>`).join('') +
@@ -230,6 +231,7 @@ $('#add-rule').onsubmit = (e) => {
 document.querySelector('aside').onclick = (e) => {
   const { delPerson, delRule, who } = e.target.dataset;
   if (e.target.dataset.go) { showTab(e.target.dataset.go); scrollTo(0, 0); }
+  if ('log' in e.target.dataset) openLog(view.who);
   if (delRule) update(() => { state.rules = state.rules.filter((r) => r.id !== delRule); });
   if (who) { view.who = view.who === who ? null : who; view.bad = false; render(); }
   if (delPerson && confirm(`Usunąć ${state.people.find((p) => p.id === delPerson).name}? Przeszłe dyżury zostaną w grafiku, przyszłe zostaną zwolnione.`)) update(() => {
@@ -258,6 +260,42 @@ document.querySelector('aside').onchange = (e) => {
     if (n >= 0) l[sid] = n; else delete l[sid];
   });
 };
+
+// Historia osoby: każdy dyżur z oglądanego miesiąca i 3 poprzednich — data, miejsce, gównianość, przerwa, ręczny/zaplanowany
+function openLog(pid) {
+  const p = state.people.find((p) => p.id === pid);
+  const shiftName = Object.fromEntries(state.shifts.map((s) => [s.id, s.name]));
+  const today = dateKey(now.getFullYear(), now.getMonth(), now.getDate());
+  const log = personLog(state.schedule, state.bad, pid, view.y, view.m);
+  const monthName = (y, m) => new Date(y, m).toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' });
+  const summary = (list) => {
+    const per = {};
+    for (const x of list) per[x.sid] = (per[x.sid] || 0) + 1;
+    const we = list.filter((x) => weekday(+x.key.slice(0, 4), x.key.slice(5, 7) - 1, +x.key.slice(8)) >= 4).length; // Pt/So/Nd
+    const n = list.length, form = n === 1 ? 'dyżur' : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? 'dyżury' : 'dyżurów';
+    return [`${n} ${form}`, ...Object.entries(per).map(([sid, n]) => `${esc(shiftName[sid] ?? '(usunięte miejsce)')} ${n}`),
+      `Pt/So/Nd ${we}`, `gównianość ${list.reduce((a, x) => a + x.bad, 0)} pkt`].join(' · ');
+  };
+  const hist = history(state.schedule, state.bad, view.y, view.m);
+  let html = `<p class="hint">Razem: ${summary(log)}<br>Do układania ${monthName(view.y, view.m)} liczy się: gównianość z poprzednich miesięcy ${+(hist.pts[pid] ?? 0).toFixed(2)} pkt (ważona ½, ¼, ⅛)` +
+    ` + „ostatnio gówniane” ${p.past ?? 0} × ${PAST_WEIGHT}${hist.tragic.has(pid) ? ' · w zeszłym miesiącu miał(a) Tragiczny' : ''}</p>`;
+  for (let i = 0; i < 4; i++) {
+    const t = new Date(view.y, view.m - i), y = t.getFullYear(), m = t.getMonth();
+    const list = log.filter((x) => x.key.startsWith(dateKey(y, m, 1).slice(0, 8))).reverse(); // najnowsze na górze
+    html += `<h4>${monthName(y, m)} <small>${summary(list)}</small></h4>` + (!list.length ? '' :
+      `<table class="preview"><tr><th>Dzień</th><th>Miejsce</th><th>Gównianość</th><th>Przerwa</th><th></th></tr>` +
+      list.map((x) => {
+        const d = +x.key.slice(8);
+        return `<tr class="${weekday(y, m, d) > 4 ? 'weekend' : ''}"><td>${d} ${DAYS[weekday(y, m, d)]}</td>` +
+          `<td>${esc(shiftName[x.sid] ?? '(usunięte miejsce)')}</td><td>${BAD[x.bad]}</td>` +
+          `<td>${x.gap === null ? '—' : x.gap === 1 ? '1 dzień' : `${x.gap} dni`}</td>` +
+          `<td>${[state.manual[x.key]?.[x.sid] === pid && 'ręczny', x.key > today && 'zaplanowany'].filter(Boolean).join(', ')}</td></tr>`;
+      }).join('') + '</table>');
+  }
+  $('#log-title').textContent = `${p.name} — dyżury`;
+  $('#log-body').innerHTML = html;
+  $('#person-log').showModal();
+}
 
 // Import grafiku z tabeli: plik .docx albo wklejony tekst → podgląd i łączenie osób → zapis jako ręczne dyżury.
 // imp = { days: { dzień: { shiftId: imię } }, warn, names: [imię], map: { imię: personId | 'new:imię' | '' (pomiń) } }
