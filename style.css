@@ -15,7 +15,7 @@
   --ok-soft: #eef5ef;
   --maybe: #8a6d1f;
   --maybe-soft: #f8f3e3;
-  --radius: 10px;
+  --radius: 18px; /* karty, kalendarz; przyciski i pola mniejszym, ale wyraźnym zaokrągleniem */
   color-scheme: light dark;
 }
 @media (prefers-color-scheme: dark) {
@@ -52,7 +52,7 @@ b { font-weight: 600; }
 
 /* Przyciski: główny czarny, reszta tekstowa */
 button {
-  border: 0; border-radius: 8px; padding: 11px 18px; cursor: pointer; font-size: 15px;
+  border: 0; border-radius: 12px; padding: 11px 18px; cursor: pointer; font-size: 15px;
   background: var(--strong); color: var(--on-strong); font-weight: 500;
   transition: background .15s, color .15s, opacity .15s;
 }
@@ -94,7 +94,7 @@ button:disabled { opacity: .35; cursor: default; }
 #status b { color: var(--text); }
 #status:not(.info) b { color: var(--warn); }
 .cycle { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; }
-.cycle span[class] { padding: 2px 8px; border-radius: 6px; }
+.cycle span[class] { padding: 2px 10px; border-radius: 999px; }
 #status [data-done] { margin-left: auto; padding: 6px 16px; }
 #status b.ok { color: var(--text); }
 .progress { width: 120px; height: 4px; border-radius: 2px; overflow: hidden; background: var(--line); }
@@ -122,7 +122,7 @@ body:not([data-tab="calendar"]) .board, body:not([data-tab="calendar"]) #panel-v
 .help :is(th, td) { border-bottom: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top; }
 .help th { color: var(--muted); font-weight: 500; }
 .help .avail { display: inline-block; min-height: 0; padding: 2px 8px; }
-.help code { font-size: 12px; background: var(--faint); padding: 1px 4px; border-radius: 4px; }
+.help code { font-size: 12px; background: var(--faint); padding: 1px 5px; border-radius: 6px; }
 
 .panel { border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; background: var(--bg); }
 .panel h3, .summary h3 { font-size: 15px; font-weight: 600; margin-bottom: 12px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 2px 12px; }
@@ -147,11 +147,11 @@ body:not([data-tab="calendar"]) .board, body:not([data-tab="calendar"]) #panel-v
 /* Dyżur: miejsce drobno, imię wyraźnie */
 .slot {
   display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 6px;
-  padding: 0 4px; border-radius: 6px;
+  padding: 0 4px; border-radius: 8px;
 }
 .slot span { font-size: 10px; font-weight: 500; letter-spacing: .04em; color: var(--muted); width: 32px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .slot input {
-  border: 0; background: transparent; cursor: pointer; border-radius: 4px;
+  border: 0; background: transparent; cursor: pointer; border-radius: 6px;
   font-size: 13px; padding: 3px 0; min-width: 0; width: 100%; text-overflow: ellipsis;
 }
 .slot input:focus { cursor: text; outline: none; }
@@ -159,9 +159,9 @@ body:not([data-tab="calendar"]) .board, body:not([data-tab="calendar"]) #panel-v
 /* Lista podpowiedzi pod polem osoby */
 .picker {
   position: absolute; z-index: 20; list-style: none; margin: 0; padding: 4px; max-height: 240px; overflow-y: auto;
-  background: var(--bg); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 6px 20px rgb(0 0 0 / .08); font-size: 13px;
+  background: var(--bg); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 6px 20px rgb(0 0 0 / .08); font-size: 13px;
 }
-.picker li { padding: 6px 10px; border-radius: 5px; cursor: pointer; white-space: nowrap; }
+.picker li { padding: 6px 10px; border-radius: 8px; cursor: pointer; white-space: nowrap; }
 .picker li[aria-selected] { background: var(--faint); }
 @media (hover: hover) { .picker li:hover { background: var(--faint); } }
 .picker .none { color: var(--muted); cursor: default; }
@@ -173,7 +173,7 @@ body:not([data-tab="calendar"]) .board, body:not([data-tab="calendar"]) #panel-v
 .slot.clash input { text-decoration: underline wavy var(--warn); text-underline-offset: 3px; }
 
 /* Tryby dostępności i gównianości: cały dzień to jeden przycisk */
-.avail { flex: 1; font-size: 12px; border-radius: 6px; min-height: 40px; padding: 8px 14px; } /* kalendarz bez powiększenia */
+.avail { flex: 1; font-size: 12px; border-radius: 10px; min-height: 40px; padding: 8px 14px; } /* kalendarz bez powiększenia */
 .lvl-0 { background: var(--warn-soft); color: var(--warn); }
 .lvl-1 { background: var(--maybe-soft); color: var(--maybe); }
 .lvl-2 { background: var(--faint); color: var(--muted); }
@@ -197,11 +197,11 @@ body:not([data-tab="calendar"]) .board, body:not([data-tab="calendar"]) #panel-v
 .list li { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line); }
 .list li:last-child { border-bottom: 0; }
 .list li > :first-child { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.who { background: none; color: inherit; font-weight: 400; font-size: inherit; padding: 6px 8px; margin-left: -8px; text-align: left; border-radius: 6px; }
+.who { background: none; color: inherit; font-weight: 400; font-size: inherit; padding: 6px 8px; margin-left: -8px; text-align: left; border-radius: 10px; }
 @media (hover: hover) { .who:hover { background: var(--faint); opacity: 1; } }
 .who.on { background: var(--strong); color: var(--on-strong); }
 .badge { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 16px; text-align: right; }
-.badge.role { font-size: 11px; font-weight: 500; padding: 1px 7px; border-radius: 5px; background: var(--accent-soft); color: var(--strong); }
+.badge.role { font-size: 11px; font-weight: 500; padding: 1px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--strong); }
 .badge.role.rez { background: var(--maybe-soft); color: var(--maybe); }
 .x { background: none; color: var(--muted); padding: 8px 10px; font-size: 16px; line-height: 1; opacity: .5; }
 @media (hover: hover) { .x:hover { background: var(--faint); } }
@@ -216,7 +216,7 @@ body:not([data-tab="calendar"]) .board, body:not([data-tab="calendar"]) #panel-v
 
 .add { display: flex; gap: 8px; margin-top: 14px; }
 .add input, .rule-form select, .person-grid :is(input, select), dialog :is(textarea, select), .login input {
-  border: 1px solid var(--line); border-radius: 8px; background: var(--bg); padding: 7px 10px; min-width: 0;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--bg); padding: 7px 10px; min-width: 0;
 }
 .add input { flex: 1; }
 
@@ -240,7 +240,7 @@ body:not([data-tab="calendar"]) .board, body:not([data-tab="calendar"]) #panel-v
 
 /* Okna: osoba, import */
 dialog {
-  border: 1px solid var(--line); border-radius: 14px; background: var(--bg); color: var(--text);
+  border: 1px solid var(--line); border-radius: 22px; background: var(--bg); color: var(--text);
   padding: 24px; width: min(760px, calc(100vw - 32px)); max-height: calc(100dvh - 32px);
   margin: auto; /* * { margin: 0 } zdejmuje domyślne wyśrodkowanie */
 }
