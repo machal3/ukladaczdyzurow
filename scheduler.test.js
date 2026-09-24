@@ -59,3 +59,9 @@ test('limit: nikt ponad swój limit na danym dyżurze, 0 = nigdy, ręczne wpisy 
   assert.equal(n('a', 's2'), 0);
   assert.ok(n('b', 's2') <= 3);
 });
+
+test('limit łączny: nikt ponad swój limit wszystkich dyżurów w miesiącu, niezależnie od limitów per dyżur', () => {
+  const limits = { a: { '*': 3, s1: 10 } };
+  const out = generateMonth(2026, 9, shifts, people, {}, {}, limits);
+  assert.equal(Object.values(out).flatMap(Object.values).filter((pid) => pid === 'a').length, 3);
+});

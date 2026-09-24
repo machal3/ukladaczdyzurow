@@ -15,7 +15,7 @@ export const shiftsForDay = (shifts, y, m, d) => shifts.filter((s) => s.days.inc
 
 // Zwraca { 'YYYY-MM-DD': { shiftId: personId } }.
 // Twarde zasady: nikt dwa razy tego samego dnia, nikt dzień po dniu, nikt w dzień „Nie mogę”,
-// nikt ponad swój miesięczny limit na danym dyżurze: limits = { personId: { shiftId: n } } (brak = bez limitu).
+// nikt ponad swój miesięczny limit na danym dyżurze: limits = { personId: { shiftId: n, '*': n łącznie } } (brak = bez limitu).
 // Kolejność wyboru: najpierw dostępność (Chcę > Mogę > W ostateczności), potem równy podział.
 // Wpisy z `locked` (ręczne) są zachowane i liczą się do bilansu.
 // ponytail: zachłanny algorytm dzień po dniu; preferencje/limity → podmienić na solver (np. ILP) z tym samym interfejsem.
@@ -24,7 +24,8 @@ export function generateMonth(y, m, shifts, people, locked = {}, avail = {}, lim
   const count = Object.fromEntries(people.map((p) => [p.id, 0]));
   const perShift = {}; // 'personId:shiftId' → liczba dyżurów
   const add = (pid, sid) => { count[pid]++; perShift[`${pid}:${sid}`] = (perShift[`${pid}:${sid}`] || 0) + 1; };
-  const underLimit = (pid, sid) => (perShift[`${pid}:${sid}`] || 0) < (limits[pid]?.[sid] ?? Infinity);
+  const underLimit = (pid, sid) => (perShift[`${pid}:${sid}`] || 0) < (limits[pid]?.[sid] ?? Infinity) &&
+    count[pid] < (limits[pid]?.['*'] ?? Infinity);
   const lastDay = {};
   for (const day of Object.values(locked))
     for (const [sid, pid] of Object.entries(day)) if (pid in count) add(pid, sid);

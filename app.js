@@ -15,7 +15,7 @@ let state = load() || {
   manual: {},   // ręczne przypisania — zachowane przy ponownym układaniu
 };
 state.avail ??= {}; // { personId: { 'YYYY-MM-DD': poziom 0-3 } } — patrz LEVELS
-state.limits ??= {}; // { personId: { shiftId: maks. dyżurów w miesiącu } } — brak = bez limitu
+state.limits ??= {}; // { personId: { shiftId: maks. dyżurów w miesiącu, '*': maks. łącznie } } — brak = bez limitu
 // jednorazowa migracja zapisanych danych: stare domyślne miejsca → OITN, PN1, PN2 (id zostają, więc grafik i limity też)
 if (!state.miejscaV2) {
   const rename = { 'Oddział': 'OITN', 'SOR': 'PN1' };
@@ -77,7 +77,7 @@ function render() {
     if (pid === view.who) whoShifts[sid] = (whoShifts[sid] || 0) + 1;
   }
   const limitsRow = (pid) => `<li class="limits"><small>Limit w miesiącu (puste = bez limitu)</small>` +
-    state.shifts.map((s) => `<label><span>${esc(s.name)}</span><small>${whoShifts[s.id] || 0} /</small>
+    [{ id: '*', name: 'Łącznie' }, ...state.shifts].map((s) => `<label><span>${esc(s.name)}</span><small>${s.id === '*' ? count[pid] : whoShifts[s.id] || 0} /</small>
       <input type="number" min="0" step="1" placeholder="∞" data-limit="${s.id}" value="${state.limits[pid]?.[s.id] ?? ''}" aria-label="Limit: ${esc(s.name)}"></label>`).join('') + '</li>';
   $('#people').innerHTML = state.people.map((p) => `<li>
       <button class="who ${p.id === view.who ? 'on' : ''}" data-who="${p.id}" aria-pressed="${p.id === view.who}" title="Edytuj dostępność i limity">${esc(p.name)}</button><span class="badge">${count[p.id]}</span>
