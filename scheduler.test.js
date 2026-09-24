@@ -65,3 +65,14 @@ test('limit łączny: nikt ponad swój limit wszystkich dyżurów w miesiącu, n
   const out = generateMonth(2026, 9, shifts, people, {}, {}, limits);
   assert.equal(Object.values(out).flatMap(Object.values).filter((pid) => pid === 'a').length, 3);
 });
+
+test('limit weekendowy: nikt ponad swój limit dyżurów w Pt/So/Nd, ręczne wpisy się liczą', () => {
+  const locked = { [dateKey(2026, 9, 2)]: { s1: 'a' } }; // piątek
+  const limits = { a: { we: 2 }, b: { we: 0 } };
+  const out = generateMonth(2026, 9, shifts, people, locked, {}, limits);
+  const weekendOf = (pid) => Object.entries(out).filter(([k, day]) =>
+    [4, 5, 6].includes((new Date(k).getDay() + 6) % 7) && Object.values(day).includes(pid)).length;
+  assert.equal(weekendOf('a'), 2);
+  assert.equal(weekendOf('b'), 0);
+  assert.ok(Object.values(out).flatMap(Object.values).includes('b')); // w tygodniu dalej dyżuruje
+});

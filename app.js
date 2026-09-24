@@ -2,6 +2,7 @@ import { dateKey, daysInMonth, weekday, shiftsForDay, generateMonth, availOf, LE
 
 const DAYS = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So', 'Nd'];
 const STORE = 'dyzury-v1';
+const WEEKEND_LIMIT = 2; // domyślny limit dyżurów Pt/So/Nd w miesiącu, gdy osoba nie ustawiła własnego
 
 // ponytail: localStorage jako baza; backend dopiero gdy dane mają być współdzielone między osobami
 let state = load() || {
@@ -15,7 +16,7 @@ let state = load() || {
   manual: {},   // ręczne przypisania — zachowane przy ponownym układaniu
 };
 state.avail ??= {}; // { personId: { 'YYYY-MM-DD': poziom 0-3 } } — patrz LEVELS
-state.limits ??= {}; // { personId: { shiftId: maks. dyżurów w miesiącu, '*': maks. łącznie } } — brak = bez limitu
+state.limits ??= {}; // { personId: { shiftId: maks. dyżurów w miesiącu, '*': maks. łącznie, we: maks. Pt/So/Nd } } — brak = bez limitu (we: WEEKEND_LIMIT)
 // jednorazowa migracja zapisanych danych: stare domyślne miejsca → OITN, PN1, PN2 (id zostają, więc grafik i limity też)
 if (!state.miejscaV2) {
   const rename = { 'Oddział': 'OITN', 'SOR': 'PN1' };
@@ -71,14 +72,15 @@ function render() {
 
   // Statystyki miesiąca
   const count = Object.fromEntries(state.people.map((p) => [p.id, 0]));
-  const whoShifts = {}; // shiftId → dyżury wybranej osoby w tym miesiącu
+  const whoShifts = { we: 0 }; // shiftId → dyżury wybranej osoby w tym miesiącu, we = w Pt/So/Nd
   for (const k of monthKeys()) for (const [sid, pid] of Object.entries(state.schedule[k] || {})) {
     if (pid in count) count[pid]++;
     if (pid === view.who) whoShifts[sid] = (whoShifts[sid] || 0) + 1;
+    if (pid === view.who && weekday(y, m, +k.slice(8)) >= 4) whoShifts.we++;
   }
   const limitsRow = (pid) => `<li class="limits"><small>Limit w miesiącu (puste = bez limitu)</small>` +
-    [{ id: '*', name: 'Łącznie' }, ...state.shifts].map((s) => `<label><span>${esc(s.name)}</span><small>${s.id === '*' ? count[pid] : whoShifts[s.id] || 0} /</small>
-      <input type="number" min="0" step="1" placeholder="∞" data-limit="${s.id}" value="${state.limits[pid]?.[s.id] ?? ''}" aria-label="Limit: ${esc(s.name)}"></label>`).join('') + '</li>';
+    [{ id: '*', name: 'Łącznie' }, { id: 'we', name: 'Pt/So/Nd' }, ...state.shifts].map((s) => `<label><span>${esc(s.name)}</span><small>${s.id === '*' ? count[pid] : whoShifts[s.id] || 0} /</small>
+      <input type="number" min="0" step="1" placeholder="${s.id === 'we' ? WEEKEND_LIMIT : '∞'}" data-limit="${s.id}" value="${state.limits[pid]?.[s.id] ?? ''}" aria-label="Limit: ${esc(s.name)}"></label>`).join('') + '</li>';
   $('#people').innerHTML = state.people.map((p) => `<li>
       <button class="who ${p.id === view.who ? 'on' : ''}" data-who="${p.id}" aria-pressed="${p.id === view.who}" title="Edytuj dostępność i limity">${esc(p.name)}</button><span class="badge">${count[p.id]}</span>
       <button class="x" data-del-person="${p.id}" aria-label="Usuń ${esc(p.name)}">×</button></li>${p.id === view.who ? limitsRow(p.id) : ''}`).join('');
@@ -99,7 +101,8 @@ $('#next').onclick = () => { view = { ...view, ...(view.m < 11 ? { m: view.m + 1
 $('#generate').onclick = () => update(() => {
   view.who = null;
   const keys = monthKeys();
-  Object.assign(state.schedule, generateMonth(view.y, view.m, state.shifts, state.people, pick(state.manual, keys), state.avail, state.limits));
+  Object.assign(state.schedule, generateMonth(view.y, view.m, state.shifts, state.people, pick(state.manual, keys), state.avail,
+    Object.fromEntries(state.people.map((p) => [p.id, { we: WEEKEND_LIMIT, ...state.limits[p.id] }]))));
 });
 
 // Klik w dzień w trybie dostępności: Mogę → Chcę → Nie mogę → W ostateczności → Mogę
