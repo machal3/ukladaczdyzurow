@@ -13,6 +13,12 @@ export const ROLES = ['Rezydent', 'Starszy asystent · 1 pkt', 'Starszy asystent
 export const isResident = (p) => p.prestige === 0;
 export const availOf = (avail, pid, key) => avail[pid]?.[key] ?? 2;
 
+// Warunki: rules = [{ who, with, places: [shiftId] }] — jeśli `who` dyżuruje tego samego dnia co `with`,
+// to `who` musi być na jednym z `places`. Czy pid na sid w dniu `day` ({ shiftId: personId }) łamie któryś warunek?
+export const breaksRule = (rules, day, pid, sid) => rules.some((r) =>
+  (r.who === pid && Object.values(day).includes(r.with) && !r.places.includes(sid)) ||
+  (r.with === pid && Object.entries(day).some(([s, p]) => p === r.who && !r.places.includes(s))));
+
 // Dyżury, które trzeba obstawić danego dnia.
 export const shiftsForDay = (shifts, y, m, d) => shifts.filter((s) => s.days.includes(weekday(y, m, d)));
 
@@ -20,10 +26,10 @@ export const shiftsForDay = (shifts, y, m, d) => shifts.filter((s) => s.days.inc
 // Twarde zasady: nikt dwa razy tego samego dnia, nikt dzień po dniu, nikt w dzień „Nie mogę”,
 // nikt ponad swój miesięczny limit na danym dyżurze: limits = { personId: { shiftId: n, '*': n łącznie } } (brak = bez limitu).
 // Kolejność wyboru: najpierw dostępność (Chcę > Mogę > W ostateczności), potem równy podział.
-// maks. jeden rezydent dziennie (licząc ręczne wpisy).
+// maks. jeden rezydent dziennie (licząc ręczne wpisy), warunki z `rules` (patrz breaksRule).
 // Wpisy z `locked` (ręczne) są zachowane i liczą się do bilansu.
 // ponytail: zachłanny algorytm dzień po dniu; preferencje/limity → podmienić na solver (np. ILP) z tym samym interfejsem.
-export function generateMonth(y, m, shifts, people, locked = {}, avail = {}, limits = {}) {
+export function generateMonth(y, m, shifts, people, locked = {}, avail = {}, limits = {}, rules = []) {
   const result = {};
   const count = Object.fromEntries(people.map((p) => [p.id, 0]));
   const perShift = {}; // 'personId:shiftId' → liczba dyżurów
@@ -45,7 +51,7 @@ export function generateMonth(y, m, shifts, people, locked = {}, avail = {}, lim
       if (day[s.id]) continue;
       const pick = people
         .filter((p) => availOf(avail, p.id, key) > 0 && !busy.has(p.id) && lastDay[p.id] !== d - 1 && !lockedOn(locked, y, m, d + 1, p.id) && underLimit(p.id, s.id) &&
-          !(hasResident && resident.has(p.id)))
+          !(hasResident && resident.has(p.id)) && !breaksRule(rules, day, p.id, s.id))
         .sort((a, b) => availOf(avail, b.id, key) - availOf(avail, a.id, key) ||
           count[a.id] - count[b.id] || (lastDay[a.id] ?? -99) - (lastDay[b.id] ?? -99))[0];
       if (!pick) continue; // brak wolnej osoby → dyżur zostaje pusty, widoczny w UI

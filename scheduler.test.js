@@ -74,3 +74,13 @@ test('rezydenci (prestiż 0): maks. jeden dziennie, także gdy jeden jest wpisan
     assert.ok(Object.values(day).filter((pid) => pid[0] === 'r').length <= 1, JSON.stringify(day));
   assert.ok(Object.values(out).some((day) => Object.values(day).some((pid) => pid[0] === 'r'))); // rezydenci nadal dostają dyżury
 });
+
+test('warunek: gdy a dyżuruje z b, a jest tylko na s2', () => {
+  const rules = [{ who: 'a', with: 'b', places: ['s2'] }];
+  const locked = { [dateKey(2026, 9, 5)]: { s1: 'b' } };
+  const out = generateMonth(2026, 9, shifts, people.slice(0, 3), locked, {}, {}, rules);
+  let together = 0;
+  for (const day of Object.values(out))
+    if (Object.values(day).includes('a') && Object.values(day).includes('b')) { together++; assert.equal(day.s2, 'a', JSON.stringify(day)); }
+  assert.ok(together > 0); // warunek nie zabrania wspólnych dyżurów, tylko wymusza miejsce
+});

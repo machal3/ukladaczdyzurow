@@ -137,6 +137,14 @@ aside { display: flex; flex-direction: column; gap: 16px; }
 }
 .add button { padding: 7px 12px; }
 
+#rules li > span { white-space: normal; font-size: 12px; }
+.rule-form { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; font-size: 12px; }
+.rule-form > label { display: flex; align-items: center; gap: 6px; }
+.rule-form select { flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; background: var(--bg); }
+.rule-form fieldset { border: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.rule-form legend { float: left; margin-right: 8px; }
+.chk { display: flex; align-items: center; gap: 4px; }
+
 @media (max-width: 1000px) {
   main { grid-template-columns: 1fr; }
 }
