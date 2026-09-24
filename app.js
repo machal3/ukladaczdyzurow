@@ -3,7 +3,7 @@ import { cloudLoad, cloudSave, cloudLogout } from './cloud.js';
 
 const DAYS = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So', 'Nd'];
 const STORE = 'dyzury-v1';
-const GEAR = '<svg viewBox="0 -960 960 960" aria-hidden="true"><path d="M435.5-128.63Q427-137.25 427-150v-165q0-12.75 8.68-21.38 8.67-8.62 21.5-8.62 12.82 0 21.32 8.62 8.5 8.63 8.5 21.38v53h323q12.75 0 21.38 8.68 8.62 8.67 8.62 21.5 0 12.82-8.62 21.32-8.63 8.5-21.38 8.5H487v52q0 12.75-8.68 21.37-8.67 8.63-21.5 8.63-12.82 0-21.32-8.63ZM150-202q-12.75 0-21.37-8.68-8.63-8.67-8.63-21.5 0-12.82 8.63-21.32 8.62-8.5 21.37-8.5h187q12.75 0 21.38 8.68 8.62 8.67 8.62 21.5 0 12.82-8.62 21.32-8.63 8.5-21.38 8.5H150Zm165.5-174.63Q307-385.25 307-398v-52H150q-12.75 0-21.37-8.68-8.63-8.67-8.63-21.5 0-12.82 8.63-21.32 8.62-8.5 21.37-8.5h157v-54q0-12.75 8.68-21.38 8.67-8.62 21.5-8.62 12.82 0 21.32 8.62 8.5 8.63 8.5 21.38v166q0 12.75-8.68 21.37-8.67 8.63-21.5 8.63-12.82 0-21.32-8.63ZM457-450q-12.75 0-21.37-8.68-8.63-8.67-8.63-21.5 0-12.82 8.63-21.32 8.62-8.5 21.37-8.5h353q12.75 0 21.38 8.68 8.62 8.67 8.62 21.5 0 12.82-8.62 21.32-8.63 8.5-21.38 8.5H457Zm144.5-173.63Q593-632.25 593-645v-165q0-12.75 8.68-21.38 8.67-8.62 21.5-8.62 12.82 0 21.32 8.62 8.5 8.63 8.5 21.38v52h157q12.75 0 21.38 8.68 8.62 8.67 8.62 21.5 0 12.82-8.62 21.32-8.63 8.5-21.38 8.5H653v53q0 12.75-8.68 21.37-8.67 8.63-21.5 8.63-12.82 0-21.32-8.63ZM150-698q-12.75 0-21.37-8.68-8.63-8.67-8.63-21.5 0-12.82 8.63-21.32 8.62-8.5 21.37-8.5h353q12.75 0 21.38 8.68 8.62 8.67 8.62 21.5 0 12.82-8.62 21.32-8.63 8.5-21.38 8.5H150Z"/></svg>'; // Material Symbols „tune” = ustawienia osoby
+const GEAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5H3"/><path d="M12 19H3"/><path d="M14 3v4"/><path d="M16 17v4"/><path d="M21 12h-9"/><path d="M21 19h-5"/><path d="M21 5h-7"/><path d="M8 10v4"/><path d="M8 12H3"/></svg>'; // Lucide „sliders-horizontal” = ustawienia osoby
 const WEEKEND_LIMIT = 2; // domyślny limit dyżurów Pt/So/Nd w miesiącu, gdy osoba nie ustawiła własnego
 
 const cloud = await cloudLoad(); // null = tryb lokalny (tylko localStorage)
@@ -94,14 +94,7 @@ function render() {
 
   // Statystyki miesiąca
   const count = Object.fromEntries(team().map((p) => [p.id, 0]));
-  const whoShifts = { we: 0 }; // shiftId → dyżury wybranej osoby w tym miesiącu, we = w Pt/So/Nd
-  for (const k of monthKeys()) for (const [sid, pid] of Object.entries(state.schedule[k] || {})) {
-    if (pid in count) count[pid]++;
-    if (pid !== view.who) continue;
-    whoShifts[sid] = (whoShifts[sid] || 0) + 1;
-    const wd = weekday(y, m, +k.slice(8));
-    if (wd >= 4) { whoShifts.we++; whoShifts[`d${wd}`] = (whoShifts[`d${wd}`] || 0) + 1; }
-  }
+  for (const k of monthKeys()) for (const pid of Object.values(state.schedule[k] || {})) if (pid in count) count[pid]++;
   const shown = listPeople(team(), count, view), filtered = view.q.trim() || view.role || view.none;
   $('#people').innerHTML = shown.map((p) => `<li class="${p.id === view.who ? 'on' : ''}">
       <span class="avatar ${p.prestige ? '' : 'rez'}" aria-hidden="true">${esc(p.name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase())}</span>
@@ -116,25 +109,25 @@ function render() {
   $('#summary-list').innerHTML = team().map((p) => `<li>
       <button class="who ${p.id === view.who ? 'on' : ''}" data-who="${p.id}" aria-pressed="${p.id === view.who}" title="Dostępność w grafiku">${esc(p.name)}</button>
       <span class="meter" aria-hidden="true"><i style="width:${count[p.id] / max * 100}%"></i></span><span class="badge">${count[p.id]}</span></li>`).join('');
-  // Okno osoby: ustawienia (limity i prośby dotyczą oglądanego miesiąca) + historia dyżurów
+  // Okno osoby: ustawienia (limity i prośby obowiązują w każdym miesiącu) + historia dyżurów
   const who = state.people.find((p) => p.id === view.who);
   if (who && $('#person').open) {
-    $('#person-title').textContent = `${who.name} — ${$('#month-label').textContent}`;
+    $('#person-title').textContent = who.name;
     for (const b of document.querySelectorAll('[data-ptab]')) b.setAttribute('aria-pressed', b.dataset.ptab === view.personTab);
-    // ustawienia: po lewej osoba, po prawej jedna tabela — ile ma, limit i prośba w jednym wierszu
+    // ustawienia: po lewej osoba, po prawej jedna tabela — limit i prośba w jednym wierszu
     const num = (kind, key, ph, label) => `<input type="number" min="0" step="1" placeholder="${ph}" data-${kind}="${key}" value="${(kind === 'limit' ? state.limits : state.wants)[who.id]?.[key] ?? ''}" aria-label="${label}">`;
-    const row = (name, has, limit, want = '') => `<tr><th scope="row">${name}</th><td>${has}</td><td>${limit}</td><td>${want}</td></tr>`;
+    const row = (name, limit, want) => `<tr><th scope="row">${name}</th><td>${limit}</td><td>${want}</td></tr>`;
     const field = (name, hint, control) => `<label class="field"><span>${name}${hint ? `<small>${hint}</small>` : ''}</span>${control}</label>`;
     $('#person-body').innerHTML = view.personTab === 'history' ? logHtml(who) : `<div class="person-grid"><section><h4>Osoba</h4>` +
       field('Funkcja', '', `<select data-prestige>${ROLES.map((r, i) => `<option value="${i}" ${i === who.prestige ? 'selected' : ''}>${r}</option>`).join('')}</select>`) +
       field('Ostatnio gówniane', 'dyżury spoza grafiku, 0–3', `<select data-past>${BAD.map((_, i) => `<option value="${i}" ${i === (who.past ?? 0) ? 'selected' : ''}>${i}</option>`).join('')}</select>`) +
       field('Kanapka PN1 So + Pn', 'zaznaczone = woli ten układ', `<input type="checkbox" data-pn1sandwich ${who.pn1Sandwich === false ? '' : 'checked'}>`) +
-      `</section><section><h4>Dyżury w miesiącu</h4><table class="counts"><thead><tr><td></td><th scope="col">Ma</th><th scope="col">Limit</th><th scope="col">Prośba</th></tr></thead><tbody>` +
-      row('Łącznie', count[who.id], num('limit', '*', '∞', 'Limit łącznie'), num('want', '*', '—', 'Prośba łącznie')) +
-      row('Pt/So/Nd', whoShifts.we, num('limit', 'we', WEEKEND_LIMIT, 'Limit Pt/So/Nd'), num('want', 'we', '—', 'Prośba Pt/So/Nd')) +
-      state.shifts.map((s) => row(esc(s.name), whoShifts[s.id] || 0, num('limit', s.id, '∞', `Limit: ${esc(s.name)}`), num('want', s.id, '—', `Prośba: ${esc(s.name)}`))).join('') +
-      `<tr class="sub"><th colspan="4" scope="rowgroup">Ten sam dzień weekendu</th></tr>` +
-      ['Pt', 'So', 'Nd'].map((n, i) => row(n, whoShifts[`d${i + 4}`] || 0, num('limit', `d${i + 4}`, 1, `Ile razy ten sam dzień: ${n}`), num('want', `d${i + 4}`, '—', `Prośba: ${n}`))).join('') +
+      `</section><section><h4>Limity i prośby</h4><table class="counts"><thead><tr><td></td><th scope="col">Limit</th><th scope="col">Prośba</th></tr></thead><tbody>` +
+      row('Łącznie', num('limit', '*', '∞', 'Limit łącznie'), num('want', '*', '—', 'Prośba łącznie')) +
+      row('Pt/So/Nd', num('limit', 'we', WEEKEND_LIMIT, 'Limit Pt/So/Nd'), num('want', 'we', '—', 'Prośba Pt/So/Nd')) +
+      state.shifts.map((s) => row(esc(s.name), num('limit', s.id, '∞', `Limit: ${esc(s.name)}`), num('want', s.id, '—', `Prośba: ${esc(s.name)}`))).join('') +
+      `<tr class="sub"><th colspan="3" scope="rowgroup">Ten sam dzień weekendu</th></tr>` +
+      ['Pt', 'So', 'Nd'].map((n, i) => row(n, num('limit', `d${i + 4}`, 1, `Ile razy ten sam dzień: ${n}`), num('want', `d${i + 4}`, '—', `Prośba: ${n}`))).join('') +
       `</tbody></table><p class="hint">Puste pole = wartość domyślna (szara, ∞ = bez limitu). Limity łącznie, Pt/So/Nd i na miejscu są twarde; ten sam dzień weekendu i prośby — miękkie.</p></section></div>`;
   }
   const shiftName = Object.fromEntries(state.shifts.map((s) => [s.id, s.name]));
