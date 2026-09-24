@@ -126,10 +126,8 @@ aside { display: flex; flex-direction: column; gap: 16px; }
 .list li.limits { flex-direction: column; align-items: stretch; gap: 4px; padding: 8px 0 10px; }
 .limits label { display: flex; align-items: center; gap: 6px; font-size: 12px; }
 .limits span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.limits input, .limits select { width: 56px; border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; background: var(--bg); }
-.days { display: flex; gap: 2px; }
-.day { padding: 0; width: 20px; height: 20px; font-size: 10px; border-radius: 50%; background: var(--line); color: var(--muted); }
-.day.on { background: var(--accent); color: #fff; }
+.limits select { border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; background: var(--bg); }
+.limits input {width: 56px; border: 1px solid var(--line); border-radius: 6px; padding: 3px 6px; background: var(--bg); }
 
 .add { display: flex; gap: 6px; margin-top: 10px; }
 .add input {
@@ -137,6 +135,14 @@ aside { display: flex; flex-direction: column; gap: 16px; }
   padding: 7px 10px; background: var(--bg);
 }
 .add button { padding: 7px 12px; }
+
+#rules li > span { white-space: normal; font-size: 12px; }
+.rule-form { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; font-size: 12px; }
+.rule-form > label { display: flex; align-items: center; gap: 6px; }
+.rule-form select { flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; background: var(--bg); }
+.rule-form fieldset { border: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.rule-form legend { float: left; margin-right: 8px; }
+.chk { display: flex; align-items: center; gap: 4px; }
 
 @media (max-width: 1000px) {
   main { grid-template-columns: 1fr; }

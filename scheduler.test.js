@@ -71,7 +71,7 @@ test('gównianość: w gówniany dzień wygrywa osoba z mniejszym obciążeniem 
   const k = dateKey(2026, 9, 1); // czwartek, domyślnie 0
   const withPast = people.map((p) => ({ ...p, past: p.id === 'a' ? 3 : 0 }));
   assert.equal(generateMonth(2026, 9, one, withPast)[k].s, 'a');                  // zwykły dzień: „ostatnio” nie gra roli
-  assert.notEqual(generateMonth(2026, 9, one, withPast, {}, {}, {}, { [k]: 3 })[k].s, 'a');
+  assert.notEqual(generateMonth(2026, 9, one, withPast, {}, {}, {}, [], { [k]: 3 })[k].s, 'a');
 });
 
 test('gównianość: punkty rozkładają się równo w miesiącu', () => {
@@ -92,4 +92,23 @@ test('limit weekendowy: nikt ponad swój limit dyżurów w Pt/So/Nd, ręczne wpi
   assert.equal(weekendOf('a'), 2);
   assert.equal(weekendOf('b'), 0);
   assert.ok(Object.values(out).flatMap(Object.values).includes('b')); // w tygodniu dalej dyżuruje
+});
+
+test('rezydenci (prestiż 0): maks. jeden dziennie, także gdy jeden jest wpisany ręcznie', () => {
+  const ppl = ['r1', 'r2', 'r3', 'a1', 'a2'].map((id) => ({ id, name: id, prestige: id[0] === 'r' ? 0 : 2 }));
+  const locked = { [dateKey(2026, 9, 5)]: { s1: 'r1' } };
+  const out = generateMonth(2026, 9, shifts, ppl, locked);
+  for (const day of Object.values(out))
+    assert.ok(Object.values(day).filter((pid) => pid[0] === 'r').length <= 1, JSON.stringify(day));
+  assert.ok(Object.values(out).some((day) => Object.values(day).some((pid) => pid[0] === 'r'))); // rezydenci nadal dostają dyżury
+});
+
+test('warunek: gdy a dyżuruje z b, a jest tylko na s2', () => {
+  const rules = [{ who: 'a', with: 'b', places: ['s2'] }];
+  const locked = { [dateKey(2026, 9, 5)]: { s1: 'b' } };
+  const out = generateMonth(2026, 9, shifts, people.slice(0, 3), locked, {}, {}, rules);
+  let together = 0;
+  for (const day of Object.values(out))
+    if (Object.values(day).includes('a') && Object.values(day).includes('b')) { together++; assert.equal(day.s2, 'a', JSON.stringify(day)); }
+  assert.ok(together > 0); // warunek nie zabrania wspólnych dyżurów, tylko wymusza miejsce
 });
