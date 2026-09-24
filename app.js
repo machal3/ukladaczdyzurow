@@ -59,9 +59,7 @@ function render() {
   const todayKey = dateKey(now.getFullYear(), now.getMonth(), now.getDate());
   const nameOf = Object.fromEntries(state.people.map((p) => [p.id, p.name]));
 
-  // jedna lista podpowiedzi dla wszystkich pól — przeglądarka filtruje ją w trakcie pisania
-  let html = `<datalist id="team-list"><option value="—">(puste)</option>${team().map((p) => `<option value="${esc(p.name)}">`).join('')}</datalist>`;
-  html += DAYS.map((d, i) => `<div class="dow ${i > 4 ? 'weekend' : ''}">${d}</div>`).join('');
+  let html = DAYS.map((d, i) => `<div class="dow ${i > 4 ? 'weekend' : ''}">${d}</div>`).join('');
   html += '<div class="cell empty"></div>'.repeat(weekday(y, m, 1));
   let empty = 0, slots = 0;
   for (let d = 1; d <= daysInMonth(y, m); d++) {
@@ -81,11 +79,11 @@ function render() {
       const clash = why && 'clash';
       return `<label class="slot ${pid ? '' : 'unfilled'} ${manual} ${clash}" title="${esc(s.name)}${manual && ' — wpisany ręcznie'}${why}">
         <span>${esc(s.name)}</span>
-        <input list="team-list" data-key="${key}" data-shift="${s.id}" value="${pid ? esc(nameOf[pid]) : ''}" placeholder="—" aria-label="${esc(s.name)}, ${d} ${monthName}">
+        <input data-key="${key}" data-shift="${s.id}" value="${pid ? esc(nameOf[pid]) : ''}" placeholder="—" autocomplete="off" role="combobox" aria-controls="picker" aria-label="${esc(s.name)}, ${d} ${monthName}">
       </label>`;
     }).join('');
     html += `<div class="cell ${weekday(y, m, d) > 4 ? 'weekend' : ''} ${key === todayKey ? 'today' : ''}">
-      <div class="num" data-dow="${DAYS[weekday(y, m, d)]}" aria-label="${DAYS[weekday(y, m, d)]}, ${d} ${monthName}">${d}</div>${b > 1 && !view.bad && !view.who ? `<i class="dot b${b}" title="${BAD[b]} dzień"></i>` : ''}${rows}</div>`;
+      <div class="num" data-dow="${DAYS[weekday(y, m, d)]}" aria-label="${DAYS[weekday(y, m, d)]}, ${d} ${monthName}">${d}</div>${rows}</div>`;
   }
   html += '<div class="cell empty"></div>'.repeat((7 - (weekday(y, m, 1) + daysInMonth(y, m)) % 7) % 7); // domknięcie ostatniego tygodnia
   $('#calendar').innerHTML = html;
@@ -188,7 +186,7 @@ $('#generate').onclick = () => update(() => {
 });
 $('#variants-ok').onclick = () => { $('#panel-variants').hidden = true; };
 
-// Zakładki: Grafik / Dostosowywanie (priorytety, warunki, osoby)
+// Zakładki: Grafik / Osoby / Dostosowywanie (priorytety, warunki, gównianość)
 function showTab(tab) {
   document.body.dataset.tab = tab;
   for (const b of document.querySelectorAll('.tabs button')) b.setAttribute('aria-pressed', b.dataset.tab === tab);
@@ -231,31 +229,68 @@ $('#clear').onclick = () => {
   update(() => { for (const k of monthKeys()) { delete state.schedule[k]; delete state.manual[k]; } });
 };
 
-// Pole osoby: po kliknięciu czyści się, żeby pokazać całą listę; wpisywanie ją filtruje.
-// Bez wyboru (pusto / nieznane imię) wraca poprzednia wartość; „—” zwalnia dyżur.
-$('#calendar').addEventListener('focusin', (e) => {
-  if (!e.target.dataset.shift) return;
-  e.target.dataset.was = e.target.value;
-  e.target.placeholder = e.target.value || '—';
-  e.target.value = '';
-});
-$('#calendar').addEventListener('focusout', (e) => {
-  if (e.target.dataset.shift && !e.target.value) { e.target.value = e.target.dataset.was; e.target.placeholder = '—'; }
-});
+// Pole osoby: po kliknięciu czyści się i pokazuje własną listę osób, wpisywanie ją filtruje
+// (bez wielkości liter i polskich znaków). Enter/klik wybiera, Esc lub brak dopasowania przywraca poprzednią wartość.
+const picker = document.createElement('ul');
+picker.id = 'picker'; picker.className = 'picker'; picker.role = 'listbox'; picker.hidden = true;
+document.body.append(picker);
+const fold = (t) => t.toLowerCase().normalize('NFD').replace(/\p{M}/gu, '').replace(/ł/g, 'l');
+let field = null, hits = [], active = 0;
 
-$('#calendar').onchange = (e) => {
-  const { key, shift, was } = e.target.dataset;
-  const name = e.target.value.trim();
-  if (!name) return;
-  const pid = name === '—' ? '' : team().find((p) => sameName(p.name, name))?.id;
-  if (pid === undefined || name === was) { e.target.value = was; return; }
+function showPicker() {
+  const q = fold(field.value.trim());
+  hits = [{ id: '', name: '—' }, ...team()].filter((p) => !q || (p.id && fold(p.name).includes(q)));
+  active = q ? 0 : Math.max(0, hits.findIndex((p) => p.name === field.dataset.was));
+  picker.innerHTML = hits.map((p, i) => `<li role="option" data-i="${i}" ${i === active ? 'aria-selected="true"' : ''}>${esc(p.name)}</li>`).join('') ||
+    '<li class="none">Brak takiej osoby</li>';
+  const r = field.closest('.slot').getBoundingClientRect();
+  Object.assign(picker.style, { left: `${r.left + scrollX}px`, top: `${r.bottom + scrollY + 2}px`, minWidth: `${r.width}px` });
+  picker.hidden = false;
+  picker.querySelector('[aria-selected]')?.scrollIntoView({ block: 'nearest' });
+}
+
+function choose(p) {
+  const f = field, { key, shift, was } = f.dataset;
+  picker.hidden = true;
+  f.blur(); // przed zapisem: update() przerysowuje grafik
+  if (!p || p.name === was) { f.value = was; return; }
+  f.value = p.name;
   update(() => {
     for (const obj of [state.schedule, state.manual]) {
       obj[key] ??= {};
-      if (pid) obj[key][shift] = pid; else delete obj[key][shift];
+      if (p.id) obj[key][shift] = p.id; else delete obj[key][shift];
     }
   });
-};
+}
+
+$('#calendar').addEventListener('focusin', (e) => {
+  if (!e.target.dataset.shift) return;
+  field = e.target;
+  field.dataset.was = field.value;
+  field.placeholder = field.value || '—';
+  field.value = '';
+  showPicker();
+});
+$('#calendar').addEventListener('input', (e) => { if (e.target === field) showPicker(); });
+$('#calendar').addEventListener('keydown', (e) => {
+  if (e.target !== field || picker.hidden || !hits.length && e.key !== 'Escape') return;
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault();
+    active = (active + (e.key === 'ArrowDown' ? 1 : -1) + hits.length) % hits.length;
+    picker.querySelectorAll('li').forEach((li, i) => li.toggleAttribute('aria-selected', i === active));
+    picker.querySelector('[aria-selected]')?.scrollIntoView({ block: 'nearest' });
+  } else if (e.key === 'Enter') { e.preventDefault(); choose(hits[active]); }
+  else if (e.key === 'Escape') { choose(null); }
+});
+// wyjście z pola: jedno dopasowanie wystarczy (np. „kow” + Tab), inaczej wraca poprzednia wartość
+$('#calendar').addEventListener('focusout', (e) => {
+  if (e.target !== field) return;
+  if (!picker.hidden) choose(field.value.trim() ? hits.length === 1 ? hits[0] : hits.find((p) => fold(p.name) === fold(field.value.trim())) : null);
+  field.placeholder = '—';
+  field = null;
+});
+picker.onmousedown = (e) => e.preventDefault(); // pole zachowuje fokus do czasu wyboru
+picker.onclick = (e) => { const i = e.target.dataset.i; if (i && field) choose(hits[i]); };
 
 $('#add-person').onsubmit = (e) => {
   e.preventDefault();
@@ -283,7 +318,7 @@ $('main').onclick = (e) => {
   if (e.target.dataset.go) { showTab(e.target.dataset.go); scrollTo(0, 0); }
   if (delRule) update(() => { state.rules = state.rules.filter((r) => r.id !== delRule); });
   // imię = tryb dostępności w kalendarzu; ⚙ = okno ustawień (po zamknięciu wraca poprzedni tryb, chyba że „Dostępność →”)
-  if (who) { view.who = view.who === who ? null : who; view.bad = false; back = e.target.closest('#summary') ? 'calendar' : 'settings'; if (view.who) showTab('calendar'); render(); }
+  if (who) { view.who = view.who === who ? null : who; view.bad = false; back = e.target.closest('#summary') ? 'calendar' : 'people'; if (view.who) showTab('calendar'); render(); }
   if (edit) { prevWho = view.who; view.who = edit; view.bad = false; $('#person').returnValue = ''; $('#person').showModal(); render(); }
   if (delPerson && confirm(`Usunąć ${state.people.find((p) => p.id === delPerson).name}? Przeszłe dyżury zostaną w grafiku, przyszłe zostaną zwolnione.`)) update(() => {
     state.people.find((p) => p.id === delPerson).gone = true;

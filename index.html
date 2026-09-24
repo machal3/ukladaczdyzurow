@@ -13,6 +13,7 @@
   <div class="bar">
     <nav class="tabs" aria-label="Widok">
       <button class="ghost" data-tab="calendar" aria-pressed="true">Grafik</button>
+      <button class="ghost" data-tab="people" aria-pressed="false">Osoby</button>
       <button class="ghost" data-tab="settings" aria-pressed="false">Dostosowywanie</button>
     </nav>
     <nav class="month" aria-label="Miesiąc">
@@ -48,12 +49,11 @@
           <li><i class="mark manual"></i>wpisany ręcznie</li>
           <li><i class="mark unfilled"></i>nieobsadzony</li>
           <li><i class="mark clash"></i>nie może / łamie warunek</li>
-          <li><i class="dot b3"></i>ciężki dzień</li>
         </ul>
       </aside>
     </div>
 
-    <section id="settings" class="settings" aria-label="Dostosowywanie">
+    <section id="people-tab" class="people-tab" aria-label="Osoby">
       <div class="panel" id="panel-people">
         <h3>Osoby</h3>
         <p class="lead">Kliknij imię, by zaznaczyć dostępność w kalendarzu. ⚙ — funkcja, limity, prośby i historia. Liczba = dyżury w tym miesiącu.</p>
@@ -63,6 +63,9 @@
           <button aria-label="Dodaj osobę">Dodaj</button>
         </form>
       </div>
+    </section>
+
+    <section id="settings" class="settings" aria-label="Dostosowywanie">
       <div class="panel" id="panel-priority">
         <h3>Priorytety układania</h3>
         <p class="lead">Co liczy się najbardziej przy układaniu grafiku — od najważniejszego. Strzałkami zmieniasz kolejność.</p>

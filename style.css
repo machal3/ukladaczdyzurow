@@ -95,11 +95,12 @@ button:disabled { opacity: .35; cursor: default; }
 .progress i { display: block; height: 100%; background: var(--text); }
 #status [data-jump] { margin-left: auto; padding: 4px 8px; font-size: 13px; }
 .table-scroll { max-width: 100%; overflow-x: auto; }
-body[data-tab="settings"] #status:not(.info) { display: none; }
+body:not([data-tab="calendar"]) #status:not(.info) { display: none; }
 
 main { display: flex; flex-direction: column; gap: 24px; }
-body[data-tab="calendar"] #settings,
-body[data-tab="settings"] .board, body[data-tab="settings"] #panel-variants { display: none; }
+body:not([data-tab="settings"]) #settings, body:not([data-tab="people"]) #people-tab,
+body:not([data-tab="calendar"]) .board, body:not([data-tab="calendar"]) #panel-variants { display: none; }
+.people-tab { max-width: 720px; }
 
 .panel { border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; }
 .panel h3, .summary h3 { font-size: 15px; font-weight: 600; margin-bottom: 12px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 2px 12px; }
@@ -119,8 +120,6 @@ body[data-tab="settings"] .board, body[data-tab="settings"] #panel-variants { di
 .cell.weekend, .dow.weekend { background: color-mix(in srgb, var(--faint) 55%, var(--bg)); }
 .num { font-size: 12px; font-weight: 500; color: var(--muted); width: 24px; height: 24px; display: grid; place-items: center; border-radius: 50%; margin-bottom: 4px; font-variant-numeric: tabular-nums; }
 .today .num { background: var(--strong); color: var(--on-strong); }
-.dot { position: absolute; top: 18px; right: 12px; width: 5px; height: 5px; border-radius: 50%; background: var(--muted); }
-.dot.b3 { background: var(--warn); }
 
 /* Dyżur: miejsce drobno, imię wyraźnie */
 .slot {
@@ -133,6 +132,16 @@ body[data-tab="settings"] .board, body[data-tab="settings"] #panel-variants { di
   font-size: 12.5px; padding: 3px 0; min-width: 0; width: 100%; text-overflow: ellipsis;
 }
 .slot input:focus { cursor: text; outline: none; }
+
+/* Lista podpowiedzi pod polem osoby */
+.picker {
+  position: absolute; z-index: 20; list-style: none; margin: 0; padding: 4px; max-height: 240px; overflow-y: auto;
+  background: var(--bg); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 6px 20px rgb(0 0 0 / .08); font-size: 13px;
+}
+.picker li { padding: 6px 10px; border-radius: 5px; cursor: pointer; white-space: nowrap; }
+.picker li[aria-selected] { background: var(--faint); }
+@media (hover: hover) { .picker li:hover { background: var(--faint); } }
+.picker .none { color: var(--muted); cursor: default; }
 @media (hover: hover) { .slot:hover { background: var(--faint); } }
 .slot:focus-within { background: var(--faint); }
 .slot.manual::after, .mark.manual { content: ''; width: 4px; height: 4px; border-radius: 50%; background: var(--text); }
@@ -154,7 +163,6 @@ body[data-tab="settings"] .board, body[data-tab="settings"] #panel-variants { di
 .summary .hint { margin-top: 12px; }
 .legend { list-style: none; padding: 16px 0 0; margin-top: 16px; border-top: 1px solid var(--line); display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--muted); }
 .legend li { display: flex; align-items: center; gap: 10px; }
-.legend .dot { position: static; }
 .mark { display: inline-block; flex: none; width: 14px; text-align: center; font-style: normal; }
 .mark.manual { width: 4px; margin: 0 5px; }
 .mark.unfilled::before { content: '—'; color: var(--warn); }
@@ -256,7 +264,6 @@ dialog menu { display: flex; justify-content: flex-end; gap: 8px; padding: 0; }
 
 @media (min-width: 1200px) {
   .settings { grid-template-columns: repeat(3, 1fr); }
-  #panel-people { grid-row: span 2; }
 }
 
 /* Poniżej 1600px: obsada nad kalendarzem, jedną linią — kalendarz dostaje całą szerokość */
@@ -318,7 +325,6 @@ dialog menu { display: flex; justify-content: flex-end; gap: 8px; padding: 0; }
   .today .num { background: none; color: var(--text); }
   .today .num::after { content: attr(data-dow) ' · dziś'; white-space: nowrap; color: var(--text); }
   .cell.today { box-shadow: inset 2px 0 0 var(--text); }
-  .dot { top: 56px; left: 12px; right: auto; }
   .slot { grid-template-columns: 44px minmax(0, 1fr) auto; padding: 0 6px; }
   .slot span { grid-column: auto; font-size: 11px; width: auto; }
   .slot input { font-size: 15px; padding: 4px 0; }
