@@ -72,6 +72,10 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px s
 
 .tabs, .to-cal { display: none; }
 #person-body .preview { table-layout: fixed; }
+#person-body .preview :is(th, td):first-child { width: 20%; }
+#person-body .preview :is(th, td):nth-child(2) { width: 30%; white-space: normal; }
+#person-body .preview :is(th, td):nth-child(3) { width: 29%; }
+#person-title:focus { outline: none; } /* fokus startowy okna — żeby telefon nie otwierał klawiatury na pierwszym polu */
 .person-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px 24px; margin-bottom: 16px; }
 html { touch-action: manipulation; } /* bez powiększania przy szybkim stukaniu w dni */
 main { display: grid; grid-template-columns: 1fr 300px; gap: 24px; align-items: start; }
@@ -201,8 +205,19 @@ aside { display: flex; flex-direction: column; gap: 16px; }
   .avail { padding: 10px; }
   aside { gap: 12px; }
   #import-preview { overflow-x: auto; }
-  #person-body .preview { table-layout: auto; }
-  #person-body .preview :is(th, td) { white-space: normal; padding: 3px 4px; }
+  /* okno osoby: pełny ekran, tytuł u góry i przyciski na dole zawsze widoczne */
+  #person { width: 100%; height: 100%; max-width: none; max-height: none; border: 0; border-radius: 0; padding: 0 16px; }
+  #person-title { position: sticky; top: 0; z-index: 1; background: var(--surface); margin: 0 -16px; padding: calc(14px + env(safe-area-inset-top)) 16px 12px; border-bottom: 1px solid var(--line); }
+  #person menu { position: sticky; bottom: 0; background: var(--surface); margin: 0 -16px; padding: 8px 16px calc(8px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); }
+  #person menu button { flex: 1; padding: 12px 8px; }
+  #person menu .to-cal { margin: 0; border: 1px solid var(--line); }
+  #person .limits label { font-size: 14px; min-height: 36px; }
+  #person h4 { font-size: 15px; margin-top: 8px; }
+  #person-body h4 small { display: block; font-size: 12px; margin-top: 2px; }
+  #person-body .hint { font-size: 13px; }
+  #person-body .preview { font-size: 13px; }
+  #person-body .preview :is(th, td) { padding: 6px 4px; }
+  #person-body .preview small { display: block; }
   dialog { padding: 16px; }
 }
 /* Dotyk: większe cele, × zawsze widoczny, 16px w polach (iOS nie powiększa strony przy fokusie) */

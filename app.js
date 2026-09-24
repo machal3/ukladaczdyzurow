@@ -99,7 +99,7 @@ function render() {
   const who = state.people.find((p) => p.id === view.who);
   if (who && $('#person').open) {
     $('#person-title').textContent = `${who.name} — ${$('#month-label').textContent}`;
-    $('#person-body').innerHTML = `<button class="to-cal" data-go="calendar">Dostępność w grafiku →</button><div class="person-grid">` +
+    $('#person-body').innerHTML = `<div class="person-grid">` +
       `<section class="limits"><h4>Osoba</h4><label><span>Funkcja</span><select data-prestige aria-label="Funkcja">` +
       ROLES.map((r, i) => `<option value="${i}" ${i === who.prestige ? 'selected' : ''}>${r}</option>`).join('') + `</select></label>` +
       `<label><span>Ostatnio gówniane (spoza grafiku)</span><select data-past aria-label="Jak gówniane dyżury miała ostatnio poza grafikiem">` +
