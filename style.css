@@ -34,8 +34,8 @@ button:enabled:is(:focus-visible, :active)::before { opacity: .12; }
 button:enabled:active { transform: scale(.97); }
 button { -webkit-user-select: none; user-select: none; }
 [tabindex="-1"]:focus { outline: none; } /* fokus programowy (np. autofocus tytułu okna) bez ramki */
-button.rippling::after { background: radial-gradient(circle at var(--ripple-x, 50%) var(--ripple-y, 50%), currentColor 0 12%, transparent 65%); animation: ripple 550ms var(--motion); }
-button:enabled:active::after { background: radial-gradient(circle, currentColor, transparent 65%); animation: ripple 550ms var(--motion); }
+button.rippling::after { background: radial-gradient(circle at var(--ripple-x, 50%) var(--ripple-y, 50%), currentColor 0 12%, transparent 65%); opacity: 0; animation: ripple 550ms var(--motion); }
+button:enabled:active::after { background: radial-gradient(circle, currentColor, transparent 65%); opacity: 0; animation: ripple 550ms var(--motion); }
 @keyframes ripple { from { opacity: .2; transform: scale(.3); } to { opacity: 0; transform: scale(2); } }
 button.ghost { background: transparent; color: var(--strong); }
 button.ghost[aria-pressed=true] { background: var(--accent-soft); color: var(--md-sys-color-on-primary-container); }

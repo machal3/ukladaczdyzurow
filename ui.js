@@ -50,7 +50,8 @@ document.addEventListener('pointerdown', (event) => {
   void button.offsetWidth;
   button.classList.add('rippling');
 });
-document.addEventListener('animationend', (event) => {
+// animationcancel: np. window.print() przerywa animację i animationend nie przychodzi
+for (const type of ['animationend', 'animationcancel']) document.addEventListener(type, (event) => {
   if (event.target instanceof Element && event.animationName === 'ripple') event.target.classList.remove('rippling');
 });
 const onScroll = () => root.classList.toggle('scrolled', scrollY > 16);
