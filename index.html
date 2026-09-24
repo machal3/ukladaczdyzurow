@@ -2,14 +2,14 @@
 <html lang="pl">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Układacz dyżurów</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap">
   <link rel="stylesheet" href="style.css">
   <script type="module" src="app.js"></script>
 </head>
-<body>
+<body data-tab="calendar">
   <header>
     <h1>Układacz dyżurów</h1>
     <nav class="month">
@@ -31,7 +31,7 @@
     <section id="calendar" class="calendar" aria-label="Grafik miesiąca"></section>
 
     <aside>
-      <div class="panel">
+      <div class="panel" id="panel-people">
         <h3>Osoby <small>klik = dostępność i limity · liczba dyżurów</small></h3>
         <ul id="people" class="list"></ul>
         <form id="add-person" class="add">
@@ -39,13 +39,19 @@
           <button aria-label="Dodaj osobę">+</button>
         </form>
       </div>
-      <div class="panel">
+      <div class="panel" id="panel-rules">
         <h3>Warunki <small>gdy dyżurują razem</small></h3>
         <ul id="rules" class="list"></ul>
         <form id="add-rule" class="rule-form"></form>
       </div>
     </aside>
   </main>
+
+  <nav class="tabs" aria-label="Widok">
+    <button class="ghost" data-tab="calendar" aria-pressed="true">Grafik</button>
+    <button class="ghost" data-tab="people" aria-pressed="false">Osoby</button>
+    <button class="ghost" data-tab="rules" aria-pressed="false">Warunki</button>
+  </nav>
 
   <dialog id="import" aria-labelledby="import-title">
     <form method="dialog">

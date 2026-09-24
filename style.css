@@ -60,12 +60,18 @@ button {
   background: var(--accent); color: #fff; font-weight: 500;
   transition: opacity .15s, background .15s;
 }
-button:hover { opacity: .88; }
+@media (hover: hover) {
+  button:hover { opacity: .88; }
+  button.ghost:hover { background: var(--line); opacity: 1; }
+  .list li:hover .x { opacity: 1; }
+}
+button:active { opacity: .7; }
 button.ghost { background: transparent; color: var(--text); }
-button.ghost:hover { background: var(--line); opacity: 1; }
 button.ghost[aria-pressed="true"] { background: var(--line); }
 button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 
+.tabs, .to-cal { display: none; }
+html { touch-action: manipulation; } /* bez powiększania przy szybkim stukaniu w dni */
 main { display: grid; grid-template-columns: 1fr 300px; gap: 24px; align-items: start; }
 
 /* Kalendarz */
@@ -122,7 +128,6 @@ aside { display: flex; flex-direction: column; gap: 16px; }
 .list li > :first-child { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .badge { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .x { background: none; color: var(--muted); padding: 2px 6px; font-size: 16px; line-height: 1; opacity: .5; }
-.list li:hover .x { opacity: 1; }
 .list li.limits { flex-direction: column; align-items: stretch; gap: 4px; padding: 8px 0 10px; }
 .limits label { display: flex; align-items: center; gap: 6px; font-size: 12px; }
 .limits span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -149,7 +154,7 @@ aside { display: flex; flex-direction: column; gap: 16px; }
 }
 /* Telefon: kalendarz jako lista dni, przyklejony nagłówek ze statusem */
 @media (max-width: 760px) {
-  body { padding: 0 12px 24px; }
+  body { padding: 0 12px calc(72px + env(safe-area-inset-bottom)); }
   header {
     position: sticky; top: 0; z-index: 1; background: var(--bg);
     gap: 4px 8px; margin: 0 -12px 12px; padding: 8px 12px; border-bottom: 1px solid var(--line);
@@ -160,10 +165,28 @@ aside { display: flex; flex-direction: column; gap: 16px; }
   .month button { font-size: 22px; padding: 4px 16px; }
   #status { flex-basis: 100%; margin: 0; }
   #status:empty { display: none; }
-  /* przyciski w jednym rzędzie, przewijanym w bok, gdy się nie mieszczą */
-  .actions { margin: 0 -12px; padding: 0 12px; width: calc(100% + 24px); overflow-x: auto; gap: 4px; }
-  .actions button { flex: none; white-space: nowrap; padding: 8px 10px; }
+  /* wszystkie przyciski widoczne naraz, równe; przy 5 (tryb chmury) zawijają się do drugiego rzędu */
+  .actions { width: 100%; display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: 6px; }
+  .actions button { padding: 8px 4px; font-size: 13px; }
+  .actions .ghost { background: var(--surface); border: 1px solid var(--line); }
+  .actions .ghost[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
   #generate { order: -1; }
+  /* zakładki: Grafik / Osoby / Warunki */
+  .tabs {
+    display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 1;
+    background: var(--surface); border-top: 1px solid var(--line);
+    padding: 6px 8px calc(6px + env(safe-area-inset-bottom)); gap: 6px;
+  }
+  .tabs button { flex: 1; padding: 12px 4px; font-weight: 600; color: var(--muted); }
+  .tabs button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
+  body[data-tab="calendar"] aside,
+  body[data-tab="people"] #calendar, body[data-tab="people"] #panel-rules,
+  body[data-tab="rules"] #calendar, body[data-tab="rules"] #panel-people { display: none; }
+  .to-cal { display: block; align-self: flex-start; margin-bottom: 4px; padding: 8px 12px; }
+  .panel { padding: 12px 14px; }
+  .panel h3 { font-size: 15px; flex-wrap: wrap; gap: 2px 8px; }
+  .list li { padding: 4px 0; }
+  .who { font-size: 15px; }
   .calendar { grid-template-columns: 1fr; }
   .dow, .cell.empty { display: none; }
   .cell { min-height: 44px; position: relative; padding: 8px 10px 8px 54px; }

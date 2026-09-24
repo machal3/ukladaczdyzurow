@@ -94,7 +94,7 @@ function render() {
     whoShifts.bad += badOf(state.bad, y, m, +k.slice(8));
   }
   const hist = history(state.schedule, state.bad, y, m);
-  const limitsRow = (p) => `<li class="limits"><label><span>Funkcja</span><select data-prestige aria-label="Funkcja">` +
+  const limitsRow = (p) => `<li class="limits"><button class="to-cal" data-go="calendar">Dostępność w grafiku →</button><label><span>Funkcja</span><select data-prestige aria-label="Funkcja">` +
     ROLES.map((r, i) => `<option value="${i}" ${i === p.prestige ? 'selected' : ''}>${r}</option>`).join('') + `</select></label>` +
     `<label><span>Ostatnio gówniane (spoza grafiku)</span><select data-past aria-label="Jak gówniane dyżury miała ostatnio poza grafikiem">` +
     BAD.map((_, i) => `<option value="${i}" ${i === (p.past ?? 0) ? 'selected' : ''}>${i}</option>`).join('') +
@@ -146,6 +146,14 @@ $('#generate').onclick = () => update(() => {
   Object.assign(state.schedule, generateMonth(view.y, view.m, state.shifts, people, locked, state.avail,
     Object.fromEntries(team().map((p) => [p.id, { we: WEEKEND_LIMIT, ...state.limits[p.id] }])), state.rules, state.bad, state.wants));
 });
+
+// Zakładki na telefonie (na szerokim ekranie ukryte, wszystko widać naraz)
+function showTab(tab) {
+  document.body.dataset.tab = tab;
+  for (const b of document.querySelectorAll('.tabs button')) b.setAttribute('aria-pressed', b.dataset.tab === tab);
+}
+$('.tabs').onclick = (e) => { if (e.target.dataset.tab) { showTab(e.target.dataset.tab); scrollTo(0, 0); } };
+$('.actions').addEventListener('click', (e) => { if (e.target.closest('#generate, #bad-mode, #clear')) showTab('calendar'); });
 
 $('#bad-mode').onclick = () => { view.bad = !view.bad; view.who = null; render(); };
 
@@ -221,6 +229,7 @@ $('#add-rule').onsubmit = (e) => {
 
 document.querySelector('aside').onclick = (e) => {
   const { delPerson, delRule, who } = e.target.dataset;
+  if (e.target.dataset.go) { showTab(e.target.dataset.go); scrollTo(0, 0); }
   if (delRule) update(() => { state.rules = state.rules.filter((r) => r.id !== delRule); });
   if (who) { view.who = view.who === who ? null : who; view.bad = false; render(); }
   if (delPerson && confirm(`Usunąć ${state.people.find((p) => p.id === delPerson).name}? Przeszłe dyżury zostaną w grafiku, przyszłe zostaną zwolnione.`)) update(() => {
