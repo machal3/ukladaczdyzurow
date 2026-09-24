@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { generateMonth, dateKey, history } from './scheduler.js';
+import { generateMonth, dateKey, history, badOf } from './scheduler.js';
 
 const people = ['a', 'b', 'c', 'd'].map((id) => ({ id, name: id }));
 const all = [0, 1, 2, 3, 4, 5, 6];
@@ -75,10 +75,10 @@ test('gównianość: w gówniany dzień wygrywa osoba z mniejszym obciążeniem 
 });
 
 test('gównianość: punkty rozkładają się równo w miesiącu', () => {
-  const out = generateMonth(2026, 9, shifts, people); // Pt/So/Nd domyślnie po 2 pkt
+  const out = generateMonth(2026, 9, shifts, people); // domyślnie Pt = 2 pkt, So/Nd = 1 pkt
   const pts = {};
   for (const [k, day] of Object.entries(out)) for (const pid of Object.values(day))
-    pts[pid] = (pts[pid] || 0) + ([4, 5, 6].includes((new Date(k).getDay() + 6) % 7) ? 2 : 0);
+    pts[pid] = (pts[pid] || 0) + [0, 0, 0, 0, 2, 1, 1][(new Date(k).getDay() + 6) % 7];
   const n = Object.values(pts);
   assert.ok(Math.max(...n) - Math.min(...n) <= 2, JSON.stringify(pts));
 });
@@ -134,4 +134,9 @@ test('Tragiczny: kto miał Tragiczny miesiąc temu, idzie na koniec kolejki (ale
   assert.notEqual(generateMonth(2026, 9, one, ppl, {}, {}, {}, [], { [k]: 3 })[k].s, 'a');
   const onlyA = { b: { [k]: 0 }, c: { [k]: 0 }, d: { [k]: 0 } };
   assert.equal(generateMonth(2026, 9, one, ppl, {}, onlyA, {}, [], { [k]: 3 })[k].s, 'a');
+});
+
+test('gównianość domyślna: Pt = Gówniany, So/Nd = Słaby, reszta Zwykły; ręczna ocena wygrywa', () => {
+  assert.deepEqual([5, 6, 7, 8, 9, 10, 11].map((d) => badOf({}, 2026, 9, d)), [0, 0, 0, 0, 2, 1, 1]); // 5.10.2026 = pon
+  assert.equal(badOf({ '2026-10-09': 0 }, 2026, 9, 9), 0);
 });

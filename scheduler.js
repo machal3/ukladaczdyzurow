@@ -19,9 +19,10 @@ export const breaksRule = (rules, day, pid, sid) => rules.some((r) =>
   (r.who === pid && Object.values(day).includes(r.with) && !r.places.includes(sid)) ||
   (r.with === pid && Object.entries(day).some(([s, p]) => p === r.who && !r.places.includes(s))));
 
-// Gównianość dnia 0-3; bad = { 'YYYY-MM-DD': poziom }, brak = 2 w Pt/So/Nd, 0 w pozostałe dni.
+// Gównianość dnia 0-3; bad = { 'YYYY-MM-DD': poziom }, brak = domyślna dla dnia tygodnia (Pt = Gówniany, So/Nd = Słaby).
 export const BAD = ['Zwykły', 'Słaby', 'Gówniany', 'Tragiczny'];
-export const badOf = (bad, y, m, d) => bad[dateKey(y, m, d)] ?? (weekday(y, m, d) >= 4 ? 2 : 0);
+const BAD_DEFAULT = [0, 0, 0, 0, 2, 1, 1]; // indeks = dzień tygodnia, 0 = pon
+export const badOf = (bad, y, m, d) => bad[dateKey(y, m, d)] ?? BAD_DEFAULT[weekday(y, m, d)];
 // person.past 0-3 = jak gówniane dyżury miała ostatnio; startowe punkty obciążenia = past × PAST_WEIGHT.
 // ponytail: stała waga na oko (poziom 3 ≈ trzy gówniane dni); stroić, jeśli wychodzi niesprawiedliwie.
 export const PAST_WEIGHT = 3;
