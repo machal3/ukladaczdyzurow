@@ -128,8 +128,8 @@ Tych zasad algorytm **nigdy** nie łamie. Jeśli żadna osoba ich nie spełnia, 
 5. **Najwyżej jeden rezydent dziennie** (licząc wpisy ręczne).
 6. **Warunki** z zakładki Ustawienia.
 7. **Wolne po weekendowym OITN** — po OITN w **sobotę** wolny **poniedziałek**, po OITN w **niedzielę**
-   wolny **wtorek**. Działa też w drugą stronę: kto ma ręczny dyżur w poniedziałek/wtorek, nie dostanie OITN
-   w sobotę/niedzielę przed nim. (OITN jest rozpoznawany po nazwie miejsca.)
+   wolny **wtorek**. Tylko w tę stronę: ręczny dyżur w poniedziałek/wtorek nie blokuje OITN w weekend
+   przed nim. (OITN jest rozpoznawany po nazwie miejsca.)
 
 ---
 

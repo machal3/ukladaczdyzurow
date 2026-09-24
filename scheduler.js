@@ -148,7 +148,7 @@ export function generateMonth(y, m, shifts, people, locked = {}, avail = {}, lim
       const pick = people
         .filter((p) => availOf(avail, p.id, key) > 0 && !busy.has(p.id) && lastDay[p.id] !== d - 1 && !lockedOn(locked, y, m, d + 1, p.id) && underLimit(p.id, s.id, d) &&
           !(hasResident && resident.has(p.id)) && prest[p.id] >= need && !breaksRule(rules, day, p.id, s.id) &&
-          !oitnWe(d - 2, p.id) && !(s.id === oitn && weekday(y, m, d) >= 5 && lockedOn(locked, y, m, d + 2, p.id)))
+          !oitnWe(d - 2, p.id))
         .sort((a, b) => order.reduce((r, k) => r || cmp[k](a, b), 0) ||
           (noise ? noise[a.id] - noise[b.id] : (lastDay[a.id] ?? -99) - (lastDay[b.id] ?? -99)))[0];
       if (!pick) continue; // brak wolnej osoby → dyżur zostaje pusty, widoczny w UI
