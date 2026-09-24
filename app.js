@@ -19,7 +19,7 @@ state.avail ??= {}; // { personId: { 'YYYY-MM-DD': poziom 0-3 } } — patrz LEVE
 state.limits ??= {}; // { personId: { shiftId: maks. dyżurów w miesiącu, '*': maks. łącznie, we: maks. Pt/So/Nd } } — brak = bez limitu (we: WEEKEND_LIMIT)
 state.bad ??= {}; // { 'YYYY-MM-DD': gównianość 0-3 } — patrz BAD/badOf; osoba: person.past 0-3
 state.rules ??= []; // [{ id, who, with, places: [shiftId] }] — patrz breaksRule
-for (const p of state.people) p.prestige ??= 1; // 0 = Rezydent, 1–2 = Starszy asystent — patrz ROLES
+for (const p of state.people) p.prestige ??= 1; // 0 = Rezydent, 1–2 = Starszy asystent — patrz ROLES; p.gone = usunięta (zostaje dla przeszłych dyżurów)
 // jednorazowa migracja zapisanych danych: stare domyślne miejsca → OITN, PN1, PN2 (id zostają, więc grafik i limity też)
 if (!state.miejscaV2) {
   const rename = { 'Oddział': 'OITN', 'SOR': 'PN1' };
@@ -39,6 +39,8 @@ function save() { try { localStorage.setItem(STORE, JSON.stringify(state)); } ca
 const $ = (s) => document.querySelector(s);
 const esc = (s) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 const monthKeys = () => Array.from({ length: daysInMonth(view.y, view.m) }, (_, i) => dateKey(view.y, view.m, i + 1));
+const team = () => state.people.filter((p) => !p.gone); // aktywne osoby
+const sameName = (a, b) => a.localeCompare(b, 'pl', { sensitivity: 'base' }) === 0;
 const pick = (obj, keys) => Object.fromEntries(keys.filter((k) => obj[k]).map((k) => [k, obj[k]]));
 
 function render() {
@@ -48,7 +50,7 @@ function render() {
   const todayKey = dateKey(now.getFullYear(), now.getMonth(), now.getDate());
   const nameOf = Object.fromEntries(state.people.map((p) => [p.id, p.name]));
   const options = (sel) => `<option value="">—</option>` +
-    state.people.map((p) => `<option value="${p.id}" ${p.id === sel ? 'selected' : ''}>${esc(p.name)}</option>`).join('');
+    state.people.filter((p) => !p.gone || p.id === sel).map((p) => `<option value="${p.id}" ${p.id === sel ? 'selected' : ''}>${esc(p.name)}</option>`).join('');
 
   let html = DAYS.map((d, i) => `<div class="dow ${i > 4 ? 'weekend' : ''}">${d}</div>`).join('');
   html += '<div class="cell empty"></div>'.repeat(weekday(y, m, 1));
@@ -78,7 +80,7 @@ function render() {
   $('#calendar').innerHTML = html;
 
   // Statystyki miesiąca
-  const count = Object.fromEntries(state.people.map((p) => [p.id, 0]));
+  const count = Object.fromEntries(team().map((p) => [p.id, 0]));
   const whoShifts = { we: 0, bad: 0 }; // shiftId → dyżury wybranej osoby w tym miesiącu, we = w Pt/So/Nd, bad = pkt gównianości
   for (const k of monthKeys()) for (const [sid, pid] of Object.entries(state.schedule[k] || {})) {
     if (pid in count) count[pid]++;
@@ -98,7 +100,7 @@ function render() {
   const limitsFor = (pid) => `<small>Limit w miesiącu (puste = bez limitu)</small>` +
     [{ id: '*', name: 'Łącznie' }, { id: 'we', name: 'Pt/So/Nd' }, ...state.shifts].map((s) => `<label><span>${esc(s.name)}</span><small>${s.id === '*' ? count[pid] : whoShifts[s.id] || 0} /</small>
       <input type="number" min="0" step="1" placeholder="${s.id === 'we' ? WEEKEND_LIMIT : '∞'}" data-limit="${s.id}" value="${state.limits[pid]?.[s.id] ?? ''}" aria-label="Limit: ${esc(s.name)}"></label>`).join('') + '</li>';
-  $('#people').innerHTML = state.people.map((p) => `<li>
+  $('#people').innerHTML = team().map((p) => `<li>
       <button class="who ${p.id === view.who ? 'on' : ''}" data-who="${p.id}" aria-pressed="${p.id === view.who}" title="Edytuj dostępność i limity">${esc(p.name)}</button><span class="badge" title="${ROLES[p.prestige]}">${p.prestige ? `SA ${p.prestige}` : 'Rez.'}</span><span class="badge">${count[p.id]}</span>
       <button class="x" data-del-person="${p.id}" aria-label="Usuń ${esc(p.name)}">×</button></li>${p.id === view.who ? limitsRow(p) : ''}`).join('');
   const shiftName = Object.fromEntries(state.shifts.map((s) => [s.id, s.name]));
@@ -106,7 +108,7 @@ function render() {
       <span>Gdy <b>${esc(nameOf[r.who])}</b> dyżuruje z <b>${esc(nameOf[r.with])}</b>, jest w: ${esc(r.places.map((id) => shiftName[id]).filter(Boolean).join(', ') || '—')}</span>
       <button class="x" data-del-rule="${r.id}" aria-label="Usuń warunek">×</button></li>`).join('');
   const people = (name, label) => `<select name="${name}" aria-label="${label}" required><option value="">${label}…</option>` +
-    state.people.map((p) => `<option value="${p.id}">${esc(p.name)}</option>`).join('') + '</select>';
+    team().map((p) => `<option value="${p.id}">${esc(p.name)}</option>`).join('') + '</select>';
   $('#add-rule').innerHTML = `<label>Gdy ${people('who', 'Osoba')}</label><label>dyżuruje z ${people('with', 'Z kim')}</label>
     <fieldset><legend>to jest w:</legend>${state.shifts.map((s) =>
       `<label class="chk"><input type="checkbox" name="places" value="${s.id}">${esc(s.name)}</label>`).join('')}</fieldset>
@@ -128,9 +130,14 @@ $('#generate').onclick = () => update(() => {
   view.bad = false;
   const keys = monthKeys();
   const h = history(state.schedule, state.bad, view.y, view.m);
-  const people = state.people.map((p) => ({ ...p, hist: h.pts[p.id] ?? 0, tragic: h.tragic.has(p.id) }));
-  Object.assign(state.schedule, generateMonth(view.y, view.m, state.shifts, people, pick(state.manual, keys), state.avail,
-    Object.fromEntries(state.people.map((p) => [p.id, { we: WEEKEND_LIMIT, ...state.limits[p.id] }])), state.rules, state.bad));
+  const people = team().map((p) => ({ ...p, hist: h.pts[p.id] ?? 0, tragic: h.tragic.has(p.id) }));
+  // przeszłe dyżury usuniętych osób zostają, jak ręczne
+  const locked = pick(state.manual, keys), gone = new Set(state.people.filter((p) => p.gone).map((p) => p.id));
+  const today = dateKey(now.getFullYear(), now.getMonth(), now.getDate());
+  for (const k of keys) if (k < today) for (const [sid, pid] of Object.entries(state.schedule[k] || {}))
+    if (gone.has(pid)) (locked[k] = { ...locked[k] })[sid] = pid;
+  Object.assign(state.schedule, generateMonth(view.y, view.m, state.shifts, people, locked, state.avail,
+    Object.fromEntries(team().map((p) => [p.id, { we: WEEKEND_LIMIT, ...state.limits[p.id] }])), state.rules, state.bad));
 });
 
 $('#bad-mode').onclick = () => { view.bad = !view.bad; view.who = null; render(); };
@@ -171,8 +178,12 @@ $('#calendar').onchange = (e) => {
 
 $('#add-person').onsubmit = (e) => {
   e.preventDefault();
-  const name = e.target.name.value.trim();
-  if (name) update(() => state.people.push(person(name)));
+  const name = e.target.name.value.trim().replace(/\s+/g, ' ');
+  if (!name) return;
+  const same = state.people.find((p) => sameName(p.name, name));
+  if (same && !same.gone) return alert(`${same.name} już jest na liście.`);
+  // usunięta osoba o tym samym imieniu wraca — z historią dyżurów
+  update(() => { if (same) delete same.gone; else state.people.push(person(name)); });
   e.target.reset();
 };
 
@@ -189,8 +200,11 @@ document.querySelector('aside').onclick = (e) => {
   const { delPerson, delRule, who } = e.target.dataset;
   if (delRule) update(() => { state.rules = state.rules.filter((r) => r.id !== delRule); });
   if (who) { view.who = view.who === who ? null : who; view.bad = false; render(); }
-  if (delPerson) update(() => {
-    state.people = state.people.filter((p) => p.id !== delPerson);
+  if (delPerson && confirm(`Usunąć ${state.people.find((p) => p.id === delPerson).name}? Przeszłe dyżury zostaną w grafiku, przyszłe zostaną zwolnione.`)) update(() => {
+    state.people.find((p) => p.id === delPerson).gone = true;
+    const today = dateKey(now.getFullYear(), now.getMonth(), now.getDate());
+    for (const obj of [state.schedule, state.manual]) for (const [k, day] of Object.entries(obj))
+      if (k >= today) for (const sid in day) if (day[sid] === delPerson) delete day[sid];
     delete state.avail[delPerson];
     delete state.limits[delPerson];
     state.rules = state.rules.filter((r) => r.who !== delPerson && r.with !== delPerson);
