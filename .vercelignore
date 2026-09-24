@@ -1,2 +1,5 @@
 *.docx
 .claude
+.idea
+server.js
+*.test.js
