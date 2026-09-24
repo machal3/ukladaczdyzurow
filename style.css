@@ -99,8 +99,24 @@ body:not([data-tab="calendar"]) #status:not(.info) { display: none; }
 
 main { display: flex; flex-direction: column; gap: 24px; }
 body:not([data-tab="settings"]) #settings, body:not([data-tab="people"]) #people-tab,
-body:not([data-tab="calendar"]) .board, body:not([data-tab="calendar"]) #panel-variants { display: none; }
+body:not([data-tab="calendar"]) .board, body:not([data-tab="calendar"]) #panel-variants, body:not([data-tab="help"]) #help { display: none; }
 .people-tab { max-width: 720px; }
+
+/* Instrukcja: zwykły tekst, wąska kolumna */
+.help { max-width: 760px; }
+.help h2 { font-size: 20px; font-weight: 600; margin-bottom: 8px; }
+.help h3 { font-size: 16px; font-weight: 600; margin: 36px 0 10px; padding-top: 20px; border-top: 1px solid var(--line); scroll-margin-top: 16px; }
+.help h4 { font-size: 14px; font-weight: 600; margin: 18px 0 6px; }
+.help p, .help ul, .help ol, .help table { margin-bottom: 10px; }
+.help :is(ul, ol) { padding-left: 22px; }
+.help li + li { margin-top: 4px; }
+.help .toc { columns: 2; font-size: 13px; }
+.help a { color: inherit; }
+.help table { border-collapse: collapse; width: 100%; font-size: 13px; }
+.help :is(th, td) { border-bottom: 1px solid var(--line); padding: 6px 8px; text-align: left; vertical-align: top; }
+.help th { color: var(--muted); font-weight: 500; }
+.help .avail { display: inline-block; min-height: 0; padding: 2px 8px; }
+.help code { font-size: 12px; background: var(--faint); padding: 1px 4px; border-radius: 4px; }
 
 .panel { border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; }
 .panel h3, .summary h3 { font-size: 15px; font-weight: 600; margin-bottom: 12px; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 2px 12px; }
