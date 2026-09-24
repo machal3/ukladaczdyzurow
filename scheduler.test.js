@@ -65,3 +65,12 @@ test('limit łączny: nikt ponad swój limit wszystkich dyżurów w miesiącu, n
   const out = generateMonth(2026, 9, shifts, people, {}, {}, limits);
   assert.equal(Object.values(out).flatMap(Object.values).filter((pid) => pid === 'a').length, 3);
 });
+
+test('rezydenci (prestiż 0): maks. jeden dziennie, także gdy jeden jest wpisany ręcznie', () => {
+  const ppl = ['r1', 'r2', 'r3', 'a1', 'a2'].map((id) => ({ id, name: id, prestige: id[0] === 'r' ? 0 : 2 }));
+  const locked = { [dateKey(2026, 9, 5)]: { s1: 'r1' } };
+  const out = generateMonth(2026, 9, shifts, ppl, locked);
+  for (const day of Object.values(out))
+    assert.ok(Object.values(day).filter((pid) => pid[0] === 'r').length <= 1, JSON.stringify(day));
+  assert.ok(Object.values(out).some((day) => Object.values(day).some((pid) => pid[0] === 'r'))); // rezydenci nadal dostają dyżury
+});
