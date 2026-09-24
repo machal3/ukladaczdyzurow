@@ -241,6 +241,9 @@ dialog h3 { font-size: 17px; font-weight: 600; }
 dialog h4 { font-size: 13px; font-weight: 600; margin: 6px 0; }
 dialog textarea { resize: vertical; font-size: 13px; }
 dialog menu { display: flex; justify-content: flex-end; gap: 8px; padding: 0; }
+/* okno osoby: „Dostępność” i „Zamknij” zawsze widoczne na dole (okno przewija się pod nimi) */
+#person { padding-bottom: 0; }
+#person menu { position: sticky; bottom: 0; background: var(--bg); padding: 12px 0 24px; border-top: 1px solid var(--line); }
 #person-title:focus { outline: none; } /* fokus startowy okna — żeby telefon nie otwierał klawiatury na pierwszym polu */
 .person-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px 28px; margin-bottom: 20px; }
 .limits { display: flex; flex-direction: column; gap: 6px; }
