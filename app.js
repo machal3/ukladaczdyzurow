@@ -18,7 +18,7 @@ let state = cloud?.data ?? load() ?? {
 };
 state.avail ??= {}; // { personId: { 'YYYY-MM-DD': poziom 0-3 } } — patrz LEVELS
 state.limits ??= {}; // { personId: { shiftId: maks. dyżurów w miesiącu, '*': maks. łącznie, we: maks. Pt/So/Nd } } — brak = bez limitu (we: WEEKEND_LIMIT)
-state.wants ??= {}; // { personId: { shiftId: ile dyżurów chce w miesiącu } } — prośby, miękkie (patrz generateMonth)
+state.wants ??= {}; // { personId: { shiftId / d4-d6 / we / '*': ile dyżurów chce w miesiącu } } — prośby, miękkie (patrz generateMonth)
 state.bad ??= {}; // { 'YYYY-MM-DD': gównianość 0-3 } — patrz BAD/badOf; osoba: person.past 0-3
 state.rules ??= []; // [{ id, who, with, places: [shiftId] }] — patrz breaksRule
 state.priority = [...new Set([...(state.priority ?? []), ...PRIORITY_ORDER])].filter((k) => k in PRIORITIES); // kolejność kryteriów układania
@@ -120,8 +120,8 @@ function render() {
       field('Ostatnio gówniane', 'dyżury spoza grafiku, 0–3', `<select data-past>${BAD.map((_, i) => `<option value="${i}" ${i === (who.past ?? 0) ? 'selected' : ''}>${i}</option>`).join('')}</select>`) +
       field('Kanapka PN1 So + Pn', 'zaznaczone = woli ten układ', `<input type="checkbox" data-pn1sandwich ${who.pn1Sandwich === false ? '' : 'checked'}>`) +
       `</section><section><h4>Dyżury w miesiącu</h4><table class="counts"><thead><tr><td></td><th scope="col">Ma</th><th scope="col">Limit</th><th scope="col">Prośba</th></tr></thead><tbody>` +
-      row('Łącznie', count[who.id], num('limit', '*', '∞', 'Limit łącznie')) +
-      row('Pt/So/Nd', whoShifts.we, num('limit', 'we', WEEKEND_LIMIT, 'Limit Pt/So/Nd')) +
+      row('Łącznie', count[who.id], num('limit', '*', '∞', 'Limit łącznie'), num('want', '*', '—', 'Prośba łącznie')) +
+      row('Pt/So/Nd', whoShifts.we, num('limit', 'we', WEEKEND_LIMIT, 'Limit Pt/So/Nd'), num('want', 'we', '—', 'Prośba Pt/So/Nd')) +
       state.shifts.map((s) => row(esc(s.name), whoShifts[s.id] || 0, num('limit', s.id, '∞', `Limit: ${esc(s.name)}`), num('want', s.id, '—', `Prośba: ${esc(s.name)}`))).join('') +
       `<tr class="sub"><th colspan="4" scope="rowgroup">Ten sam dzień weekendu</th></tr>` +
       ['Pt', 'So', 'Nd'].map((n, i) => row(n, whoShifts[`d${i + 4}`] || 0, num('limit', `d${i + 4}`, 1, `Ile razy ten sam dzień: ${n}`), num('want', `d${i + 4}`, '—', `Prośba: ${n}`))).join('') +

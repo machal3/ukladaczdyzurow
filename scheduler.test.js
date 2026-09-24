@@ -299,3 +299,14 @@ test('prośby o dzień weekendu: osoba prosi o 2 soboty i je dostaje, liczy się
   assert.equal(scoreMonth(2026, 9, out, sh, people, {}, {}, wants).wants, 0);
   assert.equal(scoreMonth(2026, 9, {}, sh, people, {}, {}, wants).wants, 2);
 });
+
+test('prośby łącznie i w Pt/So/Nd: osoba dostaje tyle, ile prosiła, liczy się też w ocenie', () => {
+  const one = [{ id: 's', name: 'S', days: all }];
+  const of = (out, pid, weOnly) => Object.entries(out).filter(([k, day]) => day.s === pid && (!weOnly || [0, 5, 6].includes(new Date(k).getDay()))).length;
+  for (const wants of [{ a: { '*': 10 } }, { a: { we: 4 } }]) {
+    const out = generateMonth(2026, 9, one, people, {}, {}, {}, [], {}, wants);
+    assert.equal(of(out, 'a', 'we' in wants.a), wants.a['*'] ?? wants.a.we);
+    assert.equal(scoreMonth(2026, 9, out, one, people, {}, {}, wants).wants, 0);
+  }
+  assert.equal(scoreMonth(2026, 9, {}, one, people, {}, {}, { a: { '*': 3, we: 2 } }).wants, 5);
+});
