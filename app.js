@@ -135,8 +135,8 @@ function render() {
 
 function update(fn) { fn(); save(); render(); }
 
-$('#prev').onclick = () => { view = { ...view, ...(view.m ? { m: view.m - 1 } : { y: view.y - 1, m: 11 }) }; render(); };
-$('#next').onclick = () => { view = { ...view, ...(view.m < 11 ? { m: view.m + 1 } : { y: view.y + 1, m: 0 }) }; render(); };
+$('#prev').onclick = () => { $('#panel-variants').hidden = true; view = { ...view, ...(view.m ? { m: view.m - 1 } : { y: view.y - 1, m: 11 }) }; render(); };
+$('#next').onclick = () => { $('#panel-variants').hidden = true; view = { ...view, ...(view.m < 11 ? { m: view.m + 1 } : { y: view.y + 1, m: 0 }) }; render(); };
 
 $('#generate').onclick = () => update(() => {
   view.who = null;
@@ -154,18 +154,19 @@ $('#generate').onclick = () => update(() => {
   const prev = Object.fromEntries(keys.map((k) => [k, state.schedule[k]]));
   const apply = (i) => update(() => Object.assign(state.schedule, variants[i].schedule));
   apply(0);
+  $('#panel-variants').hidden = variants.length < 2;
   if (variants.length < 2) return;
-  // Kilka równie dobrych/podobnych grafików → wybór; zaznaczenie od razu pokazuje wariant w kalendarzu
+  // Kilka dobrych grafików → panel wyboru nad kalendarzem; zaznaczenie od razu pokazuje wariant
   $('#variants-list').innerHTML = variants.map(({ score: s }, i) => `<label class="chk"><input type="radio" name="variant" value="${i}" ${i ? '' : 'checked'}>
     <span><b>Wariant ${i + 1}</b> — nieobsadzone: ${s.unfilled}, „W ostateczności”: ${s.lastResort}, kanapki: ${s.sandwich},
     niespełnione prośby: ${s.wants}, różnica liczby dyżurów: ${s.spread}</span></label>`).join('');
   $('#variants-list').onchange = (e) => apply(+e.target.value);
-  $('#variants').onclose = () => {
-    if ($('#variants').returnValue === 'cancel') update(() => { for (const k of keys) if (prev[k]) state.schedule[k] = prev[k]; else delete state.schedule[k]; });
-  };
-  $('#variants').returnValue = '';
-  $('#variants').showModal();
+  $('#variants-undo').onclick = () => update(() => {
+    for (const k of keys) if (prev[k]) state.schedule[k] = prev[k]; else delete state.schedule[k];
+    $('#panel-variants').hidden = true;
+  });
 });
+$('#variants-ok').onclick = () => { $('#panel-variants').hidden = true; };
 
 // Zakładki na telefonie (na szerokim ekranie ukryte, wszystko widać naraz)
 function showTab(tab) {

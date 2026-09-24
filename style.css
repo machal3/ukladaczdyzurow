@@ -136,6 +136,8 @@ aside { display: flex; flex-direction: column; gap: 16px; }
 .x { background: none; color: var(--muted); padding: 2px 6px; font-size: 16px; line-height: 1; opacity: .5; }
 .x:disabled { visibility: hidden; }
 #priority li > :first-child { white-space: normal; }
+#panel-variants { grid-column: 1 / -1; }
+#panel-variants menu { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; padding: 0; margin-top: 12px; }
 .variants { display: flex; flex-direction: column; gap: 10px; }
 .variants .chk { align-items: flex-start; gap: 8px; }
 .limits { display: flex; flex-direction: column; gap: 4px; }
@@ -191,7 +193,8 @@ aside { display: flex; flex-direction: column; gap: 16px; }
   .tabs button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
   body[data-tab="calendar"] aside,
   body[data-tab="people"] #calendar, body[data-tab="people"] #panel-rules, body[data-tab="people"] #panel-priority,
-  body[data-tab="rules"] #calendar, body[data-tab="rules"] #panel-people { display: none; }
+  body[data-tab="rules"] #calendar, body[data-tab="rules"] #panel-people,
+  body[data-tab="people"] #panel-variants, body[data-tab="rules"] #panel-variants { display: none; }
   .to-cal { display: block; align-self: flex-start; margin-bottom: 4px; padding: 8px 12px; }
   .panel { padding: 12px 14px; }
   .panel h3 { font-size: 15px; flex-wrap: wrap; gap: 2px 8px; }

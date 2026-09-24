@@ -28,6 +28,11 @@
   </header>
 
   <main>
+    <section id="panel-variants" class="panel" hidden aria-labelledby="variants-title">
+      <h3 id="variants-title">Warianty grafiku <small>najlepsze według priorytetów · zaznacz, by zobaczyć w kalendarzu</small></h3>
+      <div id="variants-list" class="variants"></div>
+      <menu><button class="ghost" id="variants-undo">Przywróć poprzedni grafik</button><button id="variants-ok">Zostaw zaznaczony</button></menu>
+    </section>
     <section id="calendar" class="calendar" aria-label="Grafik miesiąca"></section>
 
     <aside>
@@ -63,18 +68,6 @@
       <h3 id="person-title" tabindex="-1" autofocus></h3>
       <div id="person-body"></div>
       <menu><button class="ghost to-cal" data-go="calendar">Dostępność →</button><button>Zamknij</button></menu>
-    </form>
-  </dialog>
-
-  <dialog id="variants" aria-labelledby="variants-title">
-    <form method="dialog">
-      <h3 id="variants-title">Wybierz wariant grafiku</h3>
-      <p class="hint">Najlepsze znalezione grafiki według priorytetów. Zaznacz, by zobaczyć go w kalendarzu.</p>
-      <div id="variants-list" class="variants"></div>
-      <menu>
-        <button value="cancel" class="ghost" formnovalidate>Anuluj</button>
-        <button value="ok">Zostaw zaznaczony</button>
-      </menu>
     </form>
   </dialog>
 
