@@ -37,7 +37,7 @@ button:enabled:active::after { background: radial-gradient(circle, currentColor,
 button.ghost { background: transparent; color: var(--strong); }
 button.ghost[aria-pressed=true] { background: var(--accent-soft); color: var(--md-sys-color-on-primary-container); }
 button:disabled { background: color-mix(in srgb, var(--text) 12%, transparent); color: color-mix(in srgb, var(--text) 38%, transparent); cursor: default; }
-:is(button, a, input, select, textarea, [tabindex]):focus-visible { outline: 3px solid var(--strong); outline-offset: 3px; }
+:is(button, a, input, select, textarea, [tabindex]:not([tabindex="-1"])):focus-visible { outline: 3px solid var(--strong); outline-offset: 3px; }
 .outline { background: transparent; color: var(--strong); border: 1px solid var(--md-sys-color-outline); }
 .skip-link { position: fixed; left: 16px; top: -100px; z-index: 100; padding: 12px 24px; border-radius: 24px; background: var(--strong); color: var(--on-strong); }
 .skip-link:focus { top: 12px; }
@@ -259,7 +259,6 @@ dialog h4 { font: 600 16px/24px var(--headline); margin: 8px 0 16px; }
 dialog menu { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; padding: 0; }
 #person { padding-bottom: 0; }
 #person menu { position: sticky; bottom: 0; background: var(--md-sys-color-surface-container-high); padding: 16px 0 24px; }
-#person-title:focus { outline: none; }
 .ptabs { display: flex; gap: 0; padding: 0; border: 1px solid var(--md-sys-color-outline); border-radius: var(--shape-full); background: transparent; align-self: start; overflow: hidden; }
 .ptabs button { padding-inline: 24px; border-radius: 0; }
 .ptabs button + button { border-left: 1px solid var(--md-sys-color-outline); }
