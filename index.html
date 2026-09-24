@@ -10,28 +10,26 @@
   <script type="module" src="app.js"></script>
 </head>
 <body data-tab="calendar">
-  <header>
-    <span id="status" role="status"></span>
-  </header>
-
   <div class="bar">
     <nav class="tabs" aria-label="Widok">
       <button class="ghost" data-tab="calendar" aria-pressed="true">Grafik</button>
       <button class="ghost" data-tab="settings" aria-pressed="false">Dostosowywanie</button>
     </nav>
-    <nav class="month">
+    <nav class="month" aria-label="Miesiąc">
       <button id="prev" class="ghost" aria-label="Poprzedni miesiąc">‹</button>
-      <h2 id="month-label"></h2>
+      <h2 id="month-label" aria-live="polite"></h2>
       <button id="next" class="ghost" aria-label="Następny miesiąc">›</button>
       <button id="today" class="ghost">Dzisiaj</button>
     </nav>
     <div class="actions">
       <button id="import-open" class="ghost" title="Wczytaj grafik z tabeli (Word .docx albo wklejona)">Importuj</button>
-      <button id="clear" class="ghost">Wyczyść</button>
-      <button id="generate">Ułóż miesiąc</button>
+      <button id="clear" class="ghost" title="Wyczyść grafik tego miesiąca">Wyczyść</button>
       <button id="logout" class="ghost" hidden>Wyloguj</button>
+      <button id="generate" title="Ułóż automatycznie cały miesiąc (ręczne dyżury zostają)">Ułóż miesiąc</button>
     </div>
   </div>
+
+  <div id="status" role="status"></div>
 
   <main>
     <section id="panel-variants" class="panel" hidden aria-labelledby="variants-title">
@@ -39,9 +37,32 @@
       <div id="variants-list" class="variants"></div>
       <menu><button class="ghost" id="variants-undo">Przywróć poprzedni grafik</button><button id="variants-ok">Zostaw zaznaczony</button></menu>
     </section>
-    <section id="calendar" class="calendar" aria-label="Grafik miesiąca"></section>
+
+    <div class="board">
+      <section id="calendar" class="calendar" aria-label="Grafik miesiąca"></section>
+      <aside id="summary" class="summary" aria-labelledby="summary-title">
+        <h3 id="summary-title">Obsada</h3>
+        <ul id="summary-list" class="list"></ul>
+        <p class="hint">Kliknij osobę, by zaznaczać jej dostępność.</p>
+        <ul class="legend" aria-label="Legenda">
+          <li><i class="mark manual"></i>wpisany ręcznie</li>
+          <li><i class="mark unfilled"></i>nieobsadzony</li>
+          <li><i class="mark clash"></i>nie może / łamie warunek</li>
+          <li><i class="dot b3"></i>ciężki dzień</li>
+        </ul>
+      </aside>
+    </div>
 
     <section id="settings" class="settings" aria-label="Dostosowywanie">
+      <div class="panel" id="panel-people">
+        <h3>Osoby</h3>
+        <p class="lead">Kliknij imię, by zaznaczyć dostępność w kalendarzu. ⚙ — funkcja, limity, prośby i historia. Liczba = dyżury w tym miesiącu.</p>
+        <ul id="people" class="list"></ul>
+        <form id="add-person" class="add">
+          <input name="name" placeholder="Dodaj osobę — imię i nazwisko" aria-label="Nowa osoba" autocomplete="off">
+          <button aria-label="Dodaj osobę">Dodaj</button>
+        </form>
+      </div>
       <div class="panel" id="panel-priority">
         <h3>Priorytety układania</h3>
         <p class="lead">Co liczy się najbardziej przy układaniu grafiku — od najważniejszego. Strzałkami zmieniasz kolejność.</p>
@@ -59,15 +80,6 @@
         <p class="lead">Jak ciężki jest każdy dzień (0–3). Układanie dzieli gówniane dni sprawiedliwie między osoby.</p>
         <button id="bad-mode" class="ghost outline" aria-pressed="false">Oceń dni w kalendarzu →</button>
       </div>
-      <div class="panel" id="panel-people">
-        <h3>Osoby</h3>
-        <p class="lead">Kliknij imię, by zaznaczyć dostępność w kalendarzu. ⚙ — funkcja, limity, prośby i historia. Liczba = dyżury w tym miesiącu.</p>
-        <ul id="people" class="list"></ul>
-        <form id="add-person" class="add">
-          <input name="name" placeholder="Imię i nazwisko" aria-label="Nowa osoba" autocomplete="off">
-          <button aria-label="Dodaj osobę">+</button>
-        </form>
-      </div>
     </section>
   </main>
 
@@ -83,7 +95,7 @@
     <form method="dialog">
       <h3 id="import-title"></h3>
       <p class="hint">Tabela jak w Wordzie: nagłówek z nazwami miejsc, w pierwszej kolumnie numer dnia. Dyżury trafią do grafiku jako ręczne.</p>
-      <label class="file">Plik Word (.docx) <input type="file" name="file" accept=".docx"></label>
+      <label class="file"><span>Plik Word (.docx)</span> <input type="file" name="file" accept=".docx"></label>
       <textarea name="paste" rows="3" placeholder="…albo zaznacz tabelę w Wordzie/Excelu, skopiuj i wklej tutaj"></textarea>
       <div id="import-preview"></div>
       <menu>
