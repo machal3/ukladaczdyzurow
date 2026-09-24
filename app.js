@@ -95,7 +95,8 @@ function render() {
     if (pid in count) count[pid]++;
     if (pid !== view.who) continue;
     whoShifts[sid] = (whoShifts[sid] || 0) + 1;
-    if (weekday(y, m, +k.slice(8)) >= 4) whoShifts.we++;
+    const wd = weekday(y, m, +k.slice(8));
+    if (wd >= 4) { whoShifts.we++; whoShifts[`d${wd}`] = (whoShifts[`d${wd}`] || 0) + 1; }
   }
   $('#people').innerHTML = team().map((p) => `<li>
       <button class="who ${p.id === view.who ? 'on' : ''}" data-who="${p.id}" aria-pressed="${p.id === view.who}" title="Dostępność w grafiku">${esc(p.name)}</button><span class="badge role ${p.prestige ? '' : 'rez'}" title="${ROLES[p.prestige]}">${p.prestige ? `SA ${p.prestige}` : 'Rez.'}</span><span class="badge">${count[p.id]}</span>
@@ -117,6 +118,9 @@ function render() {
       `<section class="limits"><h4>Limit w miesiącu <small>puste = bez limitu</small></h4>` +
       [{ id: '*', name: 'Łącznie' }, { id: 'we', name: 'Pt/So/Nd' }, ...state.shifts].map((s) => `<label><span>${esc(s.name)}</span><small>${s.id === '*' ? count[who.id] : whoShifts[s.id] || 0} /</small>
         <input type="number" min="0" step="1" placeholder="${s.id === 'we' ? WEEKEND_LIMIT : '∞'}" data-limit="${s.id}" value="${state.limits[who.id]?.[s.id] ?? ''}" aria-label="Limit: ${esc(s.name)}"></label>`).join('') + '</section>' +
+      `<section class="limits"><h4>Ten sam dzień weekendu <small>ile razy, miękko</small></h4>` +
+      ['Pt', 'So', 'Nd'].map((n, i) => `<label><span>${n}</span><small>${whoShifts[`d${i + 4}`] || 0} /</small>
+        <input type="number" min="0" step="1" placeholder="1" data-limit="d${i + 4}" value="${state.limits[who.id]?.[`d${i + 4}`] ?? ''}" aria-label="Ile razy ten sam dzień: ${n}"></label>`).join('') + '</section>' +
       `<section class="limits"><h4>Prośby w miesiącu <small>ile chce na miejscu</small></h4>` +
       state.shifts.map((s) => `<label><span>${esc(s.name)}</span><small>${whoShifts[s.id] || 0} /</small>
         <input type="number" min="0" step="1" placeholder="—" data-want="${s.id}" value="${state.wants[who.id]?.[s.id] ?? ''}" aria-label="Prośba: ${esc(s.name)}"></label>`).join('') + '</section></div>' +

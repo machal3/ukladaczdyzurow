@@ -254,3 +254,15 @@ test('różne dni weekendu: drugi dyżur w Pt/So/Nd trafia w inny dzień tygodni
   assert.equal(sc.weDow, 0); // 14 dyżurów, 7 osób × 2 różne dni
   assert.equal(scoreMonth(2026, 9, { '2026-10-02': { w: 'a' }, '2026-10-09': { w: 'a' } }, sh, people).weDow, 1); // dwa piątki
 });
+
+test('różne dni weekendu: własny limit osoby — 1 piątek, soboty/niedziele po 2', () => {
+  const sh = [{ id: 'w', name: 'W', days: [4, 5, 6] }], ab = [{ id: 'a', name: 'a' }, { id: 'b', name: 'b' }];
+  const two = { '2026-10-03': { w: 'a' }, '2026-10-10': { w: 'a' } }; // dwie soboty
+  assert.equal(scoreMonth(2026, 9, two, sh, ab).weDow, 1);
+  assert.equal(scoreMonth(2026, 9, two, sh, ab, {}, {}, {}, { a: { d5: 2 } }).weDow, 0);
+  // Pt 9.10: oboje mają już piątek (a 2.10, b 16.10); a ma więcej dyżurów, ale limit 2 piątków → a
+  const locked = { '2026-10-02': { w: 'a' }, '2026-10-16': { w: 'b' } };
+  const pick = (limits) => generateMonth(2026, 9, sh, ab, locked, {}, limits, [], {}, {}, { order: ['weDow', 'even'] })['2026-10-09'].w;
+  assert.equal(pick({}), 'b');
+  assert.equal(pick({ a: { d4: 2 } }), 'a');
+});
