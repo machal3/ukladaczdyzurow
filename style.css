@@ -90,14 +90,14 @@ main { display: grid; grid-template-columns: 1fr 300px; gap: 24px; align-items: 
   background: var(--accent-soft); border-radius: 6px; padding: 2px 2px 2px 8px;
 }
 .slot span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60px; }
-.slot select {
-  appearance: none; border: 0; background: transparent; cursor: pointer;
+.slot input {
+  border: 0; background: transparent; cursor: pointer;
   font-size: 12px; font-weight: 500; padding: 3px 4px; min-width: 0; width: 100%;
   text-overflow: ellipsis;
 }
-.slot select option { background: var(--surface); color: var(--text); }
+.slot input:focus { cursor: text; }
 .slot.unfilled { background: var(--warn-soft); }
-.slot.unfilled select { color: var(--warn); }
+.slot.unfilled input::placeholder { color: var(--warn); }
 .slot.manual { box-shadow: inset 2px 0 0 var(--accent); }
 .slot.clash { outline: 1px dashed var(--warn); }
 

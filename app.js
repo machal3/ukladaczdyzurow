@@ -49,10 +49,10 @@ function render() {
 
   const todayKey = dateKey(now.getFullYear(), now.getMonth(), now.getDate());
   const nameOf = Object.fromEntries(state.people.map((p) => [p.id, p.name]));
-  const options = (sel) => `<option value="">—</option>` +
-    state.people.filter((p) => !p.gone || p.id === sel).map((p) => `<option value="${p.id}" ${p.id === sel ? 'selected' : ''}>${esc(p.name)}</option>`).join('');
 
-  let html = DAYS.map((d, i) => `<div class="dow ${i > 4 ? 'weekend' : ''}">${d}</div>`).join('');
+  // jedna lista podpowiedzi dla wszystkich pól — przeglądarka filtruje ją w trakcie pisania
+  let html = `<datalist id="team-list"><option value="—">(puste)</option>${team().map((p) => `<option value="${esc(p.name)}">`).join('')}</datalist>`;
+  html += DAYS.map((d, i) => `<div class="dow ${i > 4 ? 'weekend' : ''}">${d}</div>`).join('');
   html += '<div class="cell empty"></div>'.repeat(weekday(y, m, 1));
   let empty = 0;
   for (let d = 1; d <= daysInMonth(y, m); d++) {
@@ -71,7 +71,7 @@ function render() {
       const clash = why && 'clash';
       return `<label class="slot ${pid ? '' : 'unfilled'} ${manual} ${clash}" title="${esc(s.name)}${why}">
         <span>${esc(s.name)}</span>
-        <select data-key="${key}" data-shift="${s.id}" aria-label="${esc(s.name)}, ${d}">${options(pid)}</select>
+        <input list="team-list" data-key="${key}" data-shift="${s.id}" value="${pid ? esc(nameOf[pid]) : ''}" placeholder="—" aria-label="${esc(s.name)}, ${d}">
       </label>`;
     }).join('');
     html += `<div class="cell ${weekday(y, m, d) > 4 ? 'weekend' : ''} ${key === todayKey ? 'today' : ''}">
@@ -166,12 +166,28 @@ $('#clear').onclick = () => {
   update(() => { for (const k of monthKeys()) { delete state.schedule[k]; delete state.manual[k]; } });
 };
 
+// Pole osoby: po kliknięciu czyści się, żeby pokazać całą listę; wpisywanie ją filtruje.
+// Bez wyboru (pusto / nieznane imię) wraca poprzednia wartość; „—” zwalnia dyżur.
+$('#calendar').addEventListener('focusin', (e) => {
+  if (!e.target.dataset.shift) return;
+  e.target.dataset.was = e.target.value;
+  e.target.placeholder = e.target.value || '—';
+  e.target.value = '';
+});
+$('#calendar').addEventListener('focusout', (e) => {
+  if (e.target.dataset.shift && !e.target.value) { e.target.value = e.target.dataset.was; e.target.placeholder = '—'; }
+});
+
 $('#calendar').onchange = (e) => {
-  const { key, shift } = e.target.dataset;
+  const { key, shift, was } = e.target.dataset;
+  const name = e.target.value.trim();
+  if (!name) return;
+  const pid = name === '—' ? '' : team().find((p) => sameName(p.name, name))?.id;
+  if (pid === undefined || name === was) { e.target.value = was; return; }
   update(() => {
     for (const obj of [state.schedule, state.manual]) {
       obj[key] ??= {};
-      if (e.target.value) obj[key][shift] = e.target.value; else delete obj[key][shift];
+      if (pid) obj[key][shift] = pid; else delete obj[key][shift];
     }
   });
 };
