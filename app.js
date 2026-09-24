@@ -121,9 +121,11 @@ function render() {
       `<section class="limits"><h4>Ten sam dzień weekendu <small>ile razy, miękko</small></h4>` +
       ['Pt', 'So', 'Nd'].map((n, i) => `<label><span>${n}</span><small>${whoShifts[`d${i + 4}`] || 0} /</small>
         <input type="number" min="0" step="1" placeholder="1" data-limit="d${i + 4}" value="${state.limits[who.id]?.[`d${i + 4}`] ?? ''}" aria-label="Ile razy ten sam dzień: ${n}"></label>`).join('') + '</section>' +
-      `<section class="limits"><h4>Prośby w miesiącu <small>ile chce na miejscu</small></h4>` +
+      `<section class="limits"><h4>Prośby w miesiącu <small>ile chce na miejscu / w dzień</small></h4>` +
       state.shifts.map((s) => `<label><span>${esc(s.name)}</span><small>${whoShifts[s.id] || 0} /</small>
-        <input type="number" min="0" step="1" placeholder="—" data-want="${s.id}" value="${state.wants[who.id]?.[s.id] ?? ''}" aria-label="Prośba: ${esc(s.name)}"></label>`).join('') + '</section></div>' +
+        <input type="number" min="0" step="1" placeholder="—" data-want="${s.id}" value="${state.wants[who.id]?.[s.id] ?? ''}" aria-label="Prośba: ${esc(s.name)}"></label>`).join('') +
+      ['Pt', 'So', 'Nd'].map((n, i) => `<label><span>${n}</span><small>${whoShifts[`d${i + 4}`] || 0} /</small>
+        <input type="number" min="0" step="1" placeholder="—" data-want="d${i + 4}" value="${state.wants[who.id]?.[`d${i + 4}`] ?? ''}" aria-label="Prośba: ${n}"></label>`).join('') + '</section></div>' +
       logHtml(who);
   }
   const shiftName = Object.fromEntries(state.shifts.map((s) => [s.id, s.name]));

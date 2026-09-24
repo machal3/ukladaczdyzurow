@@ -72,7 +72,7 @@ export const shiftsForDay = (shifts, y, m, d) => shifts.filter((s) => s.days.inc
 // po OITN w sobotę wolny poniedziałek, po OITN w niedzielę wolny wtorek (czyli 2 dni po weekendowym OITN).
 // Kolejność wyboru (domyślna, `order` = klucze PRIORITIES w innej kolejności ją zmienia): najpierw dostępność (Chcę > Mogę > W ostateczności), potem unikanie „kanapek” (dyżur z jednym dniem
 // przerwy, np. pn i śr — chyba że osoba chce ten dzień), potem różne dni weekendu (w ten sam Pt/So/Nd maks. limits[pid].d4/d5/d6 dyżurów, domyślnie 1 — miękko), potem prośby: kto ma mniej dyżurów na tym miejscu, niż prosił
-// (wants = { personId: { shiftId: n } }, miękkie — nie łamie limitów ani zakazów), potem w gówniany dzień najmniejsze
+// (wants = { personId: { shiftId: n, d4/d5/d6: n w ten dzień weekendu } }, miękkie — nie łamie limitów ani zakazów), potem w gówniany dzień najmniejsze
 // obciążenie gównianością (person.past + person.hist z poprzednich miesięcy + ten miesiąc), potem równy podział liczby dyżurów.
 // W dzień Tragiczny na koniec kolejki idą ci, którzy mieli Tragiczny miesiąc temu (person.tragic) albo już w tym miesiącu.
 // Wpisy z `locked` (ręczne) są zachowane i liczą się do bilansu.
@@ -83,19 +83,18 @@ export function generateMonth(y, m, shifts, people, locked = {}, avail = {}, lim
   const count = Object.fromEntries(people.map((p) => [p.id, 0]));
   const burden = Object.fromEntries(people.map((p) => [p.id, (p.past ?? 0) * PAST_WEIGHT + (p.hist ?? 0)]));
   const tragic = Object.fromEntries(people.map((p) => [p.id, +!!p.tragic])); // 1 = miał(a) już Tragiczny
-  const perShift = {}; // 'personId:shiftId' → liczba dyżurów
+  const perShift = {}; // 'personId:shiftId' → liczba dyżurów; 'personId:d4..d6' → dyżury w Pt/So/Nd
   const we = {}; // personId → liczba dyżurów w Pt/So/Nd
-  const weDow = {}; // 'personId:dzień tygodnia' → liczba dyżurów w ten dzień (tylko Pt/So/Nd)
   const isWe = (d) => weekday(y, m, d) >= 4;
   const add = (pid, sid, d) => {
     count[pid]++; perShift[`${pid}:${sid}`] = (perShift[`${pid}:${sid}`] || 0) + 1;
-    if (isWe(d)) { we[pid] = (we[pid] || 0) + 1; weDow[`${pid}:${weekday(y, m, d)}`] = (weDow[`${pid}:${weekday(y, m, d)}`] || 0) + 1; }
+    if (isWe(d)) { we[pid] = (we[pid] || 0) + 1; perShift[`${pid}:d${weekday(y, m, d)}`] = (perShift[`${pid}:d${weekday(y, m, d)}`] || 0) + 1; }
     burden[pid] += badOf(bad, y, m, d);
     if (badOf(bad, y, m, d) === 3) tragic[pid] = 1;
   };
   const underLimit = (pid, sid, d) => (perShift[`${pid}:${sid}`] || 0) < (limits[pid]?.[sid] ?? Infinity) &&
     count[pid] < (limits[pid]?.['*'] ?? Infinity) && (!isWe(d) || (we[pid] || 0) < (limits[pid]?.we ?? Infinity));
-  const dowFull = (pid, d) => +(isWe(d) && (weDow[`${pid}:${weekday(y, m, d)}`] || 0) >= sameDow(limits, pid, weekday(y, m, d))); // 1 = ma już dość tego dnia
+  const dowFull = (pid, d) => +(isWe(d) && (perShift[`${pid}:d${weekday(y, m, d)}`] || 0) >= sameDow(limits, pid, weekday(y, m, d), wants)); // 1 = ma już dość tego dnia
   const short = (pid, sid) => +((perShift[`${pid}:${sid}`] || 0) < (wants[pid]?.[sid] ?? 0)); // 1 = jeszcze poniżej prośby
   const lastDay = {};
   const resident = new Set(people.filter(isResident).map((p) => p.id));
@@ -123,7 +122,7 @@ export function generateMonth(y, m, shifts, people, locked = {}, avail = {}, lim
         avail: (a, b) => availOf(avail, b.id, key) - availOf(avail, a.id, key),
         sandwich: (a, b) => sandwich(a.id) - sandwich(b.id),
         weDow: (a, b) => dowFull(a.id, d) - dowFull(b.id, d),
-        wants: (a, b) => short(b.id, s.id) - short(a.id, s.id),
+        wants: (a, b) => short(b.id, s.id) - short(a.id, s.id) || (isWe(d) && short(b.id, `d${weekday(y, m, d)}`) - short(a.id, `d${weekday(y, m, d)}`)),
         bad: (a, b) => (isTragic && tragic[a.id] - tragic[b.id]) || (isBad && burden[a.id] - burden[b.id]),
         even: (a, b) => count[a.id] - count[b.id],
       };
@@ -145,8 +144,8 @@ export function generateMonth(y, m, shifts, people, locked = {}, avail = {}, lim
   return result;
 }
 
-// Ile dyżurów w ten sam dzień weekendu (wd 4-6 = Pt/So/Nd) osoba może mieć bez kary; domyślnie 1.
-export const sameDow = (limits, pid, wd) => limits[pid]?.[`d${wd}`] ?? 1;
+// Ile dyżurów w ten sam dzień weekendu (wd 4-6 = Pt/So/Nd) osoba może mieć bez kary; domyślnie 1 albo tyle, o ile prosi.
+export const sameDow = (limits, pid, wd, wants = {}) => limits[pid]?.[`d${wd}`] ?? Math.max(1, wants[pid]?.[`d${wd}`] ?? 0);
 
 const lockedOn = (locked, y, m, d, pid) =>
   d <= daysInMonth(y, m) && Object.values(locked[dateKey(y, m, d)] || {}).includes(pid);
@@ -169,7 +168,7 @@ export function scoreMonth(y, m, schedule, shifts, people, avail = {}, bad = {},
   const sc = { unfilled: 0, avail: 0, sandwich: 0, weDow: 0, wants: 0, bad: 0, even: 0, lastResort: 0 };
   const count = Object.fromEntries(people.map((p) => [p.id, 0]));
   const burden = Object.fromEntries(people.map((p) => [p.id, (p.past ?? 0) * PAST_WEIGHT + (p.hist ?? 0)]));
-  const perShift = {}, last = {}, weDow = {};
+  const perShift = {}, last = {}; // perShift jak w generateMonth, też 'personId:d4..d6'
   for (let d = 1; d <= daysInMonth(y, m); d++) {
     const key = dateKey(y, m, d), day = schedule[key] || {};
     for (const s of shiftsForDay(shifts, y, m, d)) {
@@ -181,7 +180,7 @@ export function scoreMonth(y, m, schedule, shifts, people, avail = {}, bad = {},
       if (last[pid] === d - 2 && lvl < 3) sc.sandwich++;
       last[pid] = d;
       const wd = weekday(y, m, d);
-      if (wd >= 4) sc.weDow += (weDow[`${pid}:${wd}`] = (weDow[`${pid}:${wd}`] || 0) + 1) > sameDow(limits, pid, wd); // ponad limit tego samego dnia weekendu
+      if (wd >= 4) sc.weDow += (perShift[`${pid}:d${wd}`] = (perShift[`${pid}:d${wd}`] || 0) + 1) > sameDow(limits, pid, wd, wants); // ponad limit tego samego dnia weekendu
       count[pid]++;
       burden[pid] += badOf(bad, y, m, d);
       perShift[`${pid}:${s.id}`] = (perShift[`${pid}:${s.id}`] || 0) + 1;

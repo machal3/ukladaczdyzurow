@@ -266,3 +266,13 @@ test('różne dni weekendu: własny limit osoby — 1 piątek, soboty/niedziele 
   assert.equal(pick({}), 'b');
   assert.equal(pick({ a: { d4: 2 } }), 'a');
 });
+
+test('prośby o dzień weekendu: osoba prosi o 2 soboty i je dostaje, liczy się też w ocenie', () => {
+  const sh = [{ id: 'w', name: 'W', days: [4, 5, 6] }];
+  const wants = { a: { d5: 2 } };
+  const out = generateMonth(2026, 9, sh, people, {}, {}, {}, [], {}, wants);
+  const sat = Object.entries(out).filter(([k, day]) => new Date(k).getDay() === 6 && day.w === 'a').length;
+  assert.equal(sat, 2);
+  assert.equal(scoreMonth(2026, 9, out, sh, people, {}, {}, wants).wants, 0);
+  assert.equal(scoreMonth(2026, 9, {}, sh, people, {}, {}, wants).wants, 2);
+});
