@@ -7,8 +7,9 @@ const STORE = 'dyzury-v1';
 let state = load() || {
   people: ['Anna Kowalska', 'Jan Nowak', 'Piotr Wiśniewski', 'Maria Zając', 'Tomasz Lis'].map(person),
   shifts: [
-    { id: uid(), name: 'Oddział', days: [0, 1, 2, 3, 4, 5, 6] },
-    { id: uid(), name: 'SOR', days: [0, 1, 2, 3, 4, 5, 6] },
+    { id: uid(), name: 'OITN', days: [0, 1, 2, 3, 4, 5, 6] },
+    { id: uid(), name: 'PN1', days: [0, 1, 2, 3, 4, 5, 6] },
+    { id: uid(), name: 'PN2', days: [0, 1, 2, 3, 4, 5, 6] },
   ],
   schedule: {}, // { 'YYYY-MM-DD': { shiftId: personId } }
   manual: {},   // ręczne przypisania — zachowane przy ponownym układaniu
