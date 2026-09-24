@@ -265,7 +265,9 @@ button.outlined { display: inline-flex; align-items: center; gap: 8px; padding: 
 button.outlined svg { width: 18px; height: 18px; }
 #person menu { position: sticky; bottom: 0; background: var(--md-sys-color-surface-container-high); padding: 16px 0 24px; }
 .ptabs { display: flex; gap: 0; padding: 0; border: 1px solid var(--md-sys-color-outline); border-radius: var(--shape-full); background: transparent; align-self: start; overflow: hidden; }
-.ptabs button { padding-inline: 24px; border-radius: 0; }
+.ptabs button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 40px; padding: 0 24px; border-radius: 0; color: var(--md-sys-color-on-surface); font-weight: 500; } /* MD3 segmented button: 40 px, ✓ przy zaznaczonym */
+.ptabs svg { display: none; width: 18px; height: 18px; }
+.ptabs [aria-pressed=true] svg { display: inline; }
 .ptabs button + button { border-left: 1px solid var(--md-sys-color-outline); }
 .ptabs button[aria-pressed=true] { background: var(--md-sys-color-secondary-container); color: var(--md-sys-color-on-secondary-container); }
 .person-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 24px; align-items: start; margin-bottom: 16px; }
