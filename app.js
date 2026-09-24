@@ -111,7 +111,11 @@ function render() {
       <span class="meter" aria-hidden="true"><i style="width:${count[p.id] / max * 100}%"></i></span><span class="badge">${count[p.id]}</span></li>`).join('');
   // Okno osoby: ustawienia (limity i prośby obowiązują w każdym miesiącu) + historia dyżurów
   const who = state.people.find((p) => p.id === view.who);
-  if (who && $('#person').open) {
+  // Treść budujemy tylko przy otwarciu / zmianie karty: przebudowa przy każdej zmianie pola zabiera fokus,
+  // zamyka klawiaturę na telefonie i przewija okno do góry. Pola same pokazują zapisaną wartość.
+  const personKey = `${view.who}|${view.personTab}`;
+  if (who && $('#person').open && $('#person-body').dataset.key !== personKey) {
+    $('#person-body').dataset.key = personKey;
     $('#person-title').textContent = who.name;
     for (const b of document.querySelectorAll('[data-ptab]')) b.setAttribute('aria-pressed', b.dataset.ptab === view.personTab);
     // ustawienia: po lewej osoba, po prawej jedna tabela — limit i prośba w jednym wierszu
@@ -121,7 +125,7 @@ function render() {
     $('#person-body').innerHTML = view.personTab === 'history' ? logHtml(who) : `<div class="person-grid"><section><h4>Osoba</h4>` +
       field('Funkcja', '', `<select data-prestige>${ROLES.map((r, i) => `<option value="${i}" ${i === who.prestige ? 'selected' : ''}>${r}</option>`).join('')}</select>`) +
       field('Ostatnio gówniane', 'dyżury spoza grafiku, 0–3', `<select data-past>${BAD.map((_, i) => `<option value="${i}" ${i === (who.past ?? 0) ? 'selected' : ''}>${i}</option>`).join('')}</select>`) +
-      field('Kanapka PN1 So + Pn', 'zaznaczone = woli ten układ', `<input type="checkbox" data-pn1sandwich ${who.pn1Sandwich === false ? '' : 'checked'}>`) +
+      field('Kanapka PN1 So + Pn', 'zaznaczone = woli ten układ', `<input type="checkbox" role="switch" data-pn1sandwich ${who.pn1Sandwich === false ? '' : 'checked'}>`) +
       `</section><section><h4>Limity i prośby</h4><table class="counts"><thead><tr><td></td><th scope="col">Limit</th><th scope="col">Prośba</th></tr></thead><tbody>` +
       row('Łącznie', num('limit', '*', '∞', 'Limit łącznie'), num('want', '*', '—', 'Prośba łącznie')) +
       row('Pt/So/Nd', num('limit', 'we', WEEKEND_LIMIT, 'Limit Pt/So/Nd'), num('want', 'we', '—', 'Prośba Pt/So/Nd')) +
@@ -334,7 +338,7 @@ $('main').onclick = (e) => {
   if (delRule) update(() => { state.rules = state.rules.filter((r) => r.id !== delRule); });
   // imię = tryb dostępności w kalendarzu; „Ustawienia” = okno osoby (po zamknięciu wraca poprzedni tryb, chyba że „Dostępność →”)
   if (who) { view.who = view.who === who ? null : who; view.bad = false; back = e.target.closest('#summary') ? 'calendar' : 'people'; if (view.who) showTab('calendar'); render(); }
-  if (edit) { prevWho = view.who; view.who = edit; view.bad = false; view.personTab = 'settings'; $('#person').returnValue = ''; $('#person').showModal(); render(); }
+  if (edit) { prevWho = view.who; view.who = edit; view.bad = false; view.personTab = 'settings'; $('#person').returnValue = ''; $('#person-body').dataset.key = ''; $('#person').showModal(); render(); }
   if (delPerson && confirm(`Usunąć ${state.people.find((p) => p.id === delPerson).name}? Przeszłe dyżury zostaną w grafiku, przyszłe zostaną zwolnione.`)) update(() => {
     state.people.find((p) => p.id === delPerson).gone = true;
     const today = dateKey(now.getFullYear(), now.getMonth(), now.getDate());
@@ -353,7 +357,7 @@ $('#people-sort').onchange = (e) => { view.sort = e.target.value; render(); };
 
 $('#person').onclose = () => { if ($('#person').returnValue !== 'avail') view.who = prevWho; render(); };
 $('#person').onclick = (e) => {
-  if (e.target.dataset.ptab) { view.personTab = e.target.dataset.ptab; render(); $('#person').scrollTop = 0; return; }
+  if (e.target.dataset.ptab) { view.personTab = e.target.dataset.ptab; render(); $('#person-body').scrollTop = 0; return; }
   if (e.target.dataset.go) showTab(e.target.dataset.go);
 };
 // Enter w polu liczby zatwierdza wartość zamiast zamykać okno (formularz method="dialog")
@@ -368,6 +372,7 @@ $('#person').onchange = (e) => {
   const { limit, want } = e.target.dataset, sid = limit ?? want;
   if (!sid) return;
   const n = parseInt(e.target.value, 10);
+  e.target.value = n >= 0 ? n : ''; // okno się nie przebudowuje, więc pole samo pokazuje zapisaną wartość
   update(() => {
     const l = ((limit ? state.limits : state.wants)[view.who] ??= {});
     if (n >= 0) l[sid] = n; else delete l[sid];
