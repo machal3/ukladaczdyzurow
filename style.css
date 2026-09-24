@@ -48,7 +48,7 @@ b { font-weight: 600; }
 
 /* Przyciski: główny czarny, reszta tekstowa */
 button {
-  border: 0; border-radius: 8px; padding: 8px 14px; cursor: pointer;
+  border: 0; border-radius: 8px; padding: 11px 18px; cursor: pointer; font-size: 15px;
   background: var(--strong); color: var(--on-strong); font-weight: 500;
   transition: background .15s, color .15s, opacity .15s;
 }
@@ -66,13 +66,13 @@ button:disabled { opacity: .35; cursor: default; }
 /* Pasek: zakładki | miesiąc | akcje */
 .bar { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 16px; margin-bottom: 28px; }
 .tabs { justify-self: start; display: flex; gap: 20px; }
-.tabs button { padding: 6px 0; border-radius: 0; color: var(--muted); background: none; border-bottom: 1.5px solid transparent; }
+.tabs button { padding: 10px 0; border-radius: 0; color: var(--muted); background: none; border-bottom: 1.5px solid transparent; }
 .tabs button[aria-pressed="true"] { color: var(--text); border-bottom-color: var(--text); background: none; }
 @media (hover: hover) { .tabs button:hover { background: none; color: var(--text); } }
 .month { display: flex; align-items: center; gap: 4px; }
 .month h2 { font-size: 18px; font-weight: 600; letter-spacing: -.01em; min-width: 180px; text-align: center; text-transform: capitalize; }
-.month button { padding: 4px 10px; color: var(--muted); font-size: 18px; line-height: 1; }
-#today { font-size: 13px; }
+.month button { padding: 8px 14px; color: var(--muted); font-size: 18px; line-height: 1; }
+#today { font-size: 15px; }
 #today.here { color: var(--text); }
 .actions { justify-self: end; display: flex; align-items: center; gap: 4px; }
 .actions .ghost { color: var(--muted); }
@@ -93,7 +93,7 @@ button:disabled { opacity: .35; cursor: default; }
 #status b.ok { color: var(--text); }
 .progress { width: 120px; height: 2px; background: var(--line); }
 .progress i { display: block; height: 100%; background: var(--text); }
-#status [data-jump] { margin-left: auto; padding: 4px 8px; font-size: 13px; }
+#status [data-jump] { margin-left: auto; padding: 6px 10px; font-size: 15px; }
 .table-scroll { max-width: 100%; overflow-x: auto; }
 body:not([data-tab="calendar"]) #status:not(.info) { display: none; }
 
@@ -165,7 +165,7 @@ body:not([data-tab="calendar"]) .board, body:not([data-tab="calendar"]) #panel-v
 .slot.clash input { text-decoration: underline wavy var(--warn); text-underline-offset: 3px; }
 
 /* Tryby dostępności i gównianości: cały dzień to jeden przycisk */
-.avail { flex: 1; font-size: 12px; border-radius: 6px; min-height: 40px; }
+.avail { flex: 1; font-size: 12px; border-radius: 6px; min-height: 40px; padding: 8px 14px; } /* kalendarz bez powiększenia */
 .lvl-0 { background: var(--warn-soft); color: var(--warn); }
 .lvl-1 { background: var(--maybe-soft); color: var(--maybe); }
 .lvl-2 { background: var(--faint); color: var(--muted); }
@@ -189,12 +189,12 @@ body:not([data-tab="calendar"]) .board, body:not([data-tab="calendar"]) #panel-v
 .list li { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line); }
 .list li:last-child { border-bottom: 0; }
 .list li > :first-child { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.who { background: none; color: inherit; font-weight: 400; padding: 3px 6px; margin-left: -6px; text-align: left; border-radius: 6px; }
+.who { background: none; color: inherit; font-weight: 400; font-size: inherit; padding: 6px 8px; margin-left: -8px; text-align: left; border-radius: 6px; }
 @media (hover: hover) { .who:hover { background: var(--faint); opacity: 1; } }
 .who.on { background: var(--strong); color: var(--on-strong); }
 .badge { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 16px; text-align: right; }
 .badge.role { font-size: 11px; }
-.x { background: none; color: var(--muted); padding: 4px 6px; font-size: 14px; line-height: 1; opacity: .5; }
+.x { background: none; color: var(--muted); padding: 8px 10px; font-size: 16px; line-height: 1; opacity: .5; }
 @media (hover: hover) { .x:hover { background: var(--faint); } }
 .x:disabled { visibility: hidden; }
 #priority li > :first-child { white-space: normal; display: flex; gap: 12px; }
