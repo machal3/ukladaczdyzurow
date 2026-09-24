@@ -111,23 +111,21 @@ function render() {
   if (who && $('#person').open) {
     $('#person-title').textContent = `${who.name} — ${$('#month-label').textContent}`;
     for (const b of document.querySelectorAll('[data-ptab]')) b.setAttribute('aria-pressed', b.dataset.ptab === view.personTab);
-    $('#person-body').innerHTML = view.personTab === 'history' ? logHtml(who) : `<div class="person-grid">` +
-      `<section class="limits"><h4>Osoba</h4><label><span>Funkcja</span><select data-prestige aria-label="Funkcja">` +
-      ROLES.map((r, i) => `<option value="${i}" ${i === who.prestige ? 'selected' : ''}>${r}</option>`).join('') + `</select></label>` +
-      `<label><span>Ostatnio gówniane (spoza grafiku)</span><select data-past aria-label="Jak gówniane dyżury miała ostatnio poza grafikiem">` +
-      BAD.map((_, i) => `<option value="${i}" ${i === (who.past ?? 0) ? 'selected' : ''}>${i}</option>`).join('') + `</select></label>` +
-      `<label title="PN1 w sobotę + dyżur w poniedziałek: zaznaczone = preferowane, odznaczone = zwykła kanapka"><span>Kanapka PN1 So + Pn</span><input type="checkbox" data-pn1sandwich ${who.pn1Sandwich === false ? '' : 'checked'} aria-label="Preferuje kanapkę PN1 w sobotę + poniedziałek"></label></section>` +
-      `<section class="limits"><h4>Limit w miesiącu <small>puste = bez limitu</small></h4>` +
-      [{ id: '*', name: 'Łącznie' }, { id: 'we', name: 'Pt/So/Nd' }, ...state.shifts].map((s) => `<label><span>${esc(s.name)}</span><small>${s.id === '*' ? count[who.id] : whoShifts[s.id] || 0} /</small>
-        <input type="number" min="0" step="1" placeholder="${s.id === 'we' ? WEEKEND_LIMIT : '∞'}" data-limit="${s.id}" value="${state.limits[who.id]?.[s.id] ?? ''}" aria-label="Limit: ${esc(s.name)}"></label>`).join('') + '</section>' +
-      `<section class="limits"><h4>Ten sam dzień weekendu <small>ile razy, miękko</small></h4>` +
-      ['Pt', 'So', 'Nd'].map((n, i) => `<label><span>${n}</span><small>${whoShifts[`d${i + 4}`] || 0} /</small>
-        <input type="number" min="0" step="1" placeholder="1" data-limit="d${i + 4}" value="${state.limits[who.id]?.[`d${i + 4}`] ?? ''}" aria-label="Ile razy ten sam dzień: ${n}"></label>`).join('') + '</section>' +
-      `<section class="limits"><h4>Prośby w miesiącu <small>ile chce na miejscu / w dzień</small></h4>` +
-      state.shifts.map((s) => `<label><span>${esc(s.name)}</span><small>${whoShifts[s.id] || 0} /</small>
-        <input type="number" min="0" step="1" placeholder="—" data-want="${s.id}" value="${state.wants[who.id]?.[s.id] ?? ''}" aria-label="Prośba: ${esc(s.name)}"></label>`).join('') +
-      ['Pt', 'So', 'Nd'].map((n, i) => `<label><span>${n}</span><small>${whoShifts[`d${i + 4}`] || 0} /</small>
-        <input type="number" min="0" step="1" placeholder="—" data-want="d${i + 4}" value="${state.wants[who.id]?.[`d${i + 4}`] ?? ''}" aria-label="Prośba: ${n}"></label>`).join('') + '</section></div>';
+    // ustawienia: po lewej osoba, po prawej jedna tabela — ile ma, limit i prośba w jednym wierszu
+    const num = (kind, key, ph, label) => `<input type="number" min="0" step="1" placeholder="${ph}" data-${kind}="${key}" value="${(kind === 'limit' ? state.limits : state.wants)[who.id]?.[key] ?? ''}" aria-label="${label}">`;
+    const row = (name, has, limit, want = '') => `<tr><th scope="row">${name}</th><td>${has}</td><td>${limit}</td><td>${want}</td></tr>`;
+    const field = (name, hint, control) => `<label class="field"><span>${name}${hint ? `<small>${hint}</small>` : ''}</span>${control}</label>`;
+    $('#person-body').innerHTML = view.personTab === 'history' ? logHtml(who) : `<div class="person-grid"><section><h4>Osoba</h4>` +
+      field('Funkcja', '', `<select data-prestige>${ROLES.map((r, i) => `<option value="${i}" ${i === who.prestige ? 'selected' : ''}>${r}</option>`).join('')}</select>`) +
+      field('Ostatnio gówniane', 'dyżury spoza grafiku, 0–3', `<select data-past>${BAD.map((_, i) => `<option value="${i}" ${i === (who.past ?? 0) ? 'selected' : ''}>${i}</option>`).join('')}</select>`) +
+      field('Kanapka PN1 So + Pn', 'zaznaczone = woli ten układ', `<input type="checkbox" data-pn1sandwich ${who.pn1Sandwich === false ? '' : 'checked'}>`) +
+      `</section><section><h4>Dyżury w miesiącu</h4><table class="counts"><thead><tr><td></td><th scope="col">Ma</th><th scope="col">Limit</th><th scope="col">Prośba</th></tr></thead><tbody>` +
+      row('Łącznie', count[who.id], num('limit', '*', '∞', 'Limit łącznie')) +
+      row('Pt/So/Nd', whoShifts.we, num('limit', 'we', WEEKEND_LIMIT, 'Limit Pt/So/Nd')) +
+      state.shifts.map((s) => row(esc(s.name), whoShifts[s.id] || 0, num('limit', s.id, '∞', `Limit: ${esc(s.name)}`), num('want', s.id, '—', `Prośba: ${esc(s.name)}`))).join('') +
+      `<tr class="sub"><th colspan="4" scope="rowgroup">Ten sam dzień weekendu</th></tr>` +
+      ['Pt', 'So', 'Nd'].map((n, i) => row(n, whoShifts[`d${i + 4}`] || 0, num('limit', `d${i + 4}`, 1, `Ile razy ten sam dzień: ${n}`), num('want', `d${i + 4}`, '—', `Prośba: ${n}`))).join('') +
+      `</tbody></table><p class="hint">Puste pole = wartość domyślna (szara, ∞ = bez limitu). Limity łącznie, Pt/So/Nd i na miejscu są twarde; ten sam dzień weekendu i prośby — miękkie.</p></section></div>`;
   }
   const shiftName = Object.fromEntries(state.shifts.map((s) => [s.id, s.name]));
   $('#rules').innerHTML = state.rules.map((r) => `<li>

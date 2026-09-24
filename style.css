@@ -207,7 +207,7 @@ body:not([data-tab="calendar"]) .board, body:not([data-tab="calendar"]) #panel-v
 #panel-bad button { width: 100%; padding: 10px; }
 
 .add { display: flex; gap: 8px; margin-top: 14px; }
-.add input, .rule-form select, .limits :is(input, select), dialog :is(textarea, select), .login input {
+.add input, .rule-form select, .person-grid :is(input, select), dialog :is(textarea, select), .login input {
   border: 1px solid var(--line); border-radius: 8px; background: var(--bg); padding: 7px 10px; min-width: 0;
 }
 .add input { flex: 1; }
@@ -246,14 +246,22 @@ dialog menu { display: flex; justify-content: flex-end; gap: 8px; padding: 0; }
 #person { padding-bottom: 0; }
 #person menu { position: sticky; bottom: 0; background: var(--bg); padding: 12px 0 24px; border-top: 1px solid var(--line); }
 #person-title:focus { outline: none; } /* fokus startowy okna — żeby telefon nie otwierał klawiatury na pierwszym polu */
-.person-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px 28px; margin-bottom: 20px; }
-.limits { display: flex; flex-direction: column; gap: 6px; }
-.limits label { display: flex; align-items: center; gap: 6px; font-size: 13px; }
-.limits span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.limits small { color: var(--muted); font-variant-numeric: tabular-nums; }
-.limits :is(input, select) { padding: 3px 8px; }
-.limits input { width: 60px; }
-.limits input[type=checkbox] { width: auto; }
+/* ustawienia osoby: wiersze z cienką linią, etykieta z lewej, pole z prawej — jak listy */
+.person-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 24px 48px; align-items: start; margin: 4px 0 20px; }
+.person-grid h4 { margin: 0 0 4px; }
+.person-grid :is(input, select) { height: 32px; padding: 0 8px; font-size: 13px; }
+.person-grid input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--strong); }
+.field { display: flex; align-items: center; gap: 16px; min-height: 48px; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 13px; }
+.field span { flex: 1; }
+.field small { display: block; color: var(--muted); font-size: 12px; }
+.counts { width: 100%; border-collapse: collapse; font-size: 13px; }
+.counts :is(th, td) { height: 44px; padding: 0 0 0 12px; border-bottom: 1px solid var(--line); text-align: right; font-weight: 400; }
+.counts th[scope=row], .counts .sub th { padding-left: 0; text-align: left; }
+.counts thead :is(th, td) { height: 28px; color: var(--muted); font-size: 12px; }
+.counts td:nth-child(2) { color: var(--muted); font-variant-numeric: tabular-nums; }
+.counts .sub th { height: auto; padding-top: 18px; padding-bottom: 6px; color: var(--muted); font-size: 12px; }
+.counts input { width: 64px; text-align: center; }
+.person-grid .hint { margin-top: 10px; }
 #person-body > h3 { font-size: 15px; }
 #person-body .preview { table-layout: fixed; }
 #person-body .preview :is(th, td):first-child { width: 20%; }
@@ -367,7 +375,8 @@ dialog menu { display: flex; justify-content: flex-end; gap: 8px; padding: 0; }
   #person menu { position: sticky; bottom: 0; background: var(--bg); margin: 0 -16px; padding: 8px 16px calc(8px + env(safe-area-inset-bottom)); border-top: 1px solid var(--line); }
   #person menu button { flex: 1; padding: 12px 8px; }
   #person menu .to-cal { margin: 0; border: 1px solid var(--line); }
-  #person .limits label { font-size: 14px; min-height: 36px; }
+  .person-grid { grid-template-columns: 1fr; gap: 28px; }
+  .person-grid :is(.field, .counts) { font-size: 14px; }
   #person h4 { font-size: 15px; margin-top: 8px; }
   #person-body h4 small { display: block; font-size: 12px; margin-top: 2px; }
   #person-body .hint { font-size: 13px; }
@@ -379,7 +388,7 @@ dialog menu { display: flex; justify-content: flex-end; gap: 8px; padding: 0; }
 /* Dotyk: większe cele, × zawsze widoczny, 16px w polach (iOS nie powiększa strony przy fokusie) */
 @media (pointer: coarse) {
   button { min-height: 40px; }
-  .slot input, .add input, .limits input, .limits select, .rule-form select, dialog select, dialog textarea, .login input { font-size: 16px; }
+  .slot input, .add input, .person-grid :is(input, select), .rule-form select, dialog select, dialog textarea, .login input { font-size: 16px; }
   .x { opacity: 1; min-width: 40px; }
   .who { padding: 8px 6px; }
   .summary .who { min-height: 36px; }
