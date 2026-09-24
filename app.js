@@ -115,7 +115,7 @@ function render() {
       ROLES.map((r, i) => `<option value="${i}" ${i === who.prestige ? 'selected' : ''}>${r}</option>`).join('') + `</select></label>` +
       `<label><span>Ostatnio gówniane (spoza grafiku)</span><select data-past aria-label="Jak gówniane dyżury miała ostatnio poza grafikiem">` +
       BAD.map((_, i) => `<option value="${i}" ${i === (who.past ?? 0) ? 'selected' : ''}>${i}</option>`).join('') + `</select></label>` +
-      `<label><span>Preferuje kanapkę PN1 So + Pn</span><input type="checkbox" data-pn1sandwich ${who.pn1Sandwich === false ? '' : 'checked'}></label></section>` +
+      `<label title="PN1 w sobotę + dyżur w poniedziałek: zaznaczone = preferowane, odznaczone = zwykła kanapka"><span>Kanapka PN1 So + Pn</span><input type="checkbox" data-pn1sandwich ${who.pn1Sandwich === false ? '' : 'checked'} aria-label="Preferuje kanapkę PN1 w sobotę + poniedziałek"></label></section>` +
       `<section class="limits"><h4>Limit w miesiącu <small>puste = bez limitu</small></h4>` +
       [{ id: '*', name: 'Łącznie' }, { id: 'we', name: 'Pt/So/Nd' }, ...state.shifts].map((s) => `<label><span>${esc(s.name)}</span><small>${s.id === '*' ? count[who.id] : whoShifts[s.id] || 0} /</small>
         <input type="number" min="0" step="1" placeholder="${s.id === 'we' ? WEEKEND_LIMIT : '∞'}" data-limit="${s.id}" value="${state.limits[who.id]?.[s.id] ?? ''}" aria-label="Limit: ${esc(s.name)}"></label>`).join('') + '</section>' +
