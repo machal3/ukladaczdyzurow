@@ -11,6 +11,7 @@ export const LEVELS = ['Nie mogę', 'W ostateczności', 'Mogę', 'Chcę'];
 // Funkcja wynika z punktów prestiżu (person.prestige): 0 = Rezydent, 1–2 = Starszy asystent.
 export const ROLES = ['Rezydent', 'Starszy asystent · 1 pkt', 'Starszy asystent · 2 pkt']; // indeks = punkty prestiżu
 export const isResident = (p) => p.prestige === 0;
+export const MIN_PRESTIGE = 3; // twardo: suma punktów prestiżu osób dyżurujących danego dnia co najmniej tyle
 export const availOf = (avail, pid, key) => avail[pid]?.[key] ?? 2;
 
 // Warunki: rules = [{ who, with, places: [shiftId] }] — jeśli `who` dyżuruje tego samego dnia co `with`,
@@ -68,7 +69,7 @@ export const shiftsForDay = (shifts, y, m, d) => shifts.filter((s) => s.days.inc
 // Twarde zasady: nikt dwa razy tego samego dnia, nikt dzień po dniu, nikt w dzień „Nie mogę”,
 // nikt ponad swój miesięczny limit na danym dyżurze: limits = { personId: { shiftId: n, '*': n łącznie, we: n w Pt/So/Nd } } (brak = bez limitu;
 // d4/d5/d6 = ile razy ten sam Pt/So/Nd, to nie twardy limit, tylko priorytet weDow),
-// maks. jeden rezydent dziennie (licząc ręczne wpisy), warunki z `rules` (patrz breaksRule),
+// maks. jeden rezydent dziennie (licząc ręczne wpisy), suma punktów prestiżu dnia ≥ MIN_PRESTIGE (licząc ręczne wpisy), warunki z `rules` (patrz breaksRule),
 // po OITN w sobotę wolny poniedziałek, po OITN w niedzielę wolny wtorek (czyli 2 dni po weekendowym OITN).
 // Kolejność wyboru (domyślna, `order` = klucze PRIORITIES w innej kolejności ją zmienia): najpierw dostępność (Chcę > Mogę > W ostateczności), potem unikanie „kanapek” (dyżur z jednym dniem
 // przerwy, np. pn i śr — chyba że osoba chce ten dzień; wyjątek: PN1 w sobotę + dowolny dyżur w poniedziałek to kanapka preferowana,
@@ -99,6 +100,8 @@ export function generateMonth(y, m, shifts, people, locked = {}, avail = {}, lim
   const short = (pid, sid) => +((perShift[`${pid}:${sid}`] || 0) < (wants[pid]?.[sid] ?? 0)); // 1 = jeszcze poniżej prośby
   const lastDay = {};
   const resident = new Set(people.filter(isResident).map((p) => p.id));
+  const maxPrest = ROLES.length - 1;
+  const prest = Object.fromEntries(people.map((p) => [p.id, p.prestige ?? maxPrest])); // bez prestige = bez ograniczeń (app.js zawsze ustawia)
   // ponytail: OITN rozpoznawany po nazwie miejsca; bez sprawdzania przełomu miesięcy (jak „dzień po dniu”)
   const oitn = shifts.find((s) => s.name === 'OITN')?.id;
   const pn1 = shifts.find((s) => s.name === 'PN1')?.id;
@@ -122,8 +125,13 @@ export function generateMonth(y, m, shifts, people, locked = {}, avail = {}, lim
     const noise = rand && Object.fromEntries(people.map((p) => [p.id, rand()]));
     const todays = shiftsForDay(shifts, y, m, d);
     if (rand) todays.sort(() => rand() - 0.5); // ponytail: niedokładne tasowanie, na kilka miejsc wystarczy
+    let sum = [...busy].reduce((t, pid) => t + (prest[pid] ?? 0), 0);
+    let open = todays.filter((s) => !day[s.id]).length;
     for (const s of todays) {
       if (day[s.id]) continue;
+      // ile punktów musi mieć osoba na tym miejscu, żeby resztę dało się dobić samymi SA 2 pkt
+      // (dzień, w którym miejsc jest za mało na MIN_PRESTIGE, jest zwolniony; min z maxPrest: po złych ręcznych wpisach nadal najwyżsi)
+      const need = todays.length * maxPrest < MIN_PRESTIGE ? 0 : Math.min(maxPrest, MIN_PRESTIGE - sum - maxPrest * --open);
       const cmp = {
         avail: (a, b) => availOf(avail, b.id, key) - availOf(avail, a.id, key),
         sandwich: (a, b) => sandwich(a, s.id) - sandwich(b, s.id),
@@ -134,7 +142,7 @@ export function generateMonth(y, m, shifts, people, locked = {}, avail = {}, lim
       };
       const pick = people
         .filter((p) => availOf(avail, p.id, key) > 0 && !busy.has(p.id) && lastDay[p.id] !== d - 1 && !lockedOn(locked, y, m, d + 1, p.id) && underLimit(p.id, s.id, d) &&
-          !(hasResident && resident.has(p.id)) && !breaksRule(rules, day, p.id, s.id) &&
+          !(hasResident && resident.has(p.id)) && prest[p.id] >= need && !breaksRule(rules, day, p.id, s.id) &&
           !oitnWe(d - 2, p.id) && !(s.id === oitn && weekday(y, m, d) >= 5 && lockedOn(locked, y, m, d + 2, p.id)))
         .sort((a, b) => order.reduce((r, k) => r || cmp[k](a, b), 0) ||
           (noise ? noise[a.id] - noise[b.id] : (lastDay[a.id] ?? -99) - (lastDay[b.id] ?? -99)))[0];
@@ -143,6 +151,7 @@ export function generateMonth(y, m, shifts, people, locked = {}, avail = {}, lim
       busy.add(pick.id);
       add(pick.id, s.id, d);
       hasResident ||= resident.has(pick.id);
+      sum += prest[pick.id];
     }
     for (const pid of busy) lastDay[pid] = d;
     result[key] = day;

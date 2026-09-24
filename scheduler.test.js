@@ -103,6 +103,17 @@ test('rezydenci (prestiż 0): maks. jeden dziennie, także gdy jeden jest wpisan
   assert.ok(Object.values(out).some((day) => Object.values(day).some((pid) => pid[0] === 'r'))); // rezydenci nadal dostają dyżury
 });
 
+test('suma punktów prestiżu dnia ≥ 3 (licząc ręczne wpisy), rezydenci dalej dostają dyżury', () => {
+  const pr = { r1: 0, r2: 0, r3: 0, b1: 1, b2: 1, b3: 1, c1: 2, c2: 2 };
+  const ppl = Object.entries(pr).map(([id, prestige]) => ({ id, name: id, prestige }));
+  const sh = ['s1', 's2', 's3'].map((id) => ({ id, days: all }));
+  const locked = { [dateKey(2026, 9, 5)]: { s1: 'r1' } };
+  const [{ schedule: out }] = generateVariants(2026, 9, sh, ppl, locked);
+  for (const day of Object.values(out))
+    if (Object.keys(day).length === 3) assert.ok(Object.values(day).reduce((t, pid) => t + pr[pid], 0) >= 3, JSON.stringify(day));
+  assert.ok(Object.values(out).some((day) => Object.values(day).some((pid) => pid[0] === 'r')));
+});
+
 test('warunek: gdy a dyżuruje z b, a jest tylko na s2', () => {
   const rules = [{ who: 'a', with: 'b', places: ['s2'] }];
   const locked = { [dateKey(2026, 9, 5)]: { s1: 'b' } };
