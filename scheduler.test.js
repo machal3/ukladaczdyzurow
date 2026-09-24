@@ -246,3 +246,11 @@ test('OITN w weekend: po sobocie wolny poniedziałek, po niedzieli wolny wtorek,
   const lock = generateMonth(2026, 9, sh, people, { '2026-10-12': { s1: 'c' } }); // c ręcznie w pn → nie na OITN w So 10.10
   assert.notEqual(lock['2026-10-10'].o, 'c');
 });
+
+test('różne dni weekendu: drugi dyżur w Pt/So/Nd trafia w inny dzień tygodnia, jeśli się da', () => {
+  const sh = [{ id: 'w', name: 'W', days: [4, 5, 6] }]; // tylko Pt/So/Nd, październik 2026: 5 piątków, 5 sobót, 4 niedziele
+  const out = generateMonth(2026, 9, sh, ['a', 'b', 'c', 'd', 'e', 'f', 'g'].map((id) => ({ id, name: id })));
+  const sc = scoreMonth(2026, 9, out, sh, ['a', 'b', 'c', 'd', 'e', 'f', 'g'].map((id) => ({ id, name: id })));
+  assert.equal(sc.weDow, 0); // 14 dyżurów, 7 osób × 2 różne dni
+  assert.equal(scoreMonth(2026, 9, { '2026-10-02': { w: 'a' }, '2026-10-09': { w: 'a' } }, sh, people).weDow, 1); // dwa piątki
+});
