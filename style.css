@@ -44,14 +44,8 @@ body {
 }
 button, input, select { font: inherit; color: inherit; }
 
-/* tytuł na środku, status po prawej */
-header {
-  display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 24px;
-  margin-bottom: 20px;
-}
-h1 { grid-column: 2; font-size: 26px; font-weight: 700; letter-spacing: -.02em; }
-h1 span { color: var(--accent); }
-#status { grid-column: 3; justify-self: end; }
+header { display: flex; margin-bottom: 12px; }
+header:has(#status:empty) { display: none; }
 .month { display: flex; align-items: center; gap: 4px; padding: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; }
 .month h2 { font-size: 15px; font-weight: 600; min-width: 150px; text-align: center; text-transform: capitalize; }
 .month button { padding: 7px 12px; color: var(--muted); }
@@ -182,12 +176,10 @@ main { display: flex; flex-direction: column; gap: 16px; }
 @media (max-width: 760px) {
   body { padding: 0 12px calc(72px + env(safe-area-inset-bottom)); }
   header {
-    display: flex; flex-wrap: wrap;
+    flex-wrap: wrap;
     position: sticky; top: 0; z-index: 1; background: var(--bg);
     gap: 4px 8px; margin: 0 -12px 12px; padding: 8px 12px; border-bottom: 1px solid var(--line);
   }
-  h1 { display: none; }
-  header:has(#status:empty) { display: none; }
   #status { flex-basis: 100%; margin: 0; }
   .month { justify-content: space-between; margin-bottom: 8px; }
   .month h2 { font-size: 17px; min-width: 0; }
