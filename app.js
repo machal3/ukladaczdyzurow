@@ -52,6 +52,7 @@ const pick = (obj, keys) => Object.fromEntries(keys.filter((k) => obj[k]).map((k
 function render() {
   const { y, m } = view;
   $('#month-label').textContent = new Date(y, m).toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' });
+  $('#today').disabled = y === now.getFullYear() && m === now.getMonth();
 
   const todayKey = dateKey(now.getFullYear(), now.getMonth(), now.getDate());
   const nameOf = Object.fromEntries(state.people.map((p) => [p.id, p.name]));
@@ -138,6 +139,7 @@ function render() {
 function update(fn) { fn(); save(); render(); }
 
 $('#prev').onclick = () => { $('#panel-variants').hidden = true; view = { ...view, ...(view.m ? { m: view.m - 1 } : { y: view.y - 1, m: 11 }) }; render(); };
+$('#today').onclick = () => { $('#panel-variants').hidden = true; view = { ...view, y: now.getFullYear(), m: now.getMonth() }; render(); };
 $('#next').onclick = () => { $('#panel-variants').hidden = true; view = { ...view, ...(view.m < 11 ? { m: view.m + 1 } : { y: view.y + 1, m: 0 }) }; render(); };
 
 $('#generate').onclick = () => update(() => {
