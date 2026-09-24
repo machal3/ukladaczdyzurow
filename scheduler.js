@@ -67,7 +67,8 @@ export const shiftsForDay = (shifts, y, m, d) => shifts.filter((s) => s.days.inc
 // Zwraca { 'YYYY-MM-DD': { shiftId: personId } }.
 // Twarde zasady: nikt dwa razy tego samego dnia, nikt dzień po dniu, nikt w dzień „Nie mogę”,
 // nikt ponad swój miesięczny limit na danym dyżurze: limits = { personId: { shiftId: n, '*': n łącznie, we: n w Pt/So/Nd } } (brak = bez limitu),
-// maks. jeden rezydent dziennie (licząc ręczne wpisy), warunki z `rules` (patrz breaksRule).
+// maks. jeden rezydent dziennie (licząc ręczne wpisy), warunki z `rules` (patrz breaksRule),
+// po OITN w sobotę wolny poniedziałek, po OITN w niedzielę wolny wtorek (czyli 2 dni po weekendowym OITN).
 // Kolejność wyboru (domyślna, `order` = klucze PRIORITIES w innej kolejności ją zmienia): najpierw dostępność (Chcę > Mogę > W ostateczności), potem unikanie „kanapek” (dyżur z jednym dniem
 // przerwy, np. pn i śr — chyba że osoba chce ten dzień), potem prośby: kto ma mniej dyżurów na tym miejscu, niż prosił
 // (wants = { personId: { shiftId: n } }, miękkie — nie łamie limitów ani zakazów), potem w gówniany dzień najmniejsze
@@ -95,6 +96,9 @@ export function generateMonth(y, m, shifts, people, locked = {}, avail = {}, lim
   const short = (pid, sid) => +((perShift[`${pid}:${sid}`] || 0) < (wants[pid]?.[sid] ?? 0)); // 1 = jeszcze poniżej prośby
   const lastDay = {};
   const resident = new Set(people.filter(isResident).map((p) => p.id));
+  // ponytail: OITN rozpoznawany po nazwie miejsca; bez sprawdzania przełomu miesięcy (jak „dzień po dniu”)
+  const oitn = shifts.find((s) => s.name === 'OITN')?.id;
+  const oitnWe = (d, pid) => d >= 1 && weekday(y, m, d) >= 5 && (result[dateKey(y, m, d)] ?? locked[dateKey(y, m, d)] ?? {})[oitn] === pid;
   for (const [key, day] of Object.entries(locked))
     for (const [sid, pid] of Object.entries(day)) if (pid in count) add(pid, sid, +key.slice(8));
 
@@ -121,7 +125,8 @@ export function generateMonth(y, m, shifts, people, locked = {}, avail = {}, lim
       };
       const pick = people
         .filter((p) => availOf(avail, p.id, key) > 0 && !busy.has(p.id) && lastDay[p.id] !== d - 1 && !lockedOn(locked, y, m, d + 1, p.id) && underLimit(p.id, s.id, d) &&
-          !(hasResident && resident.has(p.id)) && !breaksRule(rules, day, p.id, s.id))
+          !(hasResident && resident.has(p.id)) && !breaksRule(rules, day, p.id, s.id) &&
+          !oitnWe(d - 2, p.id) && !(s.id === oitn && weekday(y, m, d) >= 5 && lockedOn(locked, y, m, d + 2, p.id)))
         .sort((a, b) => order.reduce((r, k) => r || cmp[k](a, b), 0) ||
           (noise ? noise[a.id] - noise[b.id] : (lastDay[a.id] ?? -99) - (lastDay[b.id] ?? -99)))[0];
       if (!pick) continue; // brak wolnej osoby → dyżur zostaje pusty, widoczny w UI

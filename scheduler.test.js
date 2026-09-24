@@ -233,3 +233,16 @@ test('warianty: tylko równie dobre (remis we wszystkich kryteriach), różne, n
   assert.ok(v[0].score.unfilled <= greedy.unfilled);
   for (const x of v) assert.deepEqual(x.score, { ...v[0].score, spread: x.score.spread, lastResort: x.score.lastResort });
 });
+
+test('OITN w weekend: po sobocie wolny poniedziałek, po niedzieli wolny wtorek, także przy ręcznym wpisie', () => {
+  const sh = [{ id: 'o', name: 'OITN', days: all }, { id: 's1', name: 'S1', days: all }];
+  const out = generateMonth(2026, 9, sh, people, { '2026-10-03': { o: 'a' }, '2026-10-04': { o: 'b' } }); // So 3.10, Nd 4.10
+  assert.ok(!Object.values(out['2026-10-05']).includes('a')); // pn
+  assert.ok(!Object.values(out['2026-10-06']).includes('b')); // wt
+  for (let d = 3; d <= 31; d++) {
+    const k = dateKey(2026, 9, d), w = (new Date(2026, 9, d).getDay() + 6) % 7, off = out[dateKey(2026, 9, d + 2)];
+    if (w >= 5 && off) assert.ok(!Object.values(off).includes(out[k].o), `${k} OITN ${out[k].o}`);
+  }
+  const lock = generateMonth(2026, 9, sh, people, { '2026-10-12': { s1: 'c' } }); // c ręcznie w pn → nie na OITN w So 10.10
+  assert.notEqual(lock['2026-10-10'].o, 'c');
+});
