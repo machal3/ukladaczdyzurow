@@ -1,4 +1,4 @@
-import { dateKey, daysInMonth, weekday, shiftsForDay, generateMonth, availOf, LEVELS, ROLES } from './scheduler.js';
+import { dateKey, daysInMonth, weekday, shiftsForDay, generateMonth, availOf, breaksRule, LEVELS, ROLES } from './scheduler.js';
 
 const DAYS = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So', 'Nd'];
 const STORE = 'dyzury-v1';
@@ -16,6 +16,7 @@ let state = load() || {
 };
 state.avail ??= {}; // { personId: { 'YYYY-MM-DD': poziom 0-3 } } — patrz LEVELS
 state.limits ??= {}; // { personId: { shiftId: maks. dyżurów w miesiącu, '*': maks. łącznie } } — brak = bez limitu
+state.rules ??= []; // [{ id, who, with, places: [shiftId] }] — patrz breaksRule
 for (const p of state.people) p.prestige ??= 1; // 0 = Rezydent, 1–2 = Starszy asystent — patrz ROLES
 // jednorazowa migracja zapisanych danych: stare domyślne miejsca → OITN, PN1, PN2 (id zostają, więc grafik i limity też)
 if (!state.miejscaV2) {
@@ -59,8 +60,10 @@ function render() {
       const pid = nameOf[day[s.id]] ? day[s.id] : '';
       if (!pid) empty++;
       const manual = state.manual[key]?.[s.id] ? 'manual' : '';
-      const clash = pid && availOf(state.avail, pid, key) === 0 ? 'clash' : '';
-      return `<label class="slot ${pid ? '' : 'unfilled'} ${manual} ${clash}" title="${esc(s.name)}${clash && ' — ta osoba nie może tego dnia'}">
+      const why = !pid ? '' : availOf(state.avail, pid, key) === 0 ? ' — ta osoba nie może tego dnia' :
+        breaksRule(state.rules, day, pid, s.id) ? ' — łamie warunek' : '';
+      const clash = why && 'clash';
+      return `<label class="slot ${pid ? '' : 'unfilled'} ${manual} ${clash}" title="${esc(s.name)}${why}">
         <span>${esc(s.name)}</span>
         <select data-key="${key}" data-shift="${s.id}" aria-label="${esc(s.name)}, ${d}">${options(pid)}</select>
       </label>`;
@@ -90,6 +93,16 @@ function render() {
       <span>${esc(s.name)}</span>
       <span class="days">${DAYS.map((d, i) => `<button class="day ${s.days.includes(i) ? 'on' : ''}" data-toggle="${s.id}" data-day="${i}" aria-pressed="${s.days.includes(i)}">${d[0]}</button>`).join('')}</span>
       <button class="x" data-del-shift="${s.id}" aria-label="Usuń ${esc(s.name)}">×</button></li>`).join('');
+  const shiftName = Object.fromEntries(state.shifts.map((s) => [s.id, s.name]));
+  $('#rules').innerHTML = state.rules.map((r) => `<li>
+      <span>Gdy <b>${esc(nameOf[r.who])}</b> dyżuruje z <b>${esc(nameOf[r.with])}</b>, jest w: ${esc(r.places.map((id) => shiftName[id]).filter(Boolean).join(', ') || '—')}</span>
+      <button class="x" data-del-rule="${r.id}" aria-label="Usuń warunek">×</button></li>`).join('');
+  const people = (name, label) => `<select name="${name}" aria-label="${label}" required><option value="">${label}…</option>` +
+    state.people.map((p) => `<option value="${p.id}">${esc(p.name)}</option>`).join('') + '</select>';
+  $('#add-rule').innerHTML = `<label>Gdy ${people('who', 'Osoba')}</label><label>dyżuruje z ${people('with', 'Z kim')}</label>
+    <fieldset><legend>to jest w:</legend>${state.shifts.map((s) =>
+      `<label class="chk"><input type="checkbox" name="places" value="${s.id}">${esc(s.name)}</label>`).join('')}</fieldset>
+    <button>Dodaj warunek</button>`;
   $('#status').textContent = view.who ? `Dostępność: ${nameOf[view.who]} — klikaj dni, by zmienić` :
     empty ? `Nieobsadzone: ${empty}` : '';
   $('#status').classList.toggle('info', !!view.who);
@@ -103,7 +116,7 @@ $('#next').onclick = () => { view = { ...view, ...(view.m < 11 ? { m: view.m + 1
 $('#generate').onclick = () => update(() => {
   view.who = null;
   const keys = monthKeys();
-  Object.assign(state.schedule, generateMonth(view.y, view.m, state.shifts, state.people, pick(state.manual, keys), state.avail, state.limits));
+  Object.assign(state.schedule, generateMonth(view.y, view.m, state.shifts, state.people, pick(state.manual, keys), state.avail, state.limits, state.rules));
 });
 
 // Klik w dzień w trybie dostępności: Mogę → Chcę → Nie mogę → W ostateczności → Mogę
@@ -146,13 +159,24 @@ $('#add-shift').onsubmit = (e) => {
   e.target.reset();
 };
 
+$('#add-rule').onsubmit = (e) => {
+  e.preventDefault();
+  const f = e.target;
+  const places = [...f.querySelectorAll('[name=places]:checked')].map((c) => c.value);
+  if (f.who.value === f.with.value) return alert('Wybierz dwie różne osoby.');
+  if (!places.length) return alert('Zaznacz co najmniej jedno miejsce.');
+  update(() => state.rules.push({ id: uid(), who: f.who.value, with: f.with.value, places }));
+};
+
 document.querySelector('aside').onclick = (e) => {
-  const { delPerson, delShift, toggle, day, who } = e.target.dataset;
+  const { delPerson, delShift, delRule, toggle, day, who } = e.target.dataset;
+  if (delRule) update(() => { state.rules = state.rules.filter((r) => r.id !== delRule); });
   if (who) { view.who = view.who === who ? null : who; render(); }
   if (delPerson) update(() => {
     state.people = state.people.filter((p) => p.id !== delPerson);
     delete state.avail[delPerson];
     delete state.limits[delPerson];
+    state.rules = state.rules.filter((r) => r.who !== delPerson && r.with !== delPerson);
     if (view.who === delPerson) view.who = null;
   });
   if (delShift) update(() => { state.shifts = state.shifts.filter((s) => s.id !== delShift); });
