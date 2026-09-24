@@ -2,16 +2,16 @@
 -- Dostęp: PIN wpisywany w aplikacji, sprawdzany tutaj (tabele są niewidoczne z zewnątrz, tylko przez funkcje poniżej).
 -- Zmiana PIN-u: update public.access set pin = '0000';
 
--- sprzątanie po wersji z logowaniem e-mailem
-drop policy if exists "tylko editors" on public.dyzury;
-drop function if exists public.is_editor();
-drop table if exists public.editors;
-
 create table if not exists public.dyzury (
   id int primary key default 1 check (id = 1), -- jeden wspólny grafik
   data jsonb not null,
   updated_at timestamptz not null default now()
 );
+-- sprzątanie po wersji z logowaniem e-mailem (najpierw polityka, bo zależy od funkcji)
+drop policy if exists "tylko editors" on public.dyzury;
+drop function if exists public.is_editor();
+drop table if exists public.editors;
+
 create table if not exists public.access (pin text primary key);
 insert into public.access (pin) select '1122' where not exists (select 1 from public.access);
 
