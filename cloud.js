@@ -1,53 +1,61 @@
-// Chmura: Supabase — logowanie linkiem z e-maila, cały stan w jednym wspólnym wierszu tabeli `dyzury`.
-// Bez SUPABASE_URL w config.js wszystko działa lokalnie (cloudLoad zwraca null).
+// Chmura: Supabase — dostęp na PIN (sprawdzany w bazie, patrz supabase.sql), cały stan w jednym wierszu tabeli `dyzury`.
+// Wpisany PIN zostaje w localStorage, więc pyta tylko raz. Bez SUPABASE_URL w config.js wszystko działa lokalnie.
 import { SUPABASE_URL, SUPABASE_KEY } from './config.js';
 
-let sb = null;
+const PIN = 'dyzury-pin';
+let pin = null;
 let queue = Promise.resolve();
 let pending = 0;
-const esc = (s) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
-// { data: stan | null (pusta baza) } albo null (tryb lokalny). Bez zalogowania / dostępu pokazuje ekran logowania i nie wraca.
+async function rpc(fn, body) {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+    method: 'POST', headers: { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  });
+  const out = await r.json().catch(() => null); // save_state nic nie zwraca
+  if (!r.ok) throw new Error(out?.message || r.statusText);
+  return out;
+}
+
+// { data: stan | null (pusta baza) } albo null (tryb lokalny). Bez poprawnego PIN-u aplikacja czeka na ekranie PIN-u.
 export async function cloudLoad() {
   if (!SUPABASE_URL) return null;
-  const { createClient } = await import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm');
-  sb = createClient(SUPABASE_URL, SUPABASE_KEY);
-  const { data: { session } } = await sb.auth.getSession();
-  if (!session) return gate();
-  const { data: ok, error: e1 } = await sb.rpc('is_editor');
-  if (e1) return gate(`Błąd chmury: ${e1.message}`, session);
-  if (!ok) return gate(`Konto ${session.user.email} nie ma dostępu — poproś o dopisanie do listy.`, session);
-  const { data, error } = await sb.from('dyzury').select('data').eq('id', 1).maybeSingle();
-  if (error) return gate(`Błąd chmury: ${error.message}`, session);
-  return { data: data?.data ?? null };
+  const page = document.body.innerHTML;
+  let p = localStorage.getItem(PIN), msg = '';
+  for (;;) {
+    if (p) try {
+      const data = await rpc('load_state', { p });
+      localStorage.setItem(PIN, pin = p);
+      document.body.innerHTML = page;
+      return { data };
+    } catch (e) {
+      if (e.message === 'Zły PIN') { localStorage.removeItem(PIN); msg = 'Zły PIN.'; }
+      else msg = `Błąd połączenia: ${e.message}`;
+    }
+    p = await ask(msg);
+  }
+}
+
+function ask(msg) {
+  document.body.innerHTML = `<main class="login"><h1>Układacz dyżurów</h1><form>
+    <label for="pin">PIN</label>
+    <input id="pin" name="pin" type="password" inputmode="numeric" autocomplete="current-password" required autofocus>
+    <button>Wejdź</button><p role="status"></p></form></main>`;
+  document.querySelector('.login [role=status]').textContent = msg;
+  return new Promise((resolve) => document.querySelector('.login form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    e.target.querySelector('button').disabled = true;
+    resolve(e.target.pin.value.trim());
+  }));
 }
 
 // ponytail: cały stan nadpisywany przy każdej zmianie (ostatni zapis wygrywa), cudze zmiany widać po odświeżeniu;
 // realtime / zapis per pole, gdy kilka osób będzie edytować naraz.
 export function cloudSave(json) {
-  if (!sb) return;
+  if (!pin) return;
   pending++;
-  queue = queue.then(async () => {
-    const { error } = await sb.from('dyzury').upsert({ id: 1, data: JSON.parse(json), updated_at: new Date().toISOString() });
-    if (error) throw error;
-  }).catch((e) => alert(`Nie zapisano w chmurze: ${e.message}`)).finally(() => pending--);
+  queue = queue.then(() => rpc('save_state', { p: pin, d: JSON.parse(json) }))
+    .catch((e) => alert(`Nie zapisano w chmurze: ${e.message}`)).finally(() => pending--);
 }
 addEventListener('beforeunload', (e) => { if (pending) e.preventDefault(); }); // niezapisane zmiany → przeglądarka pyta
 
-export async function cloudLogout() { await sb.auth.signOut(); location.reload(); }
-
-function gate(msg = '', session) {
-  document.body.innerHTML = `<main class="login"><h1>Układacz dyżurów</h1>
-    ${session ? `<p>${esc(msg)}</p><button id="out">Wyloguj</button>` : `<form id="in">
-      <label for="email">E-mail — wyślemy link do logowania</label>
-      <input id="email" name="email" type="email" required autocomplete="email">
-      <button>Wyślij link</button><p role="status"></p></form>`}</main>`;
-  document.querySelector('#out')?.addEventListener('click', cloudLogout);
-  document.querySelector('#in')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const out = e.target.querySelector('[role=status]');
-    const { error } = await sb.auth.signInWithOtp({ email: e.target.email.value, options: { emailRedirectTo: location.origin + location.pathname } });
-    out.textContent = error ? `Błąd: ${error.message}` : 'Sprawdź skrzynkę i kliknij link.';
-  });
-  return new Promise(() => {}); // aplikacja nie startuje bez dostępu
-}
+export function cloudLogout() { localStorage.removeItem(PIN); location.reload(); }
