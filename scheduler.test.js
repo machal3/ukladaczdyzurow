@@ -66,12 +66,14 @@ test('limit łączny: nikt ponad swój limit wszystkich dyżurów w miesiącu, n
   assert.equal(Object.values(out).flatMap(Object.values).filter((pid) => pid === 'a').length, 3);
 });
 
-test('limit dolny: osoba poniżej minimum dostaje dyżury przed innymi; brak do minimum liczy się w ocenie', () => {
-  const n = (out, pid) => Object.values(out).flatMap(Object.values).filter((x) => x === pid).length;
-  const out = generateMonth(2026, 9, shifts, people, {}, {}, { d: { min: 16 } }); // bez minimum d ma 15; 16 = co drugi dzień, więcej się nie da
+test('limit dolny: osoba poniżej minimum (łącznie / na miejscu) dostaje dyżury przed innymi; braki liczą się w ocenie', () => {
+  const n = (out, pid, sid) => Object.values(out).flatMap((day) => Object.entries(day)).filter(([k, x]) => x === pid && (!sid || k === sid)).length;
+  const out = generateMonth(2026, 9, shifts, people, {}, {}, { d: { min: { '*': 16 } } }); // bez minimum d ma 15; 16 = co drugi dzień
   assert.equal(n(out, 'd'), 16);
-  assert.equal(scoreMonth(2026, 9, out, shifts, people, {}, {}, {}, { d: { min: 16 } }).min, 0);
-  assert.equal(scoreMonth(2026, 9, out, shifts, people, {}, {}, {}, { b: { min: 20 } }).min, 20 - n(out, 'b'));
+  assert.ok(n(generateMonth(2026, 9, shifts, people, {}, {}, { a: { min: { s2: 10 } } }), 'a', 's2') >= 10); // bez minimum a: 0 na S2
+  const score = (min) => scoreMonth(2026, 9, out, shifts, people, {}, {}, {}, min).min;
+  assert.equal(score({ d: { min: { '*': 16 } } }), 0);
+  assert.equal(score({ b: { min: { '*': 20, s1: 31 } } }), 20 - n(out, 'b') + 31 - n(out, 'b', 's1'));
 });
 
 test('gównianość: w gówniany dzień wygrywa osoba z mniejszym obciążeniem (ostatnio + ten miesiąc)', () => {

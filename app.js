@@ -1,4 +1,4 @@
-import { dateKey, daysInMonth, weekday, shiftsForDay, generateVariants, PRIORITIES, PRIORITY_ORDER, availOf, breaksRule, LEVELS, ROLES, badOf, BAD, history, parseTable, matchPerson, personLog, PAST_WEIGHT, listPeople } from './scheduler.js';
+import { dateKey, daysInMonth, weekday, shiftsForDay, generateVariants, scoreMonth, PRIORITIES, PRIORITY_ORDER, availOf, breaksRule, LEVELS, ROLES, badOf, BAD, history, parseTable, matchPerson, personLog, PAST_WEIGHT, listPeople } from './scheduler.js';
 import { cloudLoad, cloudSave, cloudLogout } from './cloud.js';
 
 const DAYS = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So', 'Nd'];
@@ -18,7 +18,8 @@ let state = cloud?.data ?? load() ?? {
   manual: {},   // ręczne przypisania — zachowane przy ponownym układaniu
 };
 state.avail ??= {}; // { personId: { 'YYYY-MM-DD': poziom 0-3 } } — patrz LEVELS
-state.limits ??= {}; // { personId: { shiftId: maks. dyżurów w miesiącu, '*': maks. łącznie, we: maks. Pt/So/Nd, min: minimum łącznie } } — brak = bez limitu (we: WEEKEND_LIMIT)
+state.limits ??= {}; // { personId: { shiftId: maks. dyżurów w miesiącu, '*': maks. łącznie, we: maks. Pt/So/Nd } } — brak = bez limitu (we: WEEKEND_LIMIT)
+state.mins ??= {}; // { personId: { shiftId / d4-d6 / we / '*': minimum dyżurów w miesiącu } } — idzie do generateMonth jako limits[pid].min
 state.wants ??= {}; // { personId: { shiftId / d4-d6 / we / '*': ile dyżurów chce w miesiącu } } — prośby, miękkie (patrz generateMonth)
 state.bad ??= {}; // { 'YYYY-MM-DD': gównianość 0-3 } — patrz BAD/badOf; osoba: person.past 0-3
 state.rules ??= []; // [{ id, who, with, places: [shiftId] }] — patrz breaksRule
@@ -116,9 +117,10 @@ function render() {
   $('#people-count').textContent = filtered ? `Pokazano ${shown.length} z ${team().length}` : '';
   for (const b of document.querySelectorAll('[data-filter]')) b.setAttribute('aria-pressed', b.dataset.filter === 'none' ? view.none : b.dataset.filter === view.role);
   const max = Math.max(1, ...Object.values(count));
+  const short = (p) => scoreMonth(view.y, view.m, state.schedule, state.shifts, [p], {}, {}, {}, { [p.id]: { min: state.mins[p.id] } }).min; // brak do minimów
   $('#summary-list').innerHTML = team().map((p) => `<li>
       <button class="who ${p.id === view.who ? 'on' : ''}" data-who="${p.id}" aria-pressed="${p.id === view.who}" title="Dostępność w grafiku">${esc(p.name)}</button>
-      <span class="meter" aria-hidden="true"><i style="width:${count[p.id] / max * 100}%"></i></span>${count[p.id] < (state.limits[p.id]?.min ?? 0) ? `<span class="badge under" title="Poniżej minimum ${state.limits[p.id].min}">${count[p.id]}/${state.limits[p.id].min}</span>` : `<span class="badge">${count[p.id]}</span>`}</li>`).join('');
+      <span class="meter" aria-hidden="true"><i style="width:${count[p.id] / max * 100}%"></i></span>${short(p) ? `<span class="badge under" title="Do minimum brakuje: ${short(p)}">${count[p.id]}</span>` : `<span class="badge">${count[p.id]}</span>`}</li>`).join('');
   // Okno osoby: ustawienia (limity i prośby obowiązują w każdym miesiącu) + historia dyżurów
   const who = state.people.find((p) => p.id === view.who);
   // Treść budujemy tylko przy otwarciu / zmianie karty: przebudowa przy każdej zmianie pola zabiera fokus,
@@ -129,21 +131,20 @@ function render() {
     $('#person-title').textContent = who.name;
     for (const b of document.querySelectorAll('[data-ptab]')) b.setAttribute('aria-pressed', b.dataset.ptab === view.personTab);
     // ustawienia: po lewej osoba, po prawej jedna tabela — limit i prośba w jednym wierszu
-    const num = (kind, key, ph, label) => `<input type="number" min="0" step="1" placeholder="${ph}" data-${kind}="${key}" value="${(kind === 'limit' ? state.limits : state.wants)[who.id]?.[key] ?? ''}" aria-label="${label}">`;
-    const row = (name, limit, want) => `<tr><th scope="row">${name}</th><td>${limit}</td><td>${want}</td></tr>`;
+    const num = (kind, key, ph, label) => `<input type="number" min="0" step="1" placeholder="${ph}" data-${kind}="${key}" value="${{ limit: state.limits, min: state.mins, want: state.wants }[kind][who.id]?.[key] ?? ''}" aria-label="${label}">`;
+    const row = (name, key, ph, label) => `<tr><th scope="row">${name}</th><td>${num('min', key, '—', `Minimum: ${label}`)}</td>` +
+      `<td>${num('limit', key, ph, `Limit: ${label}`)}</td><td>${num('want', key, '—', `Prośba: ${label}`)}</td></tr>`;
     const field = (name, hint, control) => `<label class="field"><span>${name}${hint ? `<small>${hint}</small>` : ''}</span>${control}</label>`;
     $('#person-body').innerHTML = view.personTab === 'history' ? logHtml(who) : `<div class="person-grid"><section><h4>Osoba</h4>` +
       field('Funkcja', '', `<select data-prestige>${ROLES.map((r, i) => `<option value="${i}" ${i === who.prestige ? 'selected' : ''}>${r}</option>`).join('')}</select>`) +
       field('Ostatnio gówniane', 'dyżury spoza grafiku, 0–3', `<select data-past>${BAD.map((_, i) => `<option value="${i}" ${i === (who.past ?? 0) ? 'selected' : ''}>${i}</option>`).join('')}</select>`) +
       field('Kanapka PN1 So + Pn', 'zaznaczone = woli ten układ', `<input type="checkbox" role="switch" data-pn1sandwich ${who.pn1Sandwich === false ? '' : 'checked'}>`) +
-      `</section><section><h4>Limity i prośby</h4><table class="counts"><thead><tr><td></td><th scope="col">Limit</th><th scope="col">Prośba</th></tr></thead><tbody>` +
-      row('Łącznie', num('limit', '*', '∞', 'Limit łącznie'), num('want', '*', '—', 'Prośba łącznie')) +
-      row('Minimum łącznie', num('limit', 'min', '—', 'Minimum dyżurów łącznie'), '') +
-      row('Pt/So/Nd', num('limit', 'we', WEEKEND_LIMIT, 'Limit Pt/So/Nd'), num('want', 'we', '—', 'Prośba Pt/So/Nd')) +
-      state.shifts.map((s) => row(esc(s.name), num('limit', s.id, '∞', `Limit: ${esc(s.name)}`), num('want', s.id, '—', `Prośba: ${esc(s.name)}`))).join('') +
-      `<tr class="sub"><th colspan="3" scope="rowgroup">Ten sam dzień weekendu</th></tr>` +
-      ['Pt', 'So', 'Nd'].map((n, i) => row(n, num('limit', `d${i + 4}`, 1, `Ile razy ten sam dzień: ${n}`), num('want', `d${i + 4}`, '—', `Prośba: ${n}`))).join('') +
-      `</tbody></table><p class="hint">Puste pole = wartość domyślna (szara, ∞ = bez limitu). Limit 0 na miejscu = nie dyżuruje tam. Limity łącznie, Pt/So/Nd i na miejscu są twarde; minimum ma pierwszeństwo przed prośbami, ale nie łamie twardych zasad; ten sam dzień weekendu i prośby — miękkie.</p></section></div>`;
+      `</section><section><h4>Limity i prośby</h4><table class="counts"><thead><tr><td></td><th scope="col">Min.</th><th scope="col">Limit</th><th scope="col">Prośba</th></tr></thead><tbody>` +
+      row('Łącznie', '*', '∞', 'łącznie') + row('Pt/So/Nd', 'we', WEEKEND_LIMIT, 'Pt/So/Nd') +
+      state.shifts.map((s) => row(esc(s.name), s.id, '∞', esc(s.name))).join('') +
+      `<tr class="sub"><th colspan="4" scope="rowgroup">Ten sam dzień weekendu</th></tr>` +
+      ['Pt', 'So', 'Nd'].map((n, i) => row(n, `d${i + 4}`, 1, `ten sam dzień ${n}`)).join('') +
+      `</tbody></table><p class="hint">Puste pole = wartość domyślna (szara, ∞ = bez limitu). Limit 0 na miejscu = nie dyżuruje tam. Limity łącznie, Pt/So/Nd i na miejscu są twarde; minimum ma pierwszeństwo przed wszystkim poza twardymi zasadami; ten sam dzień weekendu i prośby — miękkie.</p></section></div>`;
   }
   const shiftName = Object.fromEntries(state.shifts.map((s) => [s.id, s.name]));
   $('#rules').innerHTML = state.rules.map((r) => `<li>
@@ -191,7 +192,7 @@ $('#generate').onclick = () => update(() => {
   for (const k of keys) if (k < today) for (const [sid, pid] of Object.entries(state.schedule[k] || {}))
     if (gone.has(pid)) (locked[k] = { ...locked[k] })[sid] = pid;
   const variants = generateVariants(view.y, view.m, state.shifts, people, locked, state.avail,
-    Object.fromEntries(team().map((p) => [p.id, { we: WEEKEND_LIMIT, ...state.limits[p.id] }])), state.rules, state.bad, state.wants, { order: state.priority });
+    Object.fromEntries(team().map((p) => [p.id, { we: WEEKEND_LIMIT, ...state.limits[p.id], min: state.mins[p.id] }])), state.rules, state.bad, state.wants, { order: state.priority });
   const prev = Object.fromEntries(keys.map((k) => [k, state.schedule[k]]));
   const apply = (i) => update(() => Object.assign(state.schedule, variants[i].schedule));
   apply(0);
@@ -360,6 +361,7 @@ $('main').onclick = (e) => {
     delete state.avail[delPerson];
     delete state.limits[delPerson];
     delete state.wants[delPerson];
+    delete state.mins[delPerson];
     state.rules = state.rules.filter((r) => r.who !== delPerson && r.with !== delPerson);
     if (view.who === delPerson) view.who = null;
   });
@@ -382,12 +384,12 @@ $('#person').onchange = (e) => {
     return update(() => { state.people.find((p) => p.id === view.who).pn1Sandwich = e.target.checked; });
   if ('prestige' in e.target.dataset)
     return update(() => { state.people.find((p) => p.id === view.who).prestige = +e.target.value; });
-  const { limit, want } = e.target.dataset, sid = limit ?? want;
+  const { limit, min, want } = e.target.dataset, sid = limit ?? min ?? want;
   if (!sid) return;
   const n = parseInt(e.target.value, 10);
   e.target.value = n >= 0 ? n : ''; // okno się nie przebudowuje, więc pole samo pokazuje zapisaną wartość
   update(() => {
-    const l = ((limit ? state.limits : state.wants)[view.who] ??= {});
+    const l = ((limit ? state.limits : min ? state.mins : state.wants)[view.who] ??= {});
     if (n >= 0) l[sid] = n; else delete l[sid];
   });
 };

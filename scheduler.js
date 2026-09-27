@@ -72,10 +72,11 @@ export const shiftsForDay = (shifts, y, m, d) => shifts.filter((s) => s.days.inc
 // Zwraca { 'YYYY-MM-DD': { shiftId: personId } }.
 // Twarde zasady: nikt dwa razy tego samego dnia, nikt dzień po dniu, nikt w dzień „Nie mogę”,
 // nikt ponad swój miesięczny limit na danym dyżurze: limits = { personId: { shiftId: n, '*': n łącznie, we: n w Pt/So/Nd } } (brak = bez limitu;
-// d4/d5/d6 = ile razy ten sam Pt/So/Nd, to nie twardy limit, tylko priorytet weDow; min = minimum dyżurów łącznie — patrz niżej),
+// d4/d5/d6 = ile razy ten sam Pt/So/Nd, to nie twardy limit, tylko priorytet weDow; min = { shiftId / '*' / we / d4-d6: n } minimum dyżurów — patrz niżej),
 // maks. jeden rezydent dziennie (licząc ręczne wpisy), suma punktów prestiżu dnia ≥ MIN_PRESTIGE (licząc ręczne wpisy), warunki z `rules` (patrz breaksRule),
 // po OITN w sobotę wolny poniedziałek, po OITN w niedzielę wolny wtorek (czyli 2 dni po weekendowym OITN).
-// Najpierw (przed `order`) ci poniżej swojego minimum limits[pid].min — ale tylko w dni Chcę/Mogę, nie „W ostateczności”.
+// Najpierw (przed `order`) ci poniżej któregoś swojego minimum z limits[pid].min (łącznie, na tym miejscu, w Pt/So/Nd, w ten dzień weekendu)
+// — ale tylko w dni Chcę/Mogę, nie „W ostateczności”.
 // Kolejność wyboru (domyślna, `order` = klucze PRIORITIES w innej kolejności ją zmienia): najpierw dostępność (Chcę > Mogę > W ostateczności), potem unikanie „kanapek” (dyżur z jednym dniem
 // przerwy, np. pn i śr — chyba że osoba chce ten dzień; wyjątek: PN1 w sobotę + dowolny dyżur w poniedziałek to kanapka preferowana,
 // chyba że osoba ma person.pn1Sandwich === false), potem różne dni weekendu (w ten sam Pt/So/Nd maks. limits[pid].d4/d5/d6 dyżurów, domyślnie 1 — miękko), potem prośby: kto ma mniej dyżurów na tym miejscu, niż prosił
@@ -103,7 +104,9 @@ export function generateMonth(y, m, shifts, people, locked = {}, avail = {}, lim
     count[pid] < (limits[pid]?.['*'] ?? Infinity) && (!isWe(d) || (we[pid] || 0) < (limits[pid]?.we ?? Infinity));
   const dowFull = (pid, d) => +(isWe(d) && (perShift[`${pid}:d${weekday(y, m, d)}`] || 0) >= sameDow(limits, pid, weekday(y, m, d), wants)); // 1 = ma już dość tego dnia
   // ponytail: minimum miękkie (zachłannie + kara w scoreMonth), bez gwarancji; twarde → solver
-  const belowMin = (pid, key) => +(count[pid] < (limits[pid]?.min ?? 0) && availOf(avail, pid, key) >= 2);
+  const under = (pid, k) => (perShift[`${pid}:${k}`] || 0) < (limits[pid]?.min?.[k] ?? 0);
+  const belowMin = (pid, sid, d, key) => +(availOf(avail, pid, key) >= 2 &&
+    (under(pid, sid) || under(pid, '*') || (isWe(d) && (under(pid, 'we') || under(pid, `d${weekday(y, m, d)}`)))));
   const short = (pid, sid) => +((perShift[`${pid}:${sid}`] || 0) < (wants[pid]?.[sid] ?? 0)); // 1 = jeszcze poniżej prośby
   const lastDay = {};
   const resident = new Set(people.filter(isResident).map((p) => p.id));
@@ -132,6 +135,9 @@ export function generateMonth(y, m, shifts, people, locked = {}, avail = {}, lim
     const noise = rand && Object.fromEntries(people.map((p) => [p.id, rand()]));
     const todays = shiftsForDay(shifts, y, m, d);
     if (rand) todays.sort(() => rand() - 0.5); // ponytail: niedokładne tasowanie, na kilka miejsc wystarczy
+    // najpierw miejsca, na których ktoś dostępny ma niespełnione minimum (inaczej zająłby go wcześniejszy dyżur tego dnia)
+    const minFirst = (s) => +people.some((p) => under(p.id, s.id) && availOf(avail, p.id, key) >= 2);
+    todays.sort((a, b) => minFirst(b) - minFirst(a));
     let sum = [...busy].reduce((t, pid) => t + (prest[pid] ?? 0), 0);
     let open = todays.filter((s) => !day[s.id]).length;
     for (const s of todays) {
@@ -152,7 +158,7 @@ export function generateMonth(y, m, shifts, people, locked = {}, avail = {}, lim
         .filter((p) => availOf(avail, p.id, key) > 0 && !busy.has(p.id) && lastDay[p.id] !== d - 1 && !lockedOn(locked, y, m, d + 1, p.id) && underLimit(p.id, s.id, d) &&
           !(hasResident && resident.has(p.id)) && prest[p.id] >= need && !breaksRule(rules, day, p.id, s.id) &&
           !oitnWe(d - 2, p.id))
-        .sort((a, b) => belowMin(b.id, key) - belowMin(a.id, key) || order.reduce((r, k) => r || cmp[k](a, b), 0) ||
+        .sort((a, b) => belowMin(b.id, s.id, d, key) - belowMin(a.id, s.id, d, key) || order.reduce((r, k) => r || cmp[k](a, b), 0) ||
           (noise ? noise[a.id] - noise[b.id] : (lastDay[a.id] ?? -99) - (lastDay[b.id] ?? -99)))[0];
       if (!pick) continue; // brak wolnej osoby → dyżur zostaje pusty, widoczny w UI
       day[s.id] = pick.id;
@@ -185,7 +191,7 @@ export const PRIORITIES = {
 };
 export const PRIORITY_ORDER = Object.keys(PRIORITIES);
 
-// Ocena gotowego grafiku miesiąca (mniej = lepiej) dla każdego kryterium PRIORITIES + unfilled (nieobsadzone dyżury) + min (brakujące do minimum limits[pid].min);
+// Ocena gotowego grafiku miesiąca (mniej = lepiej) dla każdego kryterium PRIORITIES + unfilled (nieobsadzone dyżury) + min (brakujące dyżury do minimów limits[pid].min);
 // do pokazania: lastResort = dyżury „W ostateczności”, spread = różnica liczby dyżurów (najwięcej − najmniej).
 // ponytail: wagi na oko (W ostateczności = 10 × Mogę); suma kwadratów = kara za nierówny podział.
 export function scoreMonth(y, m, schedule, shifts, people, avail = {}, bad = {}, wants = {}, limits = {}) {
@@ -215,7 +221,9 @@ export function scoreMonth(y, m, schedule, shifts, people, avail = {}, bad = {},
   }
   for (const [pid, w] of Object.entries(wants)) for (const [sid, n] of Object.entries(w))
     if (pid in count) sc.wants += Math.max(0, n - (perShift[`${pid}:${sid}`] || 0));
-  for (const pid in count) { sc.min += Math.max(0, (limits[pid]?.min ?? 0) - count[pid]); sc.even += count[pid] ** 2; sc.bad += burden[pid] ** 2; }
+  for (const [pid, l] of Object.entries(limits)) for (const [k, n] of Object.entries(l?.min ?? {}))
+    if (pid in count) sc.min += Math.max(0, n - (perShift[`${pid}:${k}`] || 0));
+  for (const pid in count) { sc.even += count[pid] ** 2; sc.bad += burden[pid] ** 2; }
   sc.spread = people.length && Math.max(...Object.values(count)) - Math.min(...Object.values(count));
   return sc;
 }
