@@ -78,6 +78,7 @@ function render() {
       if (!pid) empty++;
       const manual = state.manual[key]?.[s.id] ? 'manual' : '';
       const why = !pid ? '' : availOf(state.avail, pid, key) === 0 ? ' — ta osoba nie może tego dnia' :
+        state.limits[pid]?.[s.id] === 0 ? ' — ta osoba nie dyżuruje na tym miejscu' :
         breaksRule(state.rules, day, pid, s.id) ? ' — łamie warunek' : '';
       const clash = why && 'clash';
       return `<label class="slot ${pid ? '' : 'unfilled'} ${manual} ${clash}" title="${esc(s.name)}${pid ? ` — ${esc(nameOf[pid])}` : ' — wybierz osobę'}${manual && ' — wpisany ręcznie'}${why}">
@@ -141,7 +142,7 @@ function render() {
       state.shifts.map((s) => row(esc(s.name), num('limit', s.id, '∞', `Limit: ${esc(s.name)}`), num('want', s.id, '—', `Prośba: ${esc(s.name)}`))).join('') +
       `<tr class="sub"><th colspan="3" scope="rowgroup">Ten sam dzień weekendu</th></tr>` +
       ['Pt', 'So', 'Nd'].map((n, i) => row(n, num('limit', `d${i + 4}`, 1, `Ile razy ten sam dzień: ${n}`), num('want', `d${i + 4}`, '—', `Prośba: ${n}`))).join('') +
-      `</tbody></table><p class="hint">Puste pole = wartość domyślna (szara, ∞ = bez limitu). Limity łącznie, Pt/So/Nd i na miejscu są twarde; ten sam dzień weekendu i prośby — miękkie.</p></section></div>`;
+      `</tbody></table><p class="hint">Puste pole = wartość domyślna (szara, ∞ = bez limitu). Limit 0 na miejscu = nie dyżuruje tam. Limity łącznie, Pt/So/Nd i na miejscu są twarde; ten sam dzień weekendu i prośby — miękkie.</p></section></div>`;
   }
   const shiftName = Object.fromEntries(state.shifts.map((s) => [s.id, s.name]));
   $('#rules').innerHTML = state.rules.map((r) => `<li>
