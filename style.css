@@ -165,6 +165,7 @@ main > :is(section, article), .board { animation: appear 350ms var(--motion); }
 .who { background: transparent; color: inherit; padding: 8px; font-weight: 500; text-align: left; font-size: 14px; }
 .who.on { background: var(--strong); color: var(--on-strong); }
 .badge { font-size: 13px; color: var(--muted); min-width: 20px; text-align: center; font-variant-numeric: tabular-nums; }
+.badge.under { color: var(--warn); font-weight: 600; }
 .badge.role { font-size: 11px; padding: 5px 10px; border-radius: 999px; background: var(--accent-soft); color: var(--md-sys-color-on-primary-container); }
 .badge.role.rez { background: var(--maybe-soft); color: var(--md-sys-color-on-tertiary-container); }
 .x { padding: 8px; min-width: 48px; min-height: 48px; font-size: 18px; background: transparent; color: var(--muted); }

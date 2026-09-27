@@ -72,9 +72,10 @@ export const shiftsForDay = (shifts, y, m, d) => shifts.filter((s) => s.days.inc
 // Zwraca { 'YYYY-MM-DD': { shiftId: personId } }.
 // Twarde zasady: nikt dwa razy tego samego dnia, nikt dzień po dniu, nikt w dzień „Nie mogę”,
 // nikt ponad swój miesięczny limit na danym dyżurze: limits = { personId: { shiftId: n, '*': n łącznie, we: n w Pt/So/Nd } } (brak = bez limitu;
-// d4/d5/d6 = ile razy ten sam Pt/So/Nd, to nie twardy limit, tylko priorytet weDow),
+// d4/d5/d6 = ile razy ten sam Pt/So/Nd, to nie twardy limit, tylko priorytet weDow; min = minimum dyżurów łącznie — patrz niżej),
 // maks. jeden rezydent dziennie (licząc ręczne wpisy), suma punktów prestiżu dnia ≥ MIN_PRESTIGE (licząc ręczne wpisy), warunki z `rules` (patrz breaksRule),
 // po OITN w sobotę wolny poniedziałek, po OITN w niedzielę wolny wtorek (czyli 2 dni po weekendowym OITN).
+// Najpierw (przed `order`) ci poniżej swojego minimum limits[pid].min — ale tylko w dni Chcę/Mogę, nie „W ostateczności”.
 // Kolejność wyboru (domyślna, `order` = klucze PRIORITIES w innej kolejności ją zmienia): najpierw dostępność (Chcę > Mogę > W ostateczności), potem unikanie „kanapek” (dyżur z jednym dniem
 // przerwy, np. pn i śr — chyba że osoba chce ten dzień; wyjątek: PN1 w sobotę + dowolny dyżur w poniedziałek to kanapka preferowana,
 // chyba że osoba ma person.pn1Sandwich === false), potem różne dni weekendu (w ten sam Pt/So/Nd maks. limits[pid].d4/d5/d6 dyżurów, domyślnie 1 — miękko), potem prośby: kto ma mniej dyżurów na tym miejscu, niż prosił
@@ -101,6 +102,8 @@ export function generateMonth(y, m, shifts, people, locked = {}, avail = {}, lim
   const underLimit = (pid, sid, d) => (perShift[`${pid}:${sid}`] || 0) < (limits[pid]?.[sid] ?? Infinity) &&
     count[pid] < (limits[pid]?.['*'] ?? Infinity) && (!isWe(d) || (we[pid] || 0) < (limits[pid]?.we ?? Infinity));
   const dowFull = (pid, d) => +(isWe(d) && (perShift[`${pid}:d${weekday(y, m, d)}`] || 0) >= sameDow(limits, pid, weekday(y, m, d), wants)); // 1 = ma już dość tego dnia
+  // ponytail: minimum miękkie (zachłannie + kara w scoreMonth), bez gwarancji; twarde → solver
+  const belowMin = (pid, key) => +(count[pid] < (limits[pid]?.min ?? 0) && availOf(avail, pid, key) >= 2);
   const short = (pid, sid) => +((perShift[`${pid}:${sid}`] || 0) < (wants[pid]?.[sid] ?? 0)); // 1 = jeszcze poniżej prośby
   const lastDay = {};
   const resident = new Set(people.filter(isResident).map((p) => p.id));
@@ -149,7 +152,7 @@ export function generateMonth(y, m, shifts, people, locked = {}, avail = {}, lim
         .filter((p) => availOf(avail, p.id, key) > 0 && !busy.has(p.id) && lastDay[p.id] !== d - 1 && !lockedOn(locked, y, m, d + 1, p.id) && underLimit(p.id, s.id, d) &&
           !(hasResident && resident.has(p.id)) && prest[p.id] >= need && !breaksRule(rules, day, p.id, s.id) &&
           !oitnWe(d - 2, p.id))
-        .sort((a, b) => order.reduce((r, k) => r || cmp[k](a, b), 0) ||
+        .sort((a, b) => belowMin(b.id, key) - belowMin(a.id, key) || order.reduce((r, k) => r || cmp[k](a, b), 0) ||
           (noise ? noise[a.id] - noise[b.id] : (lastDay[a.id] ?? -99) - (lastDay[b.id] ?? -99)))[0];
       if (!pick) continue; // brak wolnej osoby → dyżur zostaje pusty, widoczny w UI
       day[s.id] = pick.id;
@@ -182,11 +185,11 @@ export const PRIORITIES = {
 };
 export const PRIORITY_ORDER = Object.keys(PRIORITIES);
 
-// Ocena gotowego grafiku miesiąca (mniej = lepiej) dla każdego kryterium PRIORITIES + unfilled (nieobsadzone dyżury);
+// Ocena gotowego grafiku miesiąca (mniej = lepiej) dla każdego kryterium PRIORITIES + unfilled (nieobsadzone dyżury) + min (brakujące do minimum limits[pid].min);
 // do pokazania: lastResort = dyżury „W ostateczności”, spread = różnica liczby dyżurów (najwięcej − najmniej).
 // ponytail: wagi na oko (W ostateczności = 10 × Mogę); suma kwadratów = kara za nierówny podział.
 export function scoreMonth(y, m, schedule, shifts, people, avail = {}, bad = {}, wants = {}, limits = {}) {
-  const sc = { unfilled: 0, avail: 0, sandwich: 0, weDow: 0, wants: 0, bad: 0, even: 0, lastResort: 0 };
+  const sc = { unfilled: 0, min: 0, avail: 0, sandwich: 0, weDow: 0, wants: 0, bad: 0, even: 0, lastResort: 0 };
   const count = Object.fromEntries(people.map((p) => [p.id, 0]));
   const burden = Object.fromEntries(people.map((p) => [p.id, (p.past ?? 0) * PAST_WEIGHT + (p.hist ?? 0)]));
   const perShift = {}, last = {}, lastSid = {}; // perShift jak w generateMonth, też 'personId:d4..d6', '*', 'we'
@@ -212,19 +215,19 @@ export function scoreMonth(y, m, schedule, shifts, people, avail = {}, bad = {},
   }
   for (const [pid, w] of Object.entries(wants)) for (const [sid, n] of Object.entries(w))
     if (pid in count) sc.wants += Math.max(0, n - (perShift[`${pid}:${sid}`] || 0));
-  for (const pid in count) { sc.even += count[pid] ** 2; sc.bad += burden[pid] ** 2; }
+  for (const pid in count) { sc.min += Math.max(0, (limits[pid]?.min ?? 0) - count[pid]); sc.even += count[pid] ** 2; sc.bad += burden[pid] ** 2; }
   sc.spread = people.length && Math.max(...Object.values(count)) - Math.min(...Object.values(count));
   return sc;
 }
 
 // Najlepsze różne grafiki: zwykły przebieg + `tries` przebiegów z losowymi remisami, porównane leksykograficznie
-// (najpierw nieobsadzone, potem kryteria w kolejności `order`). Zwraca najlepszy i (do `keep` łącznie) te,
+// (najpierw nieobsadzone, potem braki do minimum, potem kryteria w kolejności `order`). Zwraca najlepszy i (do `keep` łącznie) te,
 // które są z nim na remis we wszystkich kryteriach: [{ schedule, score }].
 // ponytail: losowe restarty zamiast solvera; więcej prób = lepiej, ale wolniej (~ms na próbę).
 export function generateVariants(y, m, shifts, people, locked = {}, avail = {}, limits = {}, rules = [], bad = {}, wants = {},
   { order = PRIORITY_ORDER, tries = 200, keep = 3, rand = Math.random } = {}) {
   const args = [y, m, shifts, people, locked, avail, limits, rules, bad, wants];
-  const key = (sc) => [sc.unfilled, ...order.map((k) => sc[k])];
+  const key = (sc) => [sc.unfilled, sc.min, ...order.map((k) => sc[k])];
   const seen = new Map();
   for (let i = 0; i <= tries; i++) {
     const schedule = generateMonth(...args, { order, rand: i ? rand : undefined });

@@ -66,6 +66,14 @@ test('limit łączny: nikt ponad swój limit wszystkich dyżurów w miesiącu, n
   assert.equal(Object.values(out).flatMap(Object.values).filter((pid) => pid === 'a').length, 3);
 });
 
+test('limit dolny: osoba poniżej minimum dostaje dyżury przed innymi; brak do minimum liczy się w ocenie', () => {
+  const n = (out, pid) => Object.values(out).flatMap(Object.values).filter((x) => x === pid).length;
+  const out = generateMonth(2026, 9, shifts, people, {}, {}, { d: { min: 16 } }); // bez minimum d ma 15; 16 = co drugi dzień, więcej się nie da
+  assert.equal(n(out, 'd'), 16);
+  assert.equal(scoreMonth(2026, 9, out, shifts, people, {}, {}, {}, { d: { min: 16 } }).min, 0);
+  assert.equal(scoreMonth(2026, 9, out, shifts, people, {}, {}, {}, { b: { min: 20 } }).min, 20 - n(out, 'b'));
+});
+
 test('gównianość: w gówniany dzień wygrywa osoba z mniejszym obciążeniem (ostatnio + ten miesiąc)', () => {
   const one = [{ id: 's', name: 'S', days: all }];
   const k = dateKey(2026, 9, 1); // czwartek, domyślnie 0

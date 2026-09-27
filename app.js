@@ -18,7 +18,7 @@ let state = cloud?.data ?? load() ?? {
   manual: {},   // ręczne przypisania — zachowane przy ponownym układaniu
 };
 state.avail ??= {}; // { personId: { 'YYYY-MM-DD': poziom 0-3 } } — patrz LEVELS
-state.limits ??= {}; // { personId: { shiftId: maks. dyżurów w miesiącu, '*': maks. łącznie, we: maks. Pt/So/Nd } } — brak = bez limitu (we: WEEKEND_LIMIT)
+state.limits ??= {}; // { personId: { shiftId: maks. dyżurów w miesiącu, '*': maks. łącznie, we: maks. Pt/So/Nd, min: minimum łącznie } } — brak = bez limitu (we: WEEKEND_LIMIT)
 state.wants ??= {}; // { personId: { shiftId / d4-d6 / we / '*': ile dyżurów chce w miesiącu } } — prośby, miękkie (patrz generateMonth)
 state.bad ??= {}; // { 'YYYY-MM-DD': gównianość 0-3 } — patrz BAD/badOf; osoba: person.past 0-3
 state.rules ??= []; // [{ id, who, with, places: [shiftId] }] — patrz breaksRule
@@ -118,7 +118,7 @@ function render() {
   const max = Math.max(1, ...Object.values(count));
   $('#summary-list').innerHTML = team().map((p) => `<li>
       <button class="who ${p.id === view.who ? 'on' : ''}" data-who="${p.id}" aria-pressed="${p.id === view.who}" title="Dostępność w grafiku">${esc(p.name)}</button>
-      <span class="meter" aria-hidden="true"><i style="width:${count[p.id] / max * 100}%"></i></span><span class="badge">${count[p.id]}</span></li>`).join('');
+      <span class="meter" aria-hidden="true"><i style="width:${count[p.id] / max * 100}%"></i></span>${count[p.id] < (state.limits[p.id]?.min ?? 0) ? `<span class="badge under" title="Poniżej minimum ${state.limits[p.id].min}">${count[p.id]}/${state.limits[p.id].min}</span>` : `<span class="badge">${count[p.id]}</span>`}</li>`).join('');
   // Okno osoby: ustawienia (limity i prośby obowiązują w każdym miesiącu) + historia dyżurów
   const who = state.people.find((p) => p.id === view.who);
   // Treść budujemy tylko przy otwarciu / zmianie karty: przebudowa przy każdej zmianie pola zabiera fokus,
@@ -138,11 +138,12 @@ function render() {
       field('Kanapka PN1 So + Pn', 'zaznaczone = woli ten układ', `<input type="checkbox" role="switch" data-pn1sandwich ${who.pn1Sandwich === false ? '' : 'checked'}>`) +
       `</section><section><h4>Limity i prośby</h4><table class="counts"><thead><tr><td></td><th scope="col">Limit</th><th scope="col">Prośba</th></tr></thead><tbody>` +
       row('Łącznie', num('limit', '*', '∞', 'Limit łącznie'), num('want', '*', '—', 'Prośba łącznie')) +
+      row('Minimum łącznie', num('limit', 'min', '—', 'Minimum dyżurów łącznie'), '') +
       row('Pt/So/Nd', num('limit', 'we', WEEKEND_LIMIT, 'Limit Pt/So/Nd'), num('want', 'we', '—', 'Prośba Pt/So/Nd')) +
       state.shifts.map((s) => row(esc(s.name), num('limit', s.id, '∞', `Limit: ${esc(s.name)}`), num('want', s.id, '—', `Prośba: ${esc(s.name)}`))).join('') +
       `<tr class="sub"><th colspan="3" scope="rowgroup">Ten sam dzień weekendu</th></tr>` +
       ['Pt', 'So', 'Nd'].map((n, i) => row(n, num('limit', `d${i + 4}`, 1, `Ile razy ten sam dzień: ${n}`), num('want', `d${i + 4}`, '—', `Prośba: ${n}`))).join('') +
-      `</tbody></table><p class="hint">Puste pole = wartość domyślna (szara, ∞ = bez limitu). Limit 0 na miejscu = nie dyżuruje tam. Limity łącznie, Pt/So/Nd i na miejscu są twarde; ten sam dzień weekendu i prośby — miękkie.</p></section></div>`;
+      `</tbody></table><p class="hint">Puste pole = wartość domyślna (szara, ∞ = bez limitu). Limit 0 na miejscu = nie dyżuruje tam. Limity łącznie, Pt/So/Nd i na miejscu są twarde; minimum ma pierwszeństwo przed prośbami, ale nie łamie twardych zasad; ten sam dzień weekendu i prośby — miękkie.</p></section></div>`;
   }
   const shiftName = Object.fromEntries(state.shifts.map((s) => [s.id, s.name]));
   $('#rules').innerHTML = state.rules.map((r) => `<li>
@@ -198,7 +199,7 @@ $('#generate').onclick = () => update(() => {
   if (variants.length < 2) return;
   // Kilka dobrych grafików → panel wyboru nad kalendarzem; zaznaczenie od razu pokazuje wariant
   $('#variants-list').innerHTML = variants.map(({ score: s }, i) => `<label class="variant"><input type="radio" name="variant" value="${i}" ${i ? '' : 'checked'}>
-    <b>Wariant ${i + 1}</b><span class="hint">nieobsadzone ${s.unfilled} · „W ostateczności” ${s.lastResort} · kanapki ${s.sandwich} ·
+    <b>Wariant ${i + 1}</b><span class="hint">nieobsadzone ${s.unfilled} · ${s.min ? `brak do minimum ${s.min} · ` : ''}„W ostateczności” ${s.lastResort} · kanapki ${s.sandwich} ·
     niespełnione prośby ${s.wants} · różnica liczby dyżurów ${s.spread}</span></label>`).join('');
   $('#variants-list').onchange = (e) => apply(+e.target.value);
   $('#variants-undo').onclick = () => update(() => {
