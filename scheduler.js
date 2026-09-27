@@ -106,7 +106,9 @@ export function generateMonth(y, m, shifts, people, locked = {}, avail = {}, lim
   // ponytail: minimum miękkie (zachłannie + kara w scoreMonth), bez gwarancji; twarde → solver
   const under = (pid, k) => (perShift[`${pid}:${k}`] || 0) < (limits[pid]?.min?.[k] ?? 0);
   const belowMin = (pid, sid, d, key) => +(availOf(avail, pid, key) >= 2 &&
-    (under(pid, sid) || under(pid, '*') || (isWe(d) && (under(pid, 'we') || under(pid, `d${weekday(y, m, d)}`)))));
+    (under(pid, sid) || under(pid, '*') || (isWe(d) && (under(pid, 'we') || under(pid, `d${weekday(y, m, d)}`))))) -
+    // −1 = zostaw na jutro: jutro Pt/So/Nd, którego osoba ma za mało (dyżur dziś zablokowałby jutro)
+    +(d < daysInMonth(y, m) && isWe(d + 1) && under(pid, `d${weekday(y, m, d + 1)}`) && availOf(avail, pid, dateKey(y, m, d + 1)) >= 2);
   const short = (pid, sid) => +((perShift[`${pid}:${sid}`] || 0) < (wants[pid]?.[sid] ?? 0)); // 1 = jeszcze poniżej prośby
   const lastDay = {};
   const resident = new Set(people.filter(isResident).map((p) => p.id));

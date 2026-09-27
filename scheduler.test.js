@@ -76,6 +76,28 @@ test('limit dolny: osoba poniżej minimum (łącznie / na miejscu) dostaje dyżu
   assert.equal(score({ b: { min: { '*': 20, s1: 31 } } }), 20 - n(out, 'b') + 31 - n(out, 'b', 's1'));
 });
 
+// Min., Limit i Prośba dla każdego wiersza okna osoby. 6 osób, żeby grafik nie był wymuszony;
+// bez ustawień c ma: 10 łącznie, 4 w Pt/So/Nd, 10 na S1, 0 na S2, Pt 2, So 1, Nd 1.
+test('min / limit / prośba działają w każdym wierszu: łącznie, Pt/So/Nd, miejsce, ten sam dzień weekendu', () => {
+  const six = ['a', 'b', 'c', 'd', 'e', 'f'].map((id) => ({ id, name: id }));
+  const of = (out) => {
+    const c = { '*': 0, we: 0, s1: 0, s2: 0, d4: 0, d5: 0, d6: 0 };
+    for (const [k, day] of Object.entries(out)) for (const [sid, p] of Object.entries(day)) if (p === 'c') {
+      const wd = (new Date(k).getDay() + 6) % 7;
+      c['*']++; c[sid]++; if (wd >= 4) { c.we++; c[`d${wd}`]++; }
+    }
+    return c;
+  };
+  const run = (limits, wants = {}, order) => of(generateMonth(2026, 9, shifts, six, {}, {}, limits, [], {}, wants, order && { order }));
+  for (const [k, n] of Object.entries({ '*': 13, we: 7, s2: 9, d4: 4, d5: 4, d6: 3 }))
+    assert.ok(run({ c: { min: { [k]: n } } })[k] >= n, `min ${k} ${n}`);
+  for (const [k, n] of Object.entries({ '*': 6, we: 1, s1: 0 }))
+    assert.ok(run({ c: { [k]: n } })[k] <= n, `limit ${k} ${n}`);
+  const wantsFirst = ['wants', 'avail', 'sandwich', 'weDow', 'bad', 'even']; // prośby są miękkie: domyślnie przegrywają z „bez kanapek”
+  for (const [k, n] of Object.entries({ '*': 13, we: 7, s2: 9 }))
+    assert.ok(run({}, { c: { [k]: n } }, wantsFirst)[k] >= n, `prośba ${k} ${n}`);
+});
+
 test('gównianość: w gówniany dzień wygrywa osoba z mniejszym obciążeniem (ostatnio + ten miesiąc)', () => {
   const one = [{ id: 's', name: 'S', days: all }];
   const k = dateKey(2026, 9, 1); // czwartek, domyślnie 0

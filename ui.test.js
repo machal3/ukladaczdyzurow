@@ -139,3 +139,37 @@ test('dekoracje odtwarzają się po wymianie DOM podczas logowania', async (t) =
   assert.equal(w.document.documentElement.dataset.theme, 'dark');
   assert.equal($('input[name=places]').getAttribute('role'), null);
 });
+
+test('okno osoby: Min., Limit i Prośba zapisują się w każdym wierszu i działają przy układaniu', async (t) => {
+  const { w, $, state } = await setup(t);
+  const anna = state().people.find((p) => p.name === 'Anna Kowalska'), oitn = state().shifts.find((s) => s.name === 'OITN').id;
+  $(`[data-edit="${anna.id}"]`).click();
+  const set = (kind, key, value) => {
+    const input = $(`[data-${kind}="${key}"]`);
+    input.value = value;
+    input.dispatchEvent(new w.Event('change', { bubbles: true }));
+  };
+  for (const key of ['*', 'we', oitn, 'd4', 'd5', 'd6']) for (const kind of ['min', 'limit', 'want']) set(kind, key, '3');
+  const saved = { mins: {}, limits: {}, wants: {} };
+  for (const key of ['*', 'we', oitn, 'd4', 'd5', 'd6']) for (const k in saved) saved[k][key] = 3;
+  assert.deepEqual(state().mins[anna.id], saved.mins);
+  assert.deepEqual(state().limits[anna.id], saved.limits);
+  assert.deepEqual(state().wants[anna.id], saved.wants);
+  for (const key of ['*', 'we', oitn, 'd4', 'd5', 'd6']) for (const kind of ['min', 'limit', 'want']) set(kind, key, ''); // puste = usunięte
+  assert.deepEqual([state().mins[anna.id], state().limits[anna.id], state().wants[anna.id]], [{}, {}, {}]);
+
+  set('min', oitn, '6'); // bez minimum Anna ma 1 OITN w miesiącu
+  set('limit', '*', '9'); // bez limitu 11 dyżurów
+  $('#person').close();
+  $('#generate').click();
+  const mine = Object.values(state().schedule).filter((day) => Object.values(day).includes(anna.id));
+  assert.ok(mine.filter((day) => day[oitn] === anna.id).length >= 6);
+  assert.ok(mine.length <= 9);
+  assert.equal($('#summary-list .badge.under'), null); // minimum spełnione → bez ostrzeżenia
+
+  $(`[data-edit="${anna.id}"]`).click();
+  set('min', oitn, '10'); // przy limicie 9 niewykonalne → ostrzeżenie w podsumowaniu
+  $('#person').close();
+  $('#generate').click();
+  assert.match($('#summary-list .badge.under').title, /Do minimum brakuje: \d/);
+});
