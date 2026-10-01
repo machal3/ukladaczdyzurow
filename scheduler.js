@@ -72,14 +72,14 @@ export const shiftsForDay = (shifts, y, m, d) => shifts.filter((s) => s.days.inc
 // Zwraca { 'YYYY-MM-DD': { shiftId: personId } }.
 // Twarde zasady: nikt dwa razy tego samego dnia, nikt dzień po dniu, nikt w dzień „Nie mogę”,
 // nikt ponad swój miesięczny limit na danym dyżurze: limits = { personId: { shiftId: n, '*': n łącznie, we: n w Pt/So/Nd } } (brak = bez limitu;
-// d4/d5/d6 = ile razy ten sam Pt/So/Nd, to nie twardy limit, tylko priorytet weDow; min = { shiftId / '*' / we / d4-d6: n } minimum dyżurów — patrz niżej),
+// d4/d5/d6 = ile razy ten sam Pt/So/Nd: wpisany — twardy; bez wpisu domyślnie 1 albo wg próśb (sameDow) — tylko priorytet weDow; min = { shiftId / '*' / we / d4-d6: n } minimum dyżurów — patrz niżej),
 // maks. jeden rezydent dziennie (licząc ręczne wpisy), suma punktów prestiżu dnia ≥ MIN_PRESTIGE (licząc ręczne wpisy), warunki z `rules` (patrz breaksRule),
 // po OITN w sobotę wolny poniedziałek, po OITN w niedzielę wolny wtorek (czyli 2 dni po weekendowym OITN).
 // Najpierw (przed `order`) ci poniżej któregoś swojego minimum z limits[pid].min (łącznie, na tym miejscu, w Pt/So/Nd, w ten dzień weekendu)
 // — ale tylko w dni Chcę/Mogę, nie „W ostateczności”.
 // Kolejność wyboru (domyślna, `order` = klucze PRIORITIES w innej kolejności ją zmienia): najpierw dostępność (Chcę > Mogę > W ostateczności), potem unikanie „kanapek” (dyżur z jednym dniem
 // przerwy, np. pn i śr — chyba że osoba chce ten dzień; wyjątek: PN1 w sobotę + dowolny dyżur w poniedziałek to kanapka preferowana,
-// chyba że osoba ma person.pn1Sandwich === false), potem różne dni weekendu (w ten sam Pt/So/Nd maks. limits[pid].d4/d5/d6 dyżurów, domyślnie 1 — miękko), potem prośby: kto ma mniej dyżurów na tym miejscu, niż prosił
+// chyba że osoba ma person.pn1Sandwich === false), potem różne dni weekendu (w ten sam Pt/So/Nd domyślnie maks. 1 dyżur — miękko), potem prośby: kto ma mniej dyżurów na tym miejscu, niż prosił
 // (wants = { personId: { shiftId: n, d4/d5/d6: n w ten dzień weekendu, we: n w Pt/So/Nd, '*': n łącznie } }, miękkie — nie łamie limitów ani zakazów), potem w gówniany dzień najmniejsze
 // obciążenie gównianością (person.past + person.hist z poprzednich miesięcy + ten miesiąc), potem równy podział liczby dyżurów.
 // W dzień Tragiczny najpierw ci, którzy mieli ostatni Tragiczny najdawniej albo wcale (person.tragic = data, liczy się też ten miesiąc).
@@ -101,7 +101,8 @@ export function generateMonth(y, m, shifts, people, locked = {}, avail = {}, lim
     if (badOf(bad, y, m, d) === 3) tragic[pid] = dateKey(y, m, d);
   };
   const underLimit = (pid, sid, d) => (perShift[`${pid}:${sid}`] || 0) < (limits[pid]?.[sid] ?? Infinity) &&
-    count[pid] < (limits[pid]?.['*'] ?? Infinity) && (!isWe(d) || (we[pid] || 0) < (limits[pid]?.we ?? Infinity));
+    count[pid] < (limits[pid]?.['*'] ?? Infinity) && (!isWe(d) || ((we[pid] || 0) < (limits[pid]?.we ?? Infinity) &&
+      (perShift[`${pid}:d${weekday(y, m, d)}`] || 0) < (limits[pid]?.[`d${weekday(y, m, d)}`] ?? Infinity))); // wpisany limit Pt/So/Nd — twardy
   const dowFull = (pid, d) => +(isWe(d) && (perShift[`${pid}:d${weekday(y, m, d)}`] || 0) >= sameDow(limits, pid, weekday(y, m, d), wants)); // 1 = ma już dość tego dnia
   // ponytail: minimum miękkie (zachłannie + kara w scoreMonth), bez gwarancji; twarde → solver
   const under = (pid, k) => (perShift[`${pid}:${k}`] || 0) < (limits[pid]?.min?.[k] ?? 0);

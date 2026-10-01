@@ -91,9 +91,11 @@ test('min / limit / prośba działają w każdym wierszu: łącznie, Pt/So/Nd, m
   const run = (limits, wants = {}, order) => of(generateMonth(2026, 9, shifts, six, {}, {}, limits, [], {}, wants, order && { order }));
   for (const [k, n] of Object.entries({ '*': 13, we: 7, s2: 9, d4: 4, d5: 4, d6: 3 }))
     assert.ok(run({ c: { min: { [k]: n } } })[k] >= n, `min ${k} ${n}`);
-  for (const [k, n] of Object.entries({ '*': 6, we: 1, s1: 0 }))
+  for (const [k, n] of Object.entries({ '*': 6, we: 1, s1: 0, d4: 0, d5: 0, d6: 0 }))
     assert.ok(run({ c: { [k]: n } })[k] <= n, `limit ${k} ${n}`);
   const wantsFirst = ['wants', 'avail', 'sandwich', 'weDow', 'bad', 'even']; // prośby są miękkie: domyślnie przegrywają z „bez kanapek”
+  const many = run({ c: { we: 9, d4: 1, d6: 2 } }, { c: { we: 9 } }, wantsFirst); // prośba o dużo weekendów nie przebija wpisanego limitu
+  assert.ok(many.d4 <= 1 && many.d6 <= 2, JSON.stringify(many));
   for (const [k, n] of Object.entries({ '*': 13, we: 7, s2: 9 }))
     assert.ok(run({}, { c: { [k]: n } }, wantsFirst)[k] >= n, `prośba ${k} ${n}`);
 });

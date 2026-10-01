@@ -95,11 +95,11 @@ Liczone w obrębie jednego miesiąca, puste pole = bez limitu:
 - **Pt/So/Nd** — maks. liczba dyżurów w piątki, soboty i niedziele; **domyślnie 2**, jeśli nic nie wpisano,
 - **na każdym miejscu** (np. OITN) — maks. liczba dyżurów na tym miejscu.
 
-### Ten sam dzień weekendu (miękko)
+### Ten sam dzień weekendu
 
-Ile razy w miesiącu osoba może trafić na **ten sam** dzień weekendu (np. dwa piątki) bez „kary”. Domyślnie 1
-(albo tyle, o ile osoba prosi). To nie jest zakaz — algorytm tylko tego unika, zgodnie z priorytetem
-„Dyżury weekendowe w różne dni”.
+Ile razy w miesiącu osoba może trafić na **ten sam** dzień weekendu (np. dwa piątki). Wpisany limit jest
+twardy (0 = nie dyżuruje w ten dzień). Bez wpisu domyślnie 1 (albo tyle, o ile osoba prosi) — to nie jest zakaz,
+algorytm tylko tego unika, zgodnie z priorytetem „Dyżury weekendowe w różne dni”.
 
 ### Prośby (miękko)
 
