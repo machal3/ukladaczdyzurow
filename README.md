@@ -89,7 +89,9 @@ Okno osoby (⚙) pokazuje, ile punktów z przeszłości liczy się przy układan
 
 ### Limity (ustawienia osoby, twarde)
 
-Liczone w obrębie jednego miesiąca, puste pole = bez limitu:
+Min. i Limit są twardymi granicami w każdym wierszu tabeli osoby, także dla ręcznych wpisów.
+Puste minimum = 0; puste maksimum = bez limitu poza domyślnym limitem Pt/So/Nd.
+Jeśli nie znaleziono zgodnego grafiku, aplikacja pokazuje komunikat i zachowuje poprzedni.
 
 - **Łącznie** — maks. liczba wszystkich dyżurów,
 - **Pt/So/Nd** — maks. liczba dyżurów w piątki, soboty i niedziele; **domyślnie 2**, jeśli nic nie wpisano,
@@ -104,8 +106,8 @@ algorytm tylko tego unika, zgodnie z priorytetem „Dyżury weekendowe w różne
 ### Prośby (miękko)
 
 Ile dyżurów osoba **chce** w miesiącu na danym miejscu (np. 3 × OITN) albo w dany dzień weekendu (np. 2 soboty).
-Dopóki osoba ma mniej, niż prosiła, ma pierwszeństwo na tym miejscu / w ten dzień. Prośby nigdy nie łamią limitów
-ani twardych zasad.
+Algorytm ogranicza zarówno niedobór, jak i nadmiar względem prośby, również jawnej prośby o zero.
+Prośby obejmują też łączną liczbę dyżurów i Pt/So/Nd. Nigdy nie łamią limitów ani twardych zasad.
 
 ### Warunki
 
@@ -128,16 +130,16 @@ Tych zasad algorytm **nigdy** nie łamie. Jeśli żadna osoba ich nie spełnia, 
 5. **Najwyżej jeden rezydent dziennie** (licząc wpisy ręczne).
 6. **Warunki** z zakładki Ustawienia.
 7. **Wolne po weekendowym OITN** — po OITN w **sobotę** wolny **poniedziałek**, po OITN w **niedzielę**
-   wolny **wtorek**. Tylko w tę stronę: ręczny dyżur w poniedziałek/wtorek nie blokuje OITN w weekend
-   przed nim. (OITN jest rozpoznawany po nazwie miejsca.)
+   wolny **wtorek**. Ręczny dyżur w poniedziałek/wtorek blokuje też wcześniejszy OITN w weekend.
+   (OITN jest rozpoznawany po nazwie miejsca.)
 
 ---
 
 ## 4. Priorytety — co liczy się przy wyborze osoby
 
-Gdy kilka osób spełnia twarde zasady, algorytm porównuje je według priorytetów — **w kolejności ustawionej w
-zakładce Ustawienia** (strzałki ↑↓). Wyższy priorytet zawsze wygrywa; niższy rozstrzyga dopiero remis na
-wszystkich wyższych. Domyślna kolejność:
+Kolejność w zakładce Układanie (strzałki ↑↓) ustala wagi preferencji w ocenie całego miesiąca.
+Niższe preferencje też wpływają na wynik. Twarde limity, obsada i dokładność próśb mają pierwszeństwo.
+Preferencje używane przy tworzeniu początkowych propozycji:
 
 | # | Priorytet | Kogo wybiera najpierw |
 |---|---|---|
@@ -151,15 +153,22 @@ wszystkich wyższych. Domyślna kolejność:
 Jeśli po wszystkich priorytetach wciąż jest remis: w pierwszym przebiegu wygrywa osoba, która **najdłużej nie
 dyżurowała** (w tym miesiącu); w kolejnych przebiegach remis rozstrzyga losowanie (patrz punkt 6).
 
-Przykład: przy domyślnej kolejności osoba „Chcę” z 6 dyżurami wygrywa z osobą „Mogę” z 2 dyżurami, bo dostępność
-jest ważniejsza niż równa liczba dyżurów. Przesuń „Równa liczba dyżurów” na górę, a będzie odwrotnie.
+Przesunięcie „Równej liczby dyżurów” na górę zwiększa jej wpływ, ale pozostałe preferencje nadal się liczą.
 
 ---
 
 ## 5. Jak działa algorytm krok po kroku
 
-Algorytm jest **zachłanny**: idzie po kolei przez dni miesiąca i każde miejsce obsadza najlepszą w tej chwili
-osobą. Nie cofa wcześniejszych decyzji.
+Algorytm tworzy wiele propozycji, a następnie poprawia cały miesiąc przez zmiany osób i zamiany przydziałów.
+Potrafi również ponownie ułożyć grupę dni, co pozwala naprawić kilka zależnych przydziałów naraz.
+Obliczenia działają w osobnym wątku (Web Worker), więc kalendarz i przyciski pozostają dostępne.
+Przycisk **Anuluj układanie** natychmiast kończy próbę. Zmiana danych lub miesiąca również ją anuluje,
+żeby starszy wynik nie nadpisał nowych ustawień. Komunikat pokazuje aktualny etap pracy.
+Wyszukiwanie ma wspólny budżet 7 sekund; dodatkowe zabezpieczenie kończy worker po 12 sekundach.
+Po wykorzystaniu budżetu algorytm zwraca najlepszy znaleziony zgodny wynik, jeśli taki znalazł.
+Przy braku zgodnego rozwiązania cofa decyzje, zaczyna od miejsc z najmniejszą liczbą kandydatów i sprawdza,
+czy pozostało dość dostępnych terminów na minima. Przyjęty wynik musi spełniać wszystkie limity.
+Poniżej opis początkowego przebiegu zachłannego, stanowiącego punkt startowy do dalszego wyszukiwania.
 
 **Przygotowanie**
 
@@ -190,7 +199,7 @@ osobą. Nie cofa wcześniejszych decyzji.
 
 ## 6. Warianty grafiku i ich ocena
 
-Zachłanny algorytm zależy od tego, jak rozstrzygnie remisy. Dlatego **Ułóż miesiąc** uruchamia go **201 razy**:
+Zachłanny algorytm zależy od tego, jak rozstrzygnie remisy. Dlatego **Ułóż miesiąc** uruchamia go **do 201 razy**, w ramach wspólnego limitu czasu:
 raz zwyczajnie i 200 razy z losowym rozstrzyganiem remisów oraz losową kolejnością miejsc w obrębie dnia. Każdy
 gotowy grafik dostaje ocenę (mniej = lepiej):
 
@@ -200,14 +209,14 @@ gotowy grafik dostaje ocenę (mniej = lepiej):
 | **Dostępność** | za każdy dyżur: „W ostateczności” = 10 pkt, „Mogę” = 1 pkt, „Chcę” = 0 |
 | **Kanapki** | liczba dyżurów co drugi dzień (bez dni „Chcę”) |
 | **Ten sam dzień weekendu** | liczba dyżurów ponad dozwoloną liczbę tego samego Pt/So/Nd |
-| **Prośby** | suma brakujących dyżurów względem próśb |
+| **Prośby** | suma niedoborów i nadmiarów względem próśb |
 | **Gówniane dni** | suma kwadratów obciążenia osób (kwadrat mocno karze nierówny podział) |
 | **Równa liczba** | suma kwadratów liczby dyżurów osób |
 
-Grafiki są porównywane **leksykograficznie**: najpierw liczba nieobsadzonych, potem kryteria w Twojej kolejności
-priorytetów — kolejne kryterium liczy się tylko przy remisie na poprzednich. Zwycięzca trafia do kalendarza. Jeśli
-inne grafiki mają **dokładnie taką samą ocenę** we wszystkich kryteriach, pojawia się panel **Warianty grafiku**
-(maks. 3), z podsumowaniem: nieobsadzone, „W ostateczności”, kanapki, niespełnione prośby i różnica liczby dyżurów
+Grafiki spełniające twarde warunki są porównywane: najpierw liczba nieobsadzonych, potem odchylenia od próśb,
+następnie ważona, przeskalowana suma pozostałych preferencji. Zwycięzca trafia do kalendarza. Jeśli
+inne grafiki mają taką samą ocenę końcową, pojawia się panel **Warianty grafiku**
+(maks. 3), z podsumowaniem: nieobsadzone, „W ostateczności”, kanapki, odchylenia od próśb i różnica liczby dyżurów
 (najwięcej − najmniej). Wybór między nimi jest już kwestią gustu.
 
 ---
@@ -239,9 +248,9 @@ inne grafiki mają **dokładnie taką samą ocenę** we wszystkich kryteriach, p
 
 ## 9. Znane ograniczenia
 
-- Algorytm jest **zachłanny** (dzień po dniu, bez cofania). 201 prób z losowymi remisami zwykle wystarcza, ale nie
-  gwarantuje najlepszego możliwego grafiku. Jeśli zostają puste miejsca, poluzuj limity/warunki albo wpisz
-  trudne dni ręcznie i ułóż ponownie.
+- Wyszukiwanie i poprawianie grafiku mają ograniczony budżet czasu i nie gwarantują globalnego optimum.
+  Brak wyniku nie jest dowodem niewykonalności. Można sprawdzić ustawienia lub ponowić próbę;
+  algorytm nigdy automatycznie nie rozluźnia limitów.
 - Zasady „nie dzień po dniu”, „bez kanapek” i „wolne po weekendowym OITN” **nie patrzą przez przełom miesięcy** —
   dyżur 31. dnia nie blokuje 1. dnia następnego miesiąca. Sprawdź początek miesiąca ręcznie.
 - Zasada wolnego po OITN działa tylko dla miejsca o nazwie dokładnie **OITN**.

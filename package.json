@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "test": "node --test scheduler.test.js theme.test.js",
+    "test": "node --test scheduler.test.js scheduler-worker.test.js theme.test.js",
     "test:ui": "node --experimental-vm-modules --test ui.test.js",
     "theme": "node scripts/theme.mjs",
     "lint": "eslint .",

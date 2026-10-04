@@ -6,6 +6,83 @@ const people = ['a', 'b', 'c', 'd'].map((id) => ({ id, name: id }));
 const all = [0, 1, 2, 3, 4, 5, 6];
 const shifts = [{ id: 's1', name: 'S1', days: all }, { id: 's2', name: 'S2', days: all }];
 
+test('naprawa grupowa rozwiązuje cykl trzech osób, gdy żadna pojedyncza zamiana nie jest legalna', () => {
+  const sh = ['s1', 's2', 's3'].map((id) => ({ id, days: [3] }));
+  const ppl = ['a', 'b', 'c', 'd', 'e', 'f'].map((id) => ({ id, name: id }));
+  const locked = Object.fromEntries([8, 15, 22, 29].map((d) => [dateKey(2026, 9, d), { s1: 'd', s2: 'e', s3: 'f' }]));
+  const avail = { a: { '2026-10-01': 3 }, ...Object.fromEntries(['d', 'e', 'f'].map((p) => [p, { '2026-10-01': 0 }])) };
+  const limits = { a: { '*': 1, s3: 0, min: { '*': 1 } }, b: { '*': 1, s1: 0, min: { '*': 1 } }, c: { '*': 1, s2: 0, min: { '*': 1 } } };
+  const wants = { a: { s2: 1 }, b: { s3: 1 }, c: { s1: 1 } };
+  const [best] = generateVariants(2026, 9, sh, ppl, locked, avail, limits, [], {}, wants, { tries: 0, order: ['avail'], rand: () => 0 });
+  assert.equal(best.score.wants, 0);
+  assert.equal(best.score.min, 0);
+  assert.deepEqual(best.schedule['2026-10-01'], { s1: 'c', s2: 'a', s3: 'b' });
+  for (const [key, day] of Object.entries(locked)) assert.deepEqual(best.schedule[key], day);
+});
+
+test('wspólny budżet kończy próby i oddaje najlepszy znaleziony zgodny grafik', () => {
+  let clock = 0;
+  const [best] = generateVariants(2026, 9, shifts, people, {}, {}, {}, [], {}, {}, {
+    tries: 100000, timeBudgetMs: 20, now: () => clock += 20,
+  });
+  assert.equal(best.score.unfilled, 0);
+  assert.equal(best.score.min, 0);
+  assert.ok(clock < 200, 'kolejne fazy nie powinny uruchamiać własnego pełnego budżetu');
+});
+
+test('twarde minima: cofa wybór, zostawia jedyny termin osobie z ograniczoną dostępnością, niezależnie od kolejności', () => {
+  const sh = [{ id: 's', days: all }];
+  const avail = Object.fromEntries(['a', 'b'].map((pid) => [pid, Object.fromEntries(Array.from({ length: 31 }, (_, i) =>
+    [dateKey(2026, 9, i + 1), (pid === 'a' ? [1, 3] : [1]).includes(i + 1) ? 2 : 0]))]));
+  const limits = { a: { '*': 1, min: { '*': 1 } }, b: { '*': 1, min: { '*': 1 } } };
+  for (const ppl of [people.slice(0, 2), people.slice(0, 2).reverse()]) {
+    const out = generateMonth(2026, 9, sh, ppl, {}, avail, limits);
+    assert.equal(out['2026-10-01'].s, 'b');
+    assert.equal(out['2026-10-03'].s, 'a');
+    const [best] = generateVariants(2026, 9, sh, ppl, {}, avail, limits, [], {}, {}, { tries: 0 });
+    assert.equal(best.score.min, 0);
+  }
+});
+
+test('sprzeczne i niewykonalne minima oraz ręczne przekroczenia limitu są odrzucane', () => {
+  const sh = [{ id: 's', days: all }];
+  for (const generate of [generateMonth, generateVariants]) {
+    assert.throws(() => generate(2026, 9, sh, people, {}, {}, { a: { '*': 2, min: { s: 3 } } }), /minimum.*limit górny/);
+    assert.throws(() => generate(2026, 9, sh, people, {}, {}, { a: { min: { '*': 17 } } }), /Nie znaleziono/);
+    assert.throws(() => generate(2026, 9, sh, people, { '2026-10-01': { s: 'a' } }, {}, { a: { '*': 0 } }), /Ręczne wpisy/);
+    assert.throws(() => generate(2026, 9, sh, people, {}, {}, { a: { '*': 1.5 } }), /całkowitą/);
+  }
+});
+
+test('minimum obejmuje także dostępność „W ostateczności”', () => {
+  const avail = { a: Object.fromEntries(Array.from({ length: 31 }, (_, i) => [dateKey(2026, 9, i + 1), 1])) };
+  const [best] = generateVariants(2026, 9, [{ id: 's', days: all }], people, {}, avail, { a: { '*': 2, min: { '*': 2 } } }, [], {}, {}, { tries: 0 });
+  assert.equal(best.score.min, 0);
+  assert.equal(Object.values(best.schedule).filter((d) => d.s === 'a').length, 2);
+});
+
+test('prośby liczą nadmiar i niedobór, również jawną prośbę o zero', () => {
+  const sh = [{ id: 's', days: all }];
+  const out = { '2026-10-01': { s: 'a' }, '2026-10-03': { s: 'a' } };
+  assert.equal(scoreMonth(2026, 9, out, sh, people, {}, {}, { a: { '*': 1 } }).wants, 1);
+  assert.equal(scoreMonth(2026, 9, out, sh, people, {}, {}, { a: { '*': 0 } }).wants, 2);
+  const avail = { a: Object.fromEntries(Array.from({ length: 31 }, (_, i) => [dateKey(2026, 9, i + 1), 3])) };
+  const [best] = generateVariants(2026, 9, sh, people, {}, avail, {}, [], {}, { a: { '*': 0 } }, { tries: 0 });
+  assert.equal(best.score.unfilled, 0);
+  assert.equal(best.score.wants, 0); // prośba nie ginie pod wcześniejszą dostępnością
+});
+
+test('naprawa zamienia osoby między miejscami, zachowując dokładne limity i wpisy ręczne', () => {
+  const locked = { '2026-10-01': { s1: 'a' } };
+  const limits = Object.fromEntries(people.map((p, i) => [p.id, { '*': i % 2 ? 15 : 16, min: { '*': i % 2 ? 15 : 16 } }]));
+  const wants = { a: { s1: 8, s2: 8 }, c: { s1: 8, s2: 8 } };
+  const [best] = generateVariants(2026, 9, shifts, people, locked, {}, limits, [], {}, wants, { tries: 0 });
+  assert.equal(best.score.min, 0);
+  assert.equal(best.score.wants, 0);
+  assert.equal(best.schedule['2026-10-01'].s1, 'a');
+  for (const p of people) assert.equal(Object.values(best.schedule).flatMap(Object.values).filter((id) => id === p.id).length, limits[p.id]['*']);
+});
+
 test('obsadza wszystko, bez dubli w dniu i bez dyżurów dzień po dniu, równo', () => {
   const out = generateMonth(2026, 9, shifts, people); // październik, 31 dni
   const days = Object.values(out);
@@ -302,9 +379,9 @@ test('OITN w weekend: po sobocie wolny poniedziałek, po niedzieli wolny wtorek,
     const k = dateKey(2026, 9, d), w = (new Date(2026, 9, d).getDay() + 6) % 7, off = out[dateKey(2026, 9, d + 2)];
     if (w >= 5 && off) assert.ok(!Object.values(off).includes(out[k].o), `${k} OITN ${out[k].o}`);
   }
-  // tylko w tę stronę: ręczny poniedziałek nie blokuje OITN w sobotę przed nim
+  // Ręczny poniedziałek też blokuje wcześniejszy OITN w sobotę.
   const lock = generateMonth(2026, 9, sh, people, { '2026-10-12': { s1: 'c' } }, { c: { '2026-10-10': 3 } });
-  assert.equal(lock['2026-10-10'].o, 'c');
+  assert.notEqual(lock['2026-10-10'].o, 'c');
 });
 
 test('różne dni weekendu: drugi dyżur w Pt/So/Nd trafia w inny dzień tygodnia, jeśli się da', () => {

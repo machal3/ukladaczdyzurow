@@ -1,4 +1,5 @@
-import { dateKey, daysInMonth, weekday, shiftsForDay, generateVariants, scoreMonth, PRIORITIES, PRIORITY_ORDER, availOf, breaksRule, LEVELS, ROLES, badOf, BAD, history, parseTable, matchPerson, personLog, PAST_WEIGHT, listPeople } from './scheduler.js';
+import { dateKey, daysInMonth, weekday, shiftsForDay, scoreMonth, PRIORITIES, PRIORITY_ORDER, availOf, breaksRule, LEVELS, ROLES, badOf, BAD, history, parseTable, matchPerson, personLog, PAST_WEIGHT, listPeople } from './scheduler.js';
+import { runScheduler } from './scheduler-client.js';
 import { cloudLoad, cloudSave, cloudLogout } from './cloud.js';
 
 const DAYS = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So', 'Nd'];
@@ -40,6 +41,15 @@ const now = new Date();
 let view = { y: now.getFullYear(), m: now.getMonth(), who: null, bad: false, personTab: 'settings', q: '', role: null, none: false, sort: 'surname' }; // who: osoba, której dostępność edytujemy; bad: tryb oceny gównianości dni; personTab: karta okna osoby; q/role/none/sort: szukanie, filtry i sortowanie w zakładce Osoby (patrz listPeople)
 let prevWho = null; // tryb sprzed otwarcia okna osoby
 let back = 'settings'; // karta, na którą wraca „Gotowe” — ta, z której włączono tryb
+let generation = null;
+const stopGeneration = () => {
+  if (!generation) return;
+  generation.controller.abort();
+  generation = null;
+  $('#generate').disabled = false;
+  $('#cancel-generate').hidden = true;
+  $('#generation-status').textContent = 'Układanie anulowane. Grafik pozostaje bez zmian.';
+};
 
 function uid() { return Math.random().toString(36).slice(2, 10); }
 function person(name) { return { id: uid(), name, prestige: 1 }; }
@@ -55,6 +65,7 @@ const pick = (obj, keys) => Object.fromEntries(keys.filter((k) => obj[k]).map((k
 
 function render() {
   const { y, m } = view;
+  if (generation && (generation.y !== y || generation.m !== m)) stopGeneration();
   const monthName = new Date(y, m).toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' });
   $('#month-label').textContent = monthName;
   $('#today').classList.toggle('here', y === now.getFullYear() && m === now.getMonth());
@@ -144,8 +155,8 @@ function render() {
       row('Łącznie', '*', '∞', 'łącznie') + row('Pt/So/Nd', 'we', WEEKEND_LIMIT, 'Pt/So/Nd') +
       state.shifts.map((s) => row(esc(s.name), s.id, '∞', esc(s.name))).join('') +
       `<tr class="sub"><th colspan="4" scope="rowgroup">Ten sam dzień weekendu</th></tr>` +
-      ['Pt', 'So', 'Nd'].map((n, i) => row(n, `d${i + 4}`, 1, `ten sam dzień ${n}`)).join('') +
-      `</tbody></table><p class="hint">Puste pole = wartość domyślna (szara, ∞ = bez limitu). Limit 0 na miejscu lub w dzień weekendu = nie dyżuruje tam. Wpisane limity są twarde; domyślny 1 w ten sam dzień weekendu i prośby — miękkie; minimum ma pierwszeństwo przed wszystkim poza twardymi zasadami.</p></section></div>`;
+      ['Pt', 'So', 'Nd'].map((n, i) => row(n, `d${i + 4}`, '∞', `ten sam dzień ${n}`)).join('') +
+      `</tbody></table><p class="hint">Min. i Limit to twarde granice — także 0. Puste pole = wartość domyślna (szara, ∞ = bez limitu). Prośba to docelowa liczba: algorytm ogranicza zarówno niedobór, jak i nadmiar. Domyślny 1 w ten sam dzień weekendu jest preferencją. Jeśli nie znajdzie grafiku zgodnego z limitami, zachowa poprzedni.</p></section></div>`;
   }
   const shiftName = Object.fromEntries(state.shifts.map((s) => [s.id, s.name]));
   $('#rules').innerHTML = state.rules.map((r) => `<li>
@@ -171,7 +182,7 @@ function render() {
   $('#bad-mode').setAttribute('aria-pressed', view.bad);
 }
 
-function update(fn) { fn(); save(); render(); }
+function update(fn) { stopGeneration(); fn(); save(); render(); }
 
 $('#prev').onclick = () => { $('#panel-variants').hidden = true; view = { ...view, ...(view.m ? { m: view.m - 1 } : { y: view.y - 1, m: 11 }) }; render(); };
 // „Dzisiaj” wraca do bieżącego miesiąca; na telefonie (kalendarz = lista dni) też przewija do dzisiejszego dnia
@@ -181,9 +192,18 @@ $('#today').onclick = () => {
 };
 $('#next').onclick = () => { $('#panel-variants').hidden = true; view = { ...view, ...(view.m < 11 ? { m: view.m + 1 } : { y: view.y + 1, m: 0 }) }; render(); };
 
-$('#generate').onclick = () => update(() => {
+$('#cancel-generate').onclick = stopGeneration;
+$('#generate').onclick = async () => {
+  if (generation) return;
   view.who = null;
   view.bad = false;
+  $('#panel-variants').hidden = true;
+  render();
+  const job = { controller: new AbortController(), y: view.y, m: view.m };
+  generation = job;
+  $('#generate').disabled = true;
+  $('#cancel-generate').hidden = false;
+  $('#generation-status').textContent = 'Układam grafik… Możesz nadal korzystać ze strony.';
   const keys = monthKeys();
   const h = history(state.schedule, state.bad, view.y, view.m);
   const people = team().map((p) => ({ ...p, hist: h.pts[p.id] ?? 0, tragic: h.tragic[p.id] }));
@@ -192,8 +212,27 @@ $('#generate').onclick = () => update(() => {
   const today = dateKey(now.getFullYear(), now.getMonth(), now.getDate());
   for (const k of keys) if (k < today) for (const [sid, pid] of Object.entries(state.schedule[k] || {}))
     if (gone.has(pid)) (locked[k] = { ...locked[k] })[sid] = pid;
-  const variants = generateVariants(view.y, view.m, state.shifts, people, locked, state.avail,
-    Object.fromEntries(team().map((p) => [p.id, { we: WEEKEND_LIMIT, ...state.limits[p.id], min: state.mins[p.id] }])), state.rules, state.bad, state.wants, { order: state.priority });
+  let variants;
+  try {
+    variants = await runScheduler([job.y, job.m, state.shifts, people, locked, state.avail,
+      Object.fromEntries(team().map((p) => [p.id, { we: WEEKEND_LIMIT, ...state.limits[p.id], min: state.mins[p.id] }])), state.rules, state.bad, state.wants, { order: state.priority }], {
+      signal: job.controller.signal,
+      onProgress: (progress) => { if (generation === job) $('#generation-status').textContent = progress.message; },
+    });
+  } catch (error) {
+    if (generation !== job || error.name === 'AbortError') return;
+    $('#generation-status').textContent = 'Nie udało się ułożyć grafiku. Poprzedni pozostaje bez zmian.';
+    alert(`${error.message}\nPoprzedni grafik pozostaje bez zmian.`);
+    return;
+  } finally {
+    if (generation === job) {
+      generation = null;
+      $('#generate').disabled = false;
+      $('#cancel-generate').hidden = true;
+    }
+  }
+  if (job.controller.signal.aborted) return;
+  $('#generation-status').textContent = `Gotowe. Nieobsadzone: ${variants[0].score.unfilled}. Odchylenie od próśb: ${variants[0].score.wants}.`;
   const prev = Object.fromEntries(keys.map((k) => [k, state.schedule[k]]));
   const apply = (i) => update(() => Object.assign(state.schedule, variants[i].schedule));
   apply(0);
@@ -202,13 +241,13 @@ $('#generate').onclick = () => update(() => {
   // Kilka dobrych grafików → panel wyboru nad kalendarzem; zaznaczenie od razu pokazuje wariant
   $('#variants-list').innerHTML = variants.map(({ score: s }, i) => `<label class="variant"><input type="radio" name="variant" value="${i}" ${i ? '' : 'checked'}>
     <b>Wariant ${i + 1}</b><span class="hint">nieobsadzone ${s.unfilled} · ${s.min ? `brak do minimum ${s.min} · ` : ''}„W ostateczności” ${s.lastResort} · kanapki ${s.sandwich} ·
-    niespełnione prośby ${s.wants} · różnica liczby dyżurów ${s.spread}</span></label>`).join('');
+    odchylenie od próśb ${s.wants} · różnica liczby dyżurów ${s.spread}</span></label>`).join('');
   $('#variants-list').onchange = (e) => apply(+e.target.value);
   $('#variants-undo').onclick = () => update(() => {
     for (const k of keys) if (prev[k]) state.schedule[k] = prev[k]; else delete state.schedule[k];
     $('#panel-variants').hidden = true;
   });
-});
+};
 $('#variants-ok').onclick = () => { $('#panel-variants').hidden = true; };
 
 // Zakładki: Grafik / Osoby / Dostosowywanie (priorytety, warunki, gównianość)
@@ -387,11 +426,15 @@ $('#person').onchange = (e) => {
     return update(() => { state.people.find((p) => p.id === view.who).prestige = +e.target.value; });
   const { limit, min, want } = e.target.dataset, sid = limit ?? min ?? want;
   if (!sid) return;
-  const n = parseInt(e.target.value, 10);
-  e.target.value = n >= 0 ? n : ''; // okno się nie przebudowuje, więc pole samo pokazuje zapisaną wartość
+  const n = e.target.value === '' ? null : Number(e.target.value);
+  if (n !== null && (!Number.isInteger(n) || n < 0)) {
+    alert('Wpisz nieujemną liczbę całkowitą albo pozostaw pole puste.');
+    e.target.value = ({ limit: state.limits, min: state.mins, want: state.wants }[limit !== undefined ? 'limit' : min !== undefined ? 'min' : 'want'][view.who]?.[sid] ?? '');
+    return;
+  }
   update(() => {
     const l = ((limit ? state.limits : min ? state.mins : state.wants)[view.who] ??= {});
-    if (n >= 0) l[sid] = n; else delete l[sid];
+    if (n !== null) l[sid] = n; else delete l[sid];
   });
 };
 

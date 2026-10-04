@@ -36,9 +36,11 @@
       <button id="clear" class="ghost" title="Wyczyść grafik tego miesiąca"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 21H8a2 2 0 0 1-1.42-.587l-3.994-3.999a2 2 0 0 1 0-2.828l10-10a2 2 0 0 1 2.829 0l5.999 6a2 2 0 0 1 0 2.828L12.834 21"/><path d="m5.082 11.09 8.828 8.828"/></svg>Wyczyść</button>
       <button id="print" class="ghost" title="Drukuj albo zapisz jako PDF"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg>Drukuj / PDF</button>
       <button id="generate" title="Ułóż automatycznie cały miesiąc (ręczne dyżury zostają)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"/><path d="M20 2v4"/><path d="M22 4h-4"/><circle cx="4" cy="20" r="2"/></svg>Ułóż miesiąc</button>
+      <button id="cancel-generate" class="ghost" hidden>Anuluj układanie</button>
     </div>
   </div>
 
+  <p id="generation-status" role="status" aria-live="polite"></p>
   <div id="status" role="status"></div>
 
   <main id="main" tabindex="-1">
@@ -93,7 +95,7 @@
       </div>
       <div class="panel" id="panel-priority">
         <h3>Priorytety układania</h3>
-        <p class="lead">Co liczy się najbardziej przy układaniu grafiku — od najważniejszego. Strzałkami zmieniasz kolejność.</p>
+        <p class="lead">Wszystkie limity są twarde. Algorytm najpierw ogranicza puste miejsca i odchylenia od próśb. Kolejność poniżej nadaje preferencjom wagę — także niższe wpływają na wynik.</p>
         <ol id="priority" class="list"></ol>
         <p class="hint">Twarde zasady (Nie mogę, limity, dzień po dniu, jeden rezydent, wolne po weekendowym OITN, warunki) obowiązują zawsze.</p>
       </div>
@@ -170,7 +172,7 @@
         </ul>
         <p>Okno osoby („Ustawienia”) pokazuje, ile punktów z przeszłości liczy się przy układaniu oglądanego miesiąca.</p>
         <h4>Limity — twarde</h4>
-        <p>W obrębie miesiąca, puste pole = bez limitu:</p>
+        <p>Min. i Limit są twardymi granicami w każdym wierszu tabeli osoby. Obowiązują w obrębie miesiąca, także dla wpisów ręcznych. Puste minimum = 0; puste maksimum = bez limitu, z wyjątkiem domyślnego limitu Pt/So/Nd. Jeśli nie uda się spełnić granic, poprzedni grafik zostaje bez zmian i pojawia się komunikat.</p>
         <ul>
           <li><b>Łącznie</b> — maks. liczba wszystkich dyżurów,</li>
           <li><b>Pt/So/Nd</b> — maks. dyżurów w piątki, soboty i niedziele; <b>domyślnie 2</b>,</li>
@@ -179,7 +181,7 @@
         <h4>Ten sam dzień weekendu — miękko</h4>
         <p>Ile razy w miesiącu osoba może trafić na <b>ten sam</b> dzień weekendu (np. dwa piątki). Domyślnie 1 (albo tyle, o ile prosi) — to nie zakaz, algorytm tylko tego unika. Wpisany limit jest twardy: 0 = nie dyżuruje w ten dzień.</p>
         <h4>Prośby — miękko</h4>
-        <p>Ile dyżurów osoba <b>chce</b> w miesiącu na danym miejscu (np. 3 × OITN), w dany dzień weekendu (np. 2 soboty), w Pt/So/Nd razem (np. 4 weekendowe) albo łącznie (np. 10 w miesiącu). Prośba o więcej weekendów pozwala też na powtórkę tego samego dnia (np. 6 weekendowych = do 2 w każdy Pt/So/Nd). Dopóki ma mniej, niż prosiła, ma tam pierwszeństwo. Prośby nigdy nie łamią limitów ani twardych zasad.</p>
+        <p>Docelowa liczba dyżurów na miejscu, w dany dzień weekendu, w Pt/So/Nd razem lub łącznie. Algorytm ogranicza zarówno niedobór, jak i nadmiar względem prośby, także prośby o zero. Puste pole oznacza brak prośby. Prośby nigdy nie łamią limitów ani twardych zasad.</p>
         <h4>Warunki</h4>
         <p><b>„Gdy X dyżuruje tego samego dnia co Y, to X jest na: [miejsca]”</b>. Warunek jest twardy: algorytm nie ułoży dnia, w którym X i Y są razem, a X jest gdzie indziej.</p>
       </section>
@@ -194,13 +196,13 @@
           <li><b>Limity osoby</b> — łącznie, w Pt/So/Nd i na każdym miejscu.</li>
           <li><b>Najwyżej jeden rezydent dziennie</b> (licząc wpisy ręczne).</li>
           <li><b>Warunki</b> z zakładki Układanie.</li>
-          <li><b>Wolne po weekendowym OITN</b> — po OITN w sobotę wolny poniedziałek, po OITN w niedzielę wolny wtorek. Tylko w tę stronę: ręczny dyżur w poniedziałek/wtorek nie blokuje OITN w weekend przed nim.</li>
+          <li><b>Wolne po weekendowym OITN</b> — po OITN w sobotę wolny poniedziałek, po OITN w niedzielę wolny wtorek. Ręczny wpis na poniedziałek lub wtorek blokuje również wcześniejszy OITN.</li>
         </ol>
       </section>
 
       <section id="h-prio">
         <h3>4. Priorytety — kogo wybrać</h3>
-        <p>Gdy kilka osób spełnia twarde zasady, algorytm porównuje je według priorytetów — <b>w kolejności z zakładki Układanie</b>. Wyższy priorytet zawsze wygrywa; niższy rozstrzyga dopiero remis na wszystkich wyższych. Domyślna kolejność:</p>
+        <p>Kolejność z zakładki Układanie ustala wagę preferencji. Wszystkie wpływają na ocenę całego miesiąca, także te na dole listy. Twarde limity, obsada i dokładność próśb mają pierwszeństwo. Preferencje używane przy tworzeniu początkowych propozycji:</p>
         <table>
           <tr><th>#</th><th>Priorytet</th><th>Kogo wybiera najpierw</th></tr>
           <tr><td>1</td><td><b>Dostępność</b></td><td>Chcę → Mogę → W ostateczności</td></tr>
@@ -211,12 +213,13 @@
           <tr><td>6</td><td><b>Równa liczba dyżurów</b></td><td>osobę z najmniejszą liczbą dyżurów w tym miesiącu</td></tr>
         </table>
         <p>Remis po wszystkich priorytetach: w pierwszym przebiegu wygrywa osoba, która <b>najdłużej nie dyżurowała</b>, w kolejnych — losowanie.</p>
-        <p class="hint">Przykład: przy domyślnej kolejności osoba „Chcę” z 6 dyżurami wygrywa z osobą „Mogę” z 2 dyżurami, bo dostępność jest ważniejsza niż równa liczba. Przesuń „Równa liczba dyżurów” na górę, a będzie odwrotnie.</p>
+        <p class="hint">Przesunięcie „Równej liczby dyżurów” na górę zwiększa jej wpływ, ale pozostałe preferencje nadal się liczą.</p>
       </section>
 
       <section id="h-algo">
         <h3>5. Algorytm krok po kroku</h3>
-        <p>Algorytm jest <b>zachłanny</b>: idzie po kolei przez dni miesiąca i każde miejsce obsadza najlepszą w tej chwili osobą, bez cofania wcześniejszych decyzji.</p>
+        <p>Algorytm tworzy wiele propozycji, a następnie poprawia cały miesiąc przez zmiany osób, zamiany przydziałów i ponowne układanie grup dni. Jeśli trzeba, cofa decyzje i zaczyna od miejsc z najmniejszą liczbą kandydatów. Kontroluje, czy zostało dość terminów na minima. Poniżej opis początkowego przebiegu:</p>
+        <p>Układanie działa w tle, ze wspólnym budżetem czasu. Możesz nadal korzystać ze strony i w każdej chwili wybrać <b>Anuluj układanie</b>. Zmiana danych lub miesiąca przerywa próbę, by jej wynik nie nadpisał Twoich zmian.</p>
         <h4>Przygotowanie</h4>
         <ol>
           <li>Bierze aktywne osoby (bez usuniętych).</li>
@@ -235,18 +238,18 @@
 
       <section id="h-variants">
         <h3>6. Warianty grafiku i ich ocena</h3>
-        <p>Wynik zachłannego algorytmu zależy od rozstrzygania remisów, dlatego <b>Ułóż miesiąc</b> uruchamia go <b>201 razy</b>: raz zwyczajnie i 200 razy z losowymi remisami i losową kolejnością miejsc w dniu. Każdy grafik dostaje ocenę (mniej = lepiej):</p>
+        <p>W ramach limitu czasu algorytm tworzy <b>do 201 propozycji</b>, zmieniając remisy, kolejność miejsc i preferencji. Następnie naprawia przydziały. Każdy grafik dostaje ocenę (mniej = lepiej):</p>
         <table>
           <tr><th>Kryterium</th><th>Jak liczone</th></tr>
           <tr><td><b>Nieobsadzone</b></td><td>liczba pustych miejsc — zawsze najważniejsze</td></tr>
           <tr><td><b>Dostępność</b></td><td>za dyżur: „W ostateczności” 10 pkt, „Mogę” 1 pkt, „Chcę” 0</td></tr>
           <tr><td><b>Kanapki</b></td><td>liczba dyżurów co drugi dzień (bez dni „Chcę”)</td></tr>
           <tr><td><b>Ten sam dzień weekendu</b></td><td>dyżury ponad dozwoloną liczbę tego samego Pt/So/Nd</td></tr>
-          <tr><td><b>Prośby</b></td><td>suma brakujących dyżurów względem próśb</td></tr>
+          <tr><td><b>Prośby</b></td><td>suma niedoborów i nadmiarów względem próśb</td></tr>
           <tr><td><b>Gówniane dni</b></td><td>suma kwadratów obciążenia osób (kwadrat mocno karze nierówny podział)</td></tr>
           <tr><td><b>Równa liczba</b></td><td>suma kwadratów liczby dyżurów osób</td></tr>
         </table>
-        <p>Grafiki porównywane są <b>po kolei</b>: najpierw nieobsadzone, potem kryteria w Twojej kolejności priorytetów — następne liczy się tylko przy remisie na poprzednich. Najlepszy trafia do kalendarza. Jeśli inne mają <b>dokładnie taką samą ocenę</b>, pojawia się panel <b>Warianty grafiku</b> (maks. 3) — wybór między nimi to już kwestia gustu.</p>
+        <p>Przyjmowane są tylko grafiki zgodne ze wszystkimi limitami. Porównanie: najpierw puste miejsca, następnie odchylenia od próśb, potem ważona ocena pozostałych preferencji. Najlepszy trafia do kalendarza. Przy remisie pojawia się panel <b>Warianty grafiku</b> (maks. 3).</p>
       </section>
 
       <section id="h-manual">
@@ -270,7 +273,7 @@
       <section id="h-limits">
         <h3>9. Znane ograniczenia</h3>
         <ul>
-          <li>Algorytm jest zachłanny — 201 prób zwykle wystarcza, ale nie gwarantuje najlepszego możliwego grafiku. Gdy zostają puste miejsca, poluzuj limity/warunki albo wpisz trudne dni ręcznie i ułóż ponownie.</li>
+          <li>Wyszukiwanie ma ograniczony czas i nie gwarantuje najlepszego możliwego grafiku. Komunikat o braku wyniku nie dowodzi, że rozwiązanie nie istnieje. Możesz sprawdzić ustawienia albo ponowić próbę. Limity nie są automatycznie rozluźniane.</li>
           <li>„Nie dzień po dniu”, „bez kanapek” i „wolne po weekendowym OITN” <b>nie patrzą przez przełom miesięcy</b> — dyżur 31. nie blokuje 1. dnia następnego miesiąca. Sprawdź początek miesiąca ręcznie.</li>
           <li>Wolne po OITN działa tylko dla miejsca o nazwie dokładnie <b>OITN</b>.</li>
           <li>Wpisy ręczne nie są blokowane — tylko oznaczane, gdy łamią „Nie mogę” lub warunek.</li>

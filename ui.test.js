@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { SourceTextModule, SyntheticModule } from 'node:vm';
 import { JSDOM } from 'jsdom';
+import { BrowserWorker } from './scripts/test-worker.mjs';
 
 // Prawdziwe moduły aplikacji i DOM. Jedynym zamiennikiem usługi jest chmura:
 // test nigdy nie łączy się z produkcyjną bazą i nie potrzebuje PIN-u.
@@ -12,6 +13,11 @@ async function setup(t) {
   });
   t.after(() => dom.window.close());
   const w = dom.window;
+  const workers = [];
+  w.Worker = class extends BrowserWorker {
+    constructor(...args) { super(...args); workers.push(this); }
+  };
+  t.after(() => workers.forEach((worker) => worker.terminate()));
   w.matchMedia = () => ({ matches: false, addEventListener() {} });
   w.scrollTo = () => {};
   w.HTMLElement.prototype.scrollIntoView = () => {};
@@ -21,7 +27,9 @@ async function setup(t) {
   };
   w.alert = (message) => { throw new Error(message); };
   const context = dom.getInternalVMContext();
-  const source = async (name) => new SourceTextModule(await readFile(new URL(name, import.meta.url), 'utf8'), { context });
+  const source = async (name) => new SourceTextModule(await readFile(new URL(name, import.meta.url), 'utf8'), {
+    context, initializeImportMeta: (meta) => { meta.url = new URL(name, import.meta.url).href; },
+  });
   const scheduler = await source('./scheduler.js');
   await scheduler.link(() => { throw new Error('Nieoczekiwany import algorytmu'); });
   const cloud = new SyntheticModule(['cloudLoad', 'cloudSave', 'cloudLogout'], function () {
@@ -34,12 +42,19 @@ async function setup(t) {
   await ui.link(() => {});
   await ui.evaluate();
   const app = await source('./app.js');
-  await app.link((name) => name === './scheduler.js' ? scheduler : cloud);
+  const client = await source('./scheduler-client.js');
+  await client.link(() => { throw new Error('Nieoczekiwany import klienta workera'); });
+  await app.link((name) => name === './scheduler.js' ? scheduler : name === './scheduler-client.js' ? client : cloud);
   await app.evaluate();
   const $ = (selector) => w.document.querySelector(selector);
   const tick = () => new Promise((resolve) => setImmediate(resolve));
+  const generated = async () => {
+    const deadline = Date.now() + 15000;
+    while ($('#generate').disabled && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 10));
+    assert.equal($('#generate').disabled, false, 'worker powinien zakończyć obliczenia');
+  };
   await tick();
-  return { w, $, tick, state: () => JSON.parse(w.localStorage.getItem('dyzury-v1')) };
+  return { w, $, tick, generated, workers, state: () => JSON.parse(w.localStorage.getItem('dyzury-v1')) };
 }
 
 test('nawigacja i motyw nie zmieniają zapisanych danych grafiku', async (t) => {
@@ -58,6 +73,35 @@ test('nawigacja i motyw nie zmieniają zapisanych danych grafiku', async (t) => 
   await tick();
   assert.equal($('#theme-toggle').getAttribute('aria-pressed'), 'true');
   assert.equal(w.localStorage.getItem('dyzury-v1'), saved);
+});
+
+test('układanie w tle: nawigacja działa, anulowanie i edycja chronią przed spóźnionym wynikiem', async (t) => {
+  const { w, $, state } = await setup(t);
+  const original = state().schedule;
+  $('#generate').click();
+  assert.equal($('#generate').disabled, true);
+  assert.equal($('#cancel-generate').hidden, false);
+  $('button[data-tab="people"]').click();
+  assert.equal(w.document.body.dataset.tab, 'people');
+  $('#cancel-generate').click();
+  assert.equal($('#generate').disabled, false);
+  assert.deepEqual(state().schedule, original);
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  assert.deepEqual(state().schedule, original);
+
+  $('#generate').click();
+  $('#next').click();
+  assert.equal($('#generate').disabled, false);
+  assert.deepEqual(state().schedule, original);
+
+  $('#generate').click();
+  $(`[data-edit="${state().people[0].id}"]`).click();
+  const limit = $('[data-limit="*"]');
+  limit.value = '4';
+  limit.dispatchEvent(new w.Event('change', { bubbles: true }));
+  assert.equal($('#generate').disabled, false);
+  assert.equal(state().limits[state().people[0].id]['*'], 4);
+  assert.deepEqual(state().schedule, original);
 });
 
 test('wybór koloru motywu zapisuje się i wraca po odświeżeniu', async (t) => {
@@ -95,7 +139,7 @@ test('dodawanie osoby i switch w oknie ustawień zachowują zapis i zdarzenia', 
 });
 
 test('wpis ręczny z klawiatury pozostaje po generowaniu miesiąca', async (t) => {
-  const { w, $, state } = await setup(t);
+  const { w, $, state, generated } = await setup(t);
   const input = $('#calendar input');
   const { key, shift } = input.dataset;
   input.focus();
@@ -105,6 +149,7 @@ test('wpis ręczny z klawiatury pozostaje po generowaniu miesiąca', async (t) =
   const person = state().manual[key][shift];
   assert.ok(person);
   $('#generate').click();
+  await generated();
   assert.equal(state().manual[key][shift], person);
   assert.equal(state().schedule[key][shift], person);
 });
@@ -141,7 +186,7 @@ test('dekoracje odtwarzają się po wymianie DOM podczas logowania', async (t) =
 });
 
 test('okno osoby: Min., Limit i Prośba zapisują się w każdym wierszu i działają przy układaniu', async (t) => {
-  const { w, $, state } = await setup(t);
+  const { w, $, state, generated } = await setup(t);
   const anna = state().people.find((p) => p.name === 'Anna Kowalska'), oitn = state().shifts.find((s) => s.name === 'OITN').id;
   $(`[data-edit="${anna.id}"]`).click();
   const set = (kind, key, value) => {
@@ -158,18 +203,37 @@ test('okno osoby: Min., Limit i Prośba zapisują się w każdym wierszu i dzia�
   for (const key of ['*', 'we', oitn, 'd4', 'd5', 'd6']) for (const kind of ['min', 'limit', 'want']) set(kind, key, ''); // puste = usunięte
   assert.deepEqual([state().mins[anna.id], state().limits[anna.id], state().wants[anna.id]], [{}, {}, {}]);
 
+  set('want', '*', '0');
+  assert.equal(state().wants[anna.id]['*'], 0);
+  let inputError;
+  w.alert = (text) => { inputError = text; };
+  set('want', '*', '1.5');
+  assert.match(inputError, /całkowitą/);
+  assert.equal(state().wants[anna.id]['*'], 0);
+  assert.equal($('[data-want="*"]').value, '0');
+  set('want', '*', '');
+  assert.deepEqual(state().wants[anna.id], {});
+  w.alert = (message) => { throw new Error(message); };
+
   set('min', oitn, '6'); // bez minimum Anna ma 1 OITN w miesiącu
   set('limit', '*', '9'); // bez limitu 11 dyżurów
   $('#person').close();
   $('#generate').click();
+  await generated();
   const mine = Object.values(state().schedule).filter((day) => Object.values(day).includes(anna.id));
   assert.ok(mine.filter((day) => day[oitn] === anna.id).length >= 6);
   assert.ok(mine.length <= 9);
   assert.equal($('#summary-list .badge.under'), null); // minimum spełnione → bez ostrzeżenia
 
   $(`[data-edit="${anna.id}"]`).click();
-  set('min', oitn, '10'); // przy limicie 9 niewykonalne → ostrzeżenie w podsumowaniu
+  set('min', oitn, '10'); // przy limicie 9 niewykonalne → komunikat i poprzedni grafik
   $('#person').close();
+  const previous = state().schedule;
+  let message;
+  w.alert = (text) => { message = text; };
   $('#generate').click();
+  await generated();
+  assert.match(message, /minimum.*przekracza limit górny/);
+  assert.deepEqual(state().schedule, previous);
   assert.match($('#summary-list .badge.under').title, /Do minimum brakuje: \d/);
 });
