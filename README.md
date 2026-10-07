@@ -87,6 +87,13 @@ Do obciążenia na start miesiąca liczy się też przeszłość:
 
 Okno osoby (⚙) pokazuje, ile punktów z przeszłości liczy się przy układaniu oglądanego miesiąca.
 
+### Dzień liczony jak inny dzień tygodnia
+
+W trybie **Oceń dni w kalendarzu** pod gównianością każdego dnia jest lista **„Limity jak …”**. Dzień ustawiony np.
+jak niedziela (święto w środę) liczy się jak niedziela do limitów, minimów i próśb (Pt/So/Nd, ten sam dzień
+weekendu). Gównianość, miejsca do obsadzenia i wolne po OITN zostają według prawdziwego dnia tygodnia.
+W grafiku taki dzień ma etykietę „jak Nd”.
+
 ### Limity (ustawienia osoby, twarde)
 
 Min. i Limit są twardymi granicami w każdym wierszu tabeli osoby, także dla ręcznych wpisów.

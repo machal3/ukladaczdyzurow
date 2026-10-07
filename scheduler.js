@@ -4,6 +4,9 @@ export const pad = (n) => String(n).padStart(2, '0');
 export const dateKey = (y, m, d) => `${y}-${pad(m + 1)}-${pad(d)}`; // m: 0-11
 export const daysInMonth = (y, m) => new Date(y, m + 1, 0).getDate();
 export const weekday = (y, m, d) => (new Date(y, m, d).getDay() + 6) % 7; // 0 = pon, 6 = nd
+// Dzień tygodnia dla limitów i próśb (Pt/So/Nd, ten sam dzień weekendu): asDay = { 'YYYY-MM-DD': 0-6 }, np. święto w środę liczone jak niedziela.
+// Gównianość, miejsca do obsadzenia i odpoczynek po OITN idą dalej według prawdziwego dnia tygodnia.
+export const limitDay = (asDay, y, m, d) => asDay[dateKey(y, m, d)] ?? weekday(y, m, d);
 
 // Dostępność: 0 = Nie mogę (twardy zakaz), 1 = W ostateczności, 2 = Mogę (domyślnie), 3 = Chcę.
 // avail = { personId: { 'YYYY-MM-DD': poziom } }
@@ -85,31 +88,33 @@ export const shiftsForDay = (shifts, y, m, d) => shifts.filter((s) => s.days.inc
 // W dzień Tragiczny najpierw ci, którzy mieli ostatni Tragiczny najdawniej albo wcale (person.tragic = data, liczy się też ten miesiąc).
 // Wpisy z `locked` (ręczne) są zachowane i liczą się do bilansu.
 // rand (np. Math.random) = remisy i kolejność miejsc w dniu losowo — do szukania wariantów (patrz generateVariants).
+// asDay = dni liczone do limitów i próśb jak inny dzień tygodnia (patrz limitDay).
 // Wewnętrzna propozycja zachłanna; publiczne generatory poniżej walidują limity i w razie potrzeby cofają decyzje.
-function greedyMonth(y, m, shifts, people, locked = {}, avail = {}, limits = {}, rules = [], bad = {}, wants = {}, { order = PRIORITY_ORDER, rand } = {}) {
+function greedyMonth(y, m, shifts, people, locked = {}, avail = {}, limits = {}, rules = [], bad = {}, wants = {}, { order = PRIORITY_ORDER, rand, asDay = {} } = {}) {
   const result = {};
   const count = Object.fromEntries(people.map((p) => [p.id, 0]));
   const burden = Object.fromEntries(people.map((p) => [p.id, (p.past ?? 0) * PAST_WEIGHT + (p.hist ?? 0)]));
   const tragic = Object.fromEntries(people.map((p) => [p.id, p.tragic ?? ''])); // data ostatniego Tragicznego, '' = nigdy
   const perShift = {}; // 'personId:shiftId' → liczba dyżurów; 'personId:d4..d6' → dyżury w Pt/So/Nd; '*' i 'we' — pod prośby
   const we = {}; // personId → liczba dyżurów w Pt/So/Nd
-  const isWe = (d) => weekday(y, m, d) >= 4;
+  const ld = (d) => limitDay(asDay, y, m, d); // dzień tygodnia dla limitów i próśb
+  const isWe = (d) => ld(d) >= 4;
   const add = (pid, sid, d) => {
     count[pid]++; perShift[`${pid}:${sid}`] = (perShift[`${pid}:${sid}`] || 0) + 1; perShift[`${pid}:*`] = count[pid];
-    if (isWe(d)) { perShift[`${pid}:we`] = we[pid] = (we[pid] || 0) + 1; perShift[`${pid}:d${weekday(y, m, d)}`] = (perShift[`${pid}:d${weekday(y, m, d)}`] || 0) + 1; }
+    if (isWe(d)) { perShift[`${pid}:we`] = we[pid] = (we[pid] || 0) + 1; perShift[`${pid}:d${ld(d)}`] = (perShift[`${pid}:d${ld(d)}`] || 0) + 1; }
     burden[pid] += badOf(bad, y, m, d);
     if (badOf(bad, y, m, d) === 3) tragic[pid] = dateKey(y, m, d);
   };
   const underLimit = (pid, sid, d) => (perShift[`${pid}:${sid}`] || 0) < (limits[pid]?.[sid] ?? Infinity) &&
     count[pid] < (limits[pid]?.['*'] ?? Infinity) && (!isWe(d) || ((we[pid] || 0) < (limits[pid]?.we ?? Infinity) &&
-      (perShift[`${pid}:d${weekday(y, m, d)}`] || 0) < (limits[pid]?.[`d${weekday(y, m, d)}`] ?? Infinity))); // wpisany limit Pt/So/Nd — twardy
-  const dowFull = (pid, d) => +(isWe(d) && (perShift[`${pid}:d${weekday(y, m, d)}`] || 0) >= sameDow(limits, pid, weekday(y, m, d), wants)); // 1 = ma już dość tego dnia
+      (perShift[`${pid}:d${ld(d)}`] || 0) < (limits[pid]?.[`d${ld(d)}`] ?? Infinity))); // wpisany limit Pt/So/Nd — twardy
+  const dowFull = (pid, d) => +(isWe(d) && (perShift[`${pid}:d${ld(d)}`] || 0) >= sameDow(limits, pid, ld(d), wants)); // 1 = ma już dość tego dnia
   // Heurystyka minimum w propozycji startowej. Końcowa walidacja wymaga każdego minimum.
   const under = (pid, k) => (perShift[`${pid}:${k}`] || 0) < (limits[pid]?.min?.[k] ?? 0);
   const belowMin = (pid, sid, d, key) => +(availOf(avail, pid, key) >= 2 &&
-    (under(pid, sid) || under(pid, '*') || (isWe(d) && (under(pid, 'we') || under(pid, `d${weekday(y, m, d)}`))))) -
+    (under(pid, sid) || under(pid, '*') || (isWe(d) && (under(pid, 'we') || under(pid, `d${ld(d)}`))))) -
     // −1 = zostaw na jutro: jutro Pt/So/Nd, którego osoba ma za mało (dyżur dziś zablokowałby jutro)
-    +(d < daysInMonth(y, m) && isWe(d + 1) && under(pid, `d${weekday(y, m, d + 1)}`) && availOf(avail, pid, dateKey(y, m, d + 1)) >= 2);
+    +(d < daysInMonth(y, m) && isWe(d + 1) && under(pid, `d${ld(d + 1)}`) && availOf(avail, pid, dateKey(y, m, d + 1)) >= 2);
   const short = (pid, sid) => +((perShift[`${pid}:${sid}`] || 0) < (wants[pid]?.[sid] ?? 0)); // 1 = jeszcze poniżej prośby
   const lastDay = {};
   const resident = new Set(people.filter(isResident).map((p) => p.id));
@@ -152,7 +157,7 @@ function greedyMonth(y, m, shifts, people, locked = {}, avail = {}, limits = {},
         avail: (a, b) => availOf(avail, b.id, key) - availOf(avail, a.id, key),
         sandwich: (a, b) => sandwich(a, s.id) - sandwich(b, s.id),
         weDow: (a, b) => dowFull(a.id, d) - dowFull(b.id, d),
-        wants: (a, b) => short(b.id, s.id) - short(a.id, s.id) || (isWe(d) && (short(b.id, `d${weekday(y, m, d)}`) - short(a.id, `d${weekday(y, m, d)}`) || short(b.id, 'we') - short(a.id, 'we'))) ||
+        wants: (a, b) => short(b.id, s.id) - short(a.id, s.id) || (isWe(d) && (short(b.id, `d${ld(d)}`) - short(a.id, `d${ld(d)}`) || short(b.id, 'we') - short(a.id, 'we'))) ||
           short(b.id, '*') - short(a.id, '*'),
         bad: (a, b) => (isTragic && tragic[a.id].localeCompare(tragic[b.id])) || (isBad && burden[a.id] - burden[b.id]),
         even: (a, b) => count[a.id] - count[b.id],
@@ -197,7 +202,7 @@ export const PRIORITY_ORDER = Object.keys(PRIORITIES);
 // Ocena gotowego grafiku miesiąca (mniej = lepiej) dla każdego kryterium PRIORITIES + unfilled (nieobsadzone dyżury) + min (brakujące dyżury do minimów limits[pid].min);
 // do pokazania: lastResort = dyżury „W ostateczności”, spread = różnica liczby dyżurów (najwięcej − najmniej).
 // ponytail: wagi na oko (W ostateczności = 10 × Mogę); suma kwadratów = kara za nierówny podział.
-export function scoreMonth(y, m, schedule, shifts, people, avail = {}, bad = {}, wants = {}, limits = {}) {
+export function scoreMonth(y, m, schedule, shifts, people, avail = {}, bad = {}, wants = {}, limits = {}, asDay = {}) {
   const sc = { unfilled: 0, min: 0, avail: 0, sandwich: 0, weDow: 0, wants: 0, bad: 0, even: 0, lastResort: 0 };
   const count = Object.fromEntries(people.map((p) => [p.id, 0]));
   const burden = Object.fromEntries(people.map((p) => [p.id, (p.past ?? 0) * PAST_WEIGHT + (p.hist ?? 0)]));
@@ -215,8 +220,9 @@ export function scoreMonth(y, m, schedule, shifts, people, avail = {}, bad = {},
       const wd = weekday(y, m, d);
       if (last[pid] === d - 2 && lvl < 3 && !(pref[pid] && wd === 0 && lastSid[pid] === pn1)) sc.sandwich++; // PN1 So + Pn nie liczy się jako kanapka
       last[pid] = d; lastSid[pid] = s.id;
-      if (wd >= 4) sc.weDow += (perShift[`${pid}:d${wd}`] = (perShift[`${pid}:d${wd}`] || 0) + 1) > sameDow(limits, pid, wd, wants); // ponad limit tego samego dnia weekendu
-      if (wd >= 4) perShift[`${pid}:we`] = (perShift[`${pid}:we`] || 0) + 1;
+      const lw = limitDay(asDay, y, m, d);
+      if (lw >= 4) sc.weDow += (perShift[`${pid}:d${lw}`] = (perShift[`${pid}:d${lw}`] || 0) + 1) > sameDow(limits, pid, lw, wants); // ponad limit tego samego dnia weekendu
+      if (lw >= 4) perShift[`${pid}:we`] = (perShift[`${pid}:we`] || 0) + 1;
       perShift[`${pid}:*`] = ++count[pid];
       burden[pid] += badOf(bad, y, m, d);
       perShift[`${pid}:${s.id}`] = (perShift[`${pid}:${s.id}`] || 0) + 1;
@@ -232,12 +238,12 @@ export function scoreMonth(y, m, schedule, shifts, people, avail = {}, bad = {},
 }
 
 // Wspólna kontrola ograniczeń dla wyszukiwania i końcowej walidacji.
-function constraints(y, m, shifts, people, avail, limits, rules) {
+function constraints(y, m, shifts, people, avail, limits, rules, asDay = {}) {
   const days = Array.from({ length: daysInMonth(y, m) + 4 }, (_, d) => dateKey(y, m, d));
   const dayShifts = Array.from({ length: daysInMonth(y, m) + 1 }, (_, d) => shiftsForDay(shifts, y, m, d));
   const slots = Array.from({ length: daysInMonth(y, m) }, (_, i) =>
     dayShifts[i + 1].map((s) => ({ key: days[i + 1], d: i + 1, sid: s.id,
-      cats: [s.id, '*', ...(weekday(y, m, i + 1) >= 4 ? ['we', `d${weekday(y, m, i + 1)}`] : [])] }))).flat();
+      cats: [s.id, '*', ...(limitDay(asDay, y, m, i + 1) >= 4 ? ['we', `d${limitDay(asDay, y, m, i + 1)}`] : [])] }))).flat();
   const persons = Object.fromEntries(people.map((p) => [p.id, p]));
   const oitn = shifts.find((s) => s.name === 'OITN')?.id;
   for (const s of slots) {
@@ -344,7 +350,7 @@ function searchMonth(model, people, locked, limits, wants, seed, allowEmpty, { b
 
 export function generateMonth(y, m, shifts, people, locked = {}, avail = {}, limits = {}, rules = [], bad = {}, wants = {}, options = {}) {
   checkSettings(people, limits, wants);
-  const model = constraints(y, m, shifts, people, avail, limits, rules);
+  const model = constraints(y, m, shifts, people, avail, limits, rules, options.asDay);
   if (!model.valid(locked, false)) throw new Error('Ręczne wpisy łamią twarde zasady lub limity. Popraw je przed układaniem.');
   const seed = greedyMonth(y, m, shifts, people, locked, avail, limits, rules, bad, wants, options);
   if (model.valid(seed)) return seed;
@@ -356,7 +362,7 @@ export function generateMonth(y, m, shifts, people, locked = {}, avail = {}, lim
 // Twarde warunki są filtrem, następnie obsada i dokładność próśb.
 // Pozostałe preferencje mają skończone wagi: niższe też wpływają na wynik.
 export function generateVariants(y, m, shifts, people, locked = {}, avail = {}, limits = {}, rules = [], bad = {}, wants = {},
-  { order = PRIORITY_ORDER, tries = 200, keep = 3, rand = Math.random, timeBudgetMs = 4500,
+  { order = PRIORITY_ORDER, asDay = {}, tries = 200, keep = 3, rand = Math.random, timeBudgetMs = 4500,
     onProgress = () => {}, now = () => performance.now() } = {}) {
   const started = now();
   const duration = Number.isFinite(timeBudgetMs) ? Math.max(20, Math.min(10000, timeBudgetMs)) : 4500;
@@ -365,21 +371,21 @@ export function generateVariants(y, m, shifts, people, locked = {}, avail = {}, 
   progress('Tworzę propozycje grafiku…');
   const args = [y, m, shifts, people, locked, avail, limits, rules, bad, wants];
   checkSettings(people, limits, wants);
-  const model = constraints(y, m, shifts, people, avail, limits, rules);
+  const model = constraints(y, m, shifts, people, avail, limits, rules, asDay);
   if (!model.valid(locked, false)) throw new Error('Ręczne wpisy łamią twarde zasady lub limity. Popraw je przed układaniem.');
   const scale = { avail: 10, sandwich: 1, weDow: 1, bad: Math.max(1, model.slots.length * 9 / Math.max(1, people.length)), even: Math.max(1, model.slots.length / Math.max(1, people.length)) };
   const key = (sc) => [sc.unfilled, sc.wants, order.reduce((n, k, i) => n + (k === 'wants' ? 0 : (order.length - i) * sc[k] / scale[k]), 0)];
   const seen = new Map();
   let seed;
   const add = (schedule) => {
-    if (schedule && model.valid(schedule)) seen.set(JSON.stringify(schedule), { schedule, score: scoreMonth(y, m, schedule, shifts, people, avail, bad, wants, limits) });
+    if (schedule && model.valid(schedule)) seen.set(JSON.stringify(schedule), { schedule, score: scoreMonth(y, m, schedule, shifts, people, avail, bad, wants, limits, asDay) });
   };
   for (let i = 0; i <= Math.min(1000, tries); i++) {
     if (i && now() >= started + duration * 0.25) break;
     // Zmieniamy też punkt startu preferencji, nie tylko remisy na pierwszym kryterium.
     const offset = i % Math.max(1, order.length);
     const trialOrder = [...order.slice(offset), ...order.slice(0, offset)];
-    const schedule = greedyMonth(...args, { order: trialOrder, rand: i ? rand : undefined });
+    const schedule = greedyMonth(...args, { order: trialOrder, rand: i ? rand : undefined, asDay });
     seed ??= schedule;
     add(schedule);
   }
@@ -398,7 +404,7 @@ export function generateVariants(y, m, shifts, people, locked = {}, avail = {}, 
   const movable = model.slots.filter((s) => !locked[s.key]?.[s.sid]);
   const consider = () => {
     if (!model.valid(schedule)) return false;
-    const score = scoreMonth(y, m, schedule, shifts, people, avail, bad, wants, limits);
+    const score = scoreMonth(y, m, schedule, shifts, people, avail, bad, wants, limits, asDay);
     if (cmp({ score }, best) >= -1e-9) return false;
     best = { schedule: copy(schedule), score };
     return true;

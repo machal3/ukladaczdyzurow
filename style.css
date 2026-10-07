@@ -115,6 +115,8 @@ main > :is(section, article), .board { animation: appear 350ms var(--motion); }
 .num { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; color: var(--text); font: 600 22px/28px var(--headline); font-variant-numeric: tabular-nums; flex: none; }
 .day-name { display: none; }
 .today-label { font: var(--type-label); color: var(--md-sys-color-on-primary-container); }
+.as-label { font: var(--type-label); padding: 2px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--md-sys-color-on-primary-container); }
+.day-slots select { width: 100%; padding: 6px 10px; font-size: 13px; }
 .day-slots { display: grid; gap: 8px; flex: 1; }
 .cell.today .day-heading .num { background: var(--strong); color: var(--on-strong); }
 .slot { position: relative; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto 1fr; align-items: center; gap: 4px; padding: 10px; border-radius: 12px; min-width: 0; background: var(--md-sys-color-surface-container-low); cursor: text; }

@@ -454,3 +454,18 @@ test('Tragiczny: rotacja po dacie ostatniego Tragicznego, także w obrębie mies
   const out = generateMonth(2026, 9, one, ppl, {}, avail, {}, [], Object.fromEntries(days.map((k) => [k, 3])));
   assert.deepEqual(days.map((k) => out[k].s), ['b', 'c', 'a', 'd', 'b']);
 });
+
+test('dzień liczony jak inny dzień tygodnia: limity Nd obowiązują w środę ustawioną jak Nd', () => {
+  const six = ['a', 'b', 'c', 'd', 'e', 'f'].map((id) => ({ id, name: id }));
+  const asDay = { '2026-10-14': 6 }; // środa jak niedziela
+  const limits = { a: { d6: 0 }, b: { d6: 0 } };
+  for (const s of [generateMonth(2026, 9, shifts, six, {}, {}, limits, [], {}, {}, { asDay }),
+    generateVariants(2026, 9, shifts, six, {}, {}, limits, [], {}, {}, { asDay, tries: 5, timeBudgetMs: 200 })[0].schedule]) {
+    assert.ok(!['a', 'b'].some((p) => Object.values(s['2026-10-14']).includes(p)), JSON.stringify(s['2026-10-14']));
+    assert.deepEqual(Object.keys(s['2026-10-14']).sort(), ['s1', 's2']); // miejsca jak w zwykłą środę
+  }
+  // dwa dyżury „w niedzielę” (prawdziwa Nd 11 + środa 14) to dwa razy ten sam dzień weekendu
+  const two = { '2026-10-11': { s1: 'a' }, '2026-10-14': { s1: 'a' } };
+  assert.equal(scoreMonth(2026, 9, two, shifts, people).weDow, 0);
+  assert.equal(scoreMonth(2026, 9, two, shifts, people, {}, {}, {}, {}, asDay).weDow, 1);
+});

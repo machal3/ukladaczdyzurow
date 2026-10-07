@@ -1,4 +1,4 @@
-import { dateKey, daysInMonth, weekday, shiftsForDay, scoreMonth, PRIORITIES, PRIORITY_ORDER, availOf, breaksRule, LEVELS, ROLES, badOf, BAD, history, parseTable, matchPerson, personLog, PAST_WEIGHT, listPeople } from './scheduler.js';
+import { dateKey, daysInMonth, weekday, limitDay, shiftsForDay, scoreMonth, PRIORITIES, PRIORITY_ORDER, availOf, breaksRule, LEVELS, ROLES, badOf, BAD, history, parseTable, matchPerson, personLog, PAST_WEIGHT, listPeople } from './scheduler.js';
 import { runScheduler } from './scheduler-client.js';
 import { cloudLoad, cloudSave, cloudLogout } from './cloud.js';
 
@@ -23,6 +23,7 @@ state.limits ??= {}; // { personId: { shiftId: maks. dyżurów w miesiącu, '*':
 state.mins ??= {}; // { personId: { shiftId / d4-d6 / we / '*': minimum dyżurów w miesiącu } } — idzie do generateMonth jako limits[pid].min
 state.wants ??= {}; // { personId: { shiftId / d4-d6 / we / '*': ile dyżurów chce w miesiącu } } — prośby, miękkie (patrz generateMonth)
 state.bad ??= {}; // { 'YYYY-MM-DD': gównianość 0-3 } — patrz BAD/badOf; osoba: person.past 0-3
+state.asDay ??= {}; // { 'YYYY-MM-DD': 0-6 } — dzień liczony do limitów i próśb jak inny dzień tygodnia (patrz limitDay)
 state.rules ??= []; // [{ id, who, with, places: [shiftId] }] — patrz breaksRule
 state.priority = [...new Set([...(state.priority ?? []), ...PRIORITY_ORDER])].filter((k) => k in PRIORITIES); // kolejność kryteriów układania
 state.aliases ??= {}; // { 'imię z importowanej tabeli' (małe litery): personId } — zapamiętane połączenia z importu
@@ -82,7 +83,9 @@ function render() {
     const day = state.schedule[key] || {};
     const lvl = view.who && availOf(state.avail, view.who, key);
     const b = badOf(state.bad, y, m, d);
-    const rows = view.bad ? `<button class="avail ${['lvl-2', 'lvl-1', 'lvl-0', 'bad-3'][b]}" data-bad="${d}">${BAD[b]}</button>` :
+    const as = limitDay(state.asDay, y, m, d), moved = as !== weekday(y, m, d); // dzień liczony do limitów jak inny
+    const rows = view.bad ? `<button class="avail ${['lvl-2', 'lvl-1', 'lvl-0', 'bad-3'][b]}" data-bad="${d}">${BAD[b]}</button>` +
+      `<select data-as-day="${key}" aria-label="${d} ${monthName}: limity i prośby liczone jak dzień">${DAYS.map((n, i) => `<option value="${i}" ${i === as ? 'selected' : ''}>${i === weekday(y, m, d) ? `Limity: zwykły ${n}` : `Limity jak ${n}`}</option>`).join('')}</select>` :
       view.who ? `<button class="avail lvl-${lvl}" data-avail="${key}">${LEVELS[lvl]}</button>` :
       shiftsForDay(state.shifts, y, m, d).map((s) => {
       const pid = nameOf[day[s.id]] ? day[s.id] : '';
@@ -91,7 +94,7 @@ function render() {
       const manual = state.manual[key]?.[s.id] ? 'manual' : '';
       const why = !pid ? '' : availOf(state.avail, pid, key) === 0 ? ' — ta osoba nie może tego dnia' :
         state.limits[pid]?.[s.id] === 0 ? ' — ta osoba nie dyżuruje na tym miejscu' :
-        state.limits[pid]?.[`d${weekday(y, m, d)}`] === 0 ? ' — ta osoba nie dyżuruje w ten dzień tygodnia' :
+        state.limits[pid]?.[`d${as}`] === 0 ? ' — ta osoba nie dyżuruje w ten dzień tygodnia' :
         breaksRule(state.rules, day, pid, s.id) ? ' — łamie warunek' : '';
       const clash = why && 'clash';
       return `<label class="slot ${pid ? '' : 'unfilled'} ${manual} ${clash}" title="${esc(s.name)}${pid ? ` — ${esc(nameOf[pid])}` : ' — wybierz osobę'}${manual && ' — wpisany ręcznie'}${why}">
@@ -101,7 +104,7 @@ function render() {
       </label>`;
     }).join('');
     html += `<div class="cell burden-${b} ${key === todayKey ? 'today' : ''}">
-      <div class="day-heading"><div class="num" aria-label="${dayNames[weekday(y, m, d)]}, ${d} ${monthName} — ${BAD[b]}">${d}</div><span class="day-name">${dayNames[weekday(y, m, d)]}</span>${key === todayKey ? '<span class="today-label">Dzisiaj</span>' : ''}</div><div class="day-slots">${rows}</div></div>`;
+      <div class="day-heading"><div class="num" aria-label="${dayNames[weekday(y, m, d)]}, ${d} ${monthName} — ${BAD[b]}">${d}</div><span class="day-name">${dayNames[weekday(y, m, d)]}</span>${moved ? `<span class="as-label" title="Limity i prośby liczone jak ${dayNames[as].toLowerCase()}">jak ${DAYS[as]}</span>` : ''}${key === todayKey ? '<span class="today-label">Dzisiaj</span>' : ''}</div><div class="day-slots">${rows}</div></div>`;
   }
   html += '<div class="cell empty"></div>'.repeat((7 - (weekday(y, m, 1) + daysInMonth(y, m)) % 7) % 7); // domknięcie ostatniego tygodnia
   $('#calendar').innerHTML = html;
@@ -173,7 +176,7 @@ function render() {
       <button class="x" data-up="${i + 1}" ${i < state.priority.length - 1 ? '' : 'disabled'} aria-label="Niżej: ${PRIORITIES[k]}">↓</button></li>`).join('');
   const chips = (names, cls) => `<span class="cycle">${names.map((n, i) => `<span class="${cls[i]}">${n}</span>`).join('<span aria-hidden="true">→</span>')}</span>`;
   const done = '<button data-done>Gotowe</button>';
-  $('#status').innerHTML = view.bad ? `<span><b>Gównianość dni</b> — klikaj dni, by zmienić:</span>${chips(BAD, ['lvl-2', 'lvl-1', 'lvl-0', 'bad-3'])}${done}` :
+  $('#status').innerHTML = view.bad ? `<span><b>Gównianość dni</b> — klikaj dni, by zmienić:</span>${chips(BAD, ['lvl-2', 'lvl-1', 'lvl-0', 'bad-3'])}<span>Pod spodem: limity i prośby liczone jak inny dzień tygodnia (np. święto jak Nd).</span>${done}` :
     view.who ? `<span><b>Dostępność: ${esc(nameOf[view.who])}</b> — klikaj dni, by zmienić:</span>${chips([2, 3, 0, 1].map((i) => LEVELS[i]), ['lvl-2', 'lvl-3', 'lvl-0', 'lvl-1'])}${done}` :
     empty === slots && slots ? '<span>Pusty grafik — <b>Ułóż miesiąc</b> wypełni go automatycznie; każde pole możesz też wpisać ręcznie.</span>' :
     empty ? `<span>Obsadzone <b class="ok">${slots - empty} z ${slots}</b></span><span class="progress" role="progressbar" aria-label="Obsadzone dyżury" aria-valuenow="${Math.round((slots - empty) / slots * 100)}"><i style="width:${(slots - empty) / slots * 100}%"></i></span>` +
@@ -215,7 +218,7 @@ $('#generate').onclick = async () => {
   let variants;
   try {
     variants = await runScheduler([job.y, job.m, state.shifts, people, locked, state.avail,
-      Object.fromEntries(team().map((p) => [p.id, { we: WEEKEND_LIMIT, ...state.limits[p.id], min: state.mins[p.id] }])), state.rules, state.bad, state.wants, { order: state.priority }], {
+      Object.fromEntries(team().map((p) => [p.id, { we: WEEKEND_LIMIT, ...state.limits[p.id], min: state.mins[p.id] }])), state.rules, state.bad, state.wants, { order: state.priority, asDay: state.asDay }], {
       signal: job.controller.signal,
       onProgress: (progress) => { if (generation === job) $('#generation-status').textContent = progress.message; },
     });
@@ -291,6 +294,16 @@ $('#calendar').onclick = (e) => {
     if (next === 2) delete a[key]; else a[key] = next;
   });
 };
+
+// Tryb oceny dni: „Limity jak …” — dzień liczony do limitów i próśb jak inny dzień tygodnia (prawdziwy = bez wpisu)
+$('#calendar').addEventListener('change', (e) => {
+  const key = e.target.dataset.asDay;
+  if (!key) return;
+  update(() => {
+    const [y, m, d] = key.split('-').map(Number);
+    if (+e.target.value === weekday(y, m - 1, d)) delete state.asDay[key]; else state.asDay[key] = +e.target.value;
+  });
+});
 
 $('#clear').onclick = () => {
   if (!confirm('Wyczyścić grafik tego miesiąca (łącznie z ręcznymi zmianami)?')) return;
@@ -448,7 +461,7 @@ function logHtml(p) {
   const summary = (list) => {
     const per = {};
     for (const x of list) per[x.sid] = (per[x.sid] || 0) + 1;
-    const we = list.filter((x) => weekday(+x.key.slice(0, 4), x.key.slice(5, 7) - 1, +x.key.slice(8)) >= 4).length; // Pt/So/Nd
+    const we = list.filter((x) => limitDay(state.asDay, +x.key.slice(0, 4), x.key.slice(5, 7) - 1, +x.key.slice(8)) >= 4).length; // Pt/So/Nd (też dni liczone jak Pt/So/Nd)
     return [dyzury(list.length), ...Object.entries(per).map(([sid, n]) => `${esc(shiftName[sid] ?? '(usunięte miejsce)')} ${n}`),
       `Pt/So/Nd ${we}`, `gównianość ${list.reduce((a, x) => a + x.bad, 0)} pkt`].join(' · ');
   };

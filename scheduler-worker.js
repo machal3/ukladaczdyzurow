@@ -5,6 +5,7 @@ self.onmessage = ({ data }) => {
   try {
     const variants = generateVariants(...data.slice(0, 10), {
       order: data[10]?.order,
+      asDay: data[10]?.asDay,
       timeBudgetMs: 7000,
       onProgress: (progress) => self.postMessage({ type: 'progress', progress }),
     });
