@@ -189,7 +189,8 @@ function render() {
     const who = team().filter((p) => wish[p.id] || last[p.id] || gaps.some((g) => g.pid === p.id));
     const n = who.length;
     $('#want-gaps').classList.toggle('all-ok', !n);
-    $('#want-gaps').hidden = !!view.who; // przy klikaniu dostępności osoby uwagi tylko przeszkadzają
+    // przy klikaniu dostępności osoby uwagi tylko przeszkadzają; w pustym miesiącu nie ma jeszcze czego oceniać
+    $('#want-gaps').hidden = !!view.who || empty === slots;
     $('#want-gaps .head').innerHTML = `<span class="count">${n || '✓'}</span><b>Uwagi</b><span class="hint">${n ? 'prośby, dni „Chcę” i „W ostateczności”' : 'wszystko się zgadza'}</span>`;
     const days = (ds) => ds?.map((d) => `${d}.${String(m + 1).padStart(2, '0')}`).join(', ');
     const nums = (pid, f) => gaps.filter((g) => g.pid === pid && f(g)).map((g) => `${esc(label(g.k))}: <b>${g.got}</b> zamiast ${g.want}`).join('<br>');
