@@ -31,6 +31,7 @@ function migrate() {
   state.limits ??= {}; // { personId: { shiftId: maks. dyżurów w miesiącu, '*': maks. łącznie, we: maks. Pt/So/Nd, d56: maks. So + Nd łącznie } } — brak = bez limitu (we: WEEKEND_LIMIT)
   state.mins ??= {}; // { personId: { shiftId / d4-d6 / d56 / we / '*': minimum dyżurów w miesiącu } } — idzie do generateMonth jako limits[pid].min
   state.wants ??= {}; // { personId: { shiftId / d4-d6 / d56 / we / '*': ile dyżurów chce w miesiącu } } — prośby, miękkie (patrz generateMonth)
+  state.uwagi ??= {}; // { personId: { 'YYYY-MM': komentarz osoby z Zapisów (zwykły tekst, ≤ 500 znaków) } }
   state.bad ??= {}; // { 'YYYY-MM-DD': gównianość 0-3 } — patrz BAD/badOf; osoba: person.past 0-3
   state.asDay ??= {}; // { 'YYYY-MM-DD': 0-6 } — dzień liczony do limitów i próśb jak inny dzień tygodnia (patrz limitDay)
   state.rules ??= []; // [{ id, who, with, places: [shiftId] }] — patrz breaksRule
@@ -206,6 +207,7 @@ function render() {
     empty === slots && slots ? '<span>Pusty grafik — <b>Ułóż miesiąc</b> wypełni go automatycznie; każde pole możesz też wpisać ręcznie.</span>' :
     empty ? `<span>Obsadzone <b class="ok">${slots - empty} z ${slots}</b></span><span class="progress" role="progressbar" aria-label="Obsadzone dyżury" aria-valuenow="${Math.round((slots - empty) / slots * 100)}"><i style="width:${(slots - empty) / slots * 100}%"></i></span>` +
       `<span>wolne: <b>${empty}</b></span><button class="ghost" data-jump>Pokaż pierwszy wolny →</button>` : '';
+  if (zapisy && !view.who && !view.bad) $('#status').insertAdjacentHTML('beforeend', zapisyInfo(y, m));
   $('#status').classList.toggle('info', !!view.who || view.bad || empty === slots);
   $('#status').classList.toggle('pinned', !!view.who || !!view.bad); // pasek pędzla przypięty pod nagłówkiem
   $('#calendar').classList.toggle('painting', !!view.who || view.bad); // bez zaznaczania tekstu przy przeciąganiu
@@ -217,23 +219,26 @@ function render() {
     const wish = missedWishes(y, m, state.schedule, team(), state.avail);
     const last = lastResortDays(y, m, state.schedule, team(), state.avail);
     const sw = sandwichDays(y, m, state.schedule, state.shifts, team(), state.avail);
-    const who = team().filter((p) => wish[p.id] || last[p.id] || sw[p.id] || gaps.some((g) => g.pid === p.id));
+    // w pustym miesiącu nie ma jeszcze czego oceniać — wtedy tylko komentarze osób z Zapisów
+    const blank = empty === slots;
+    const who = team().filter((p) => uwaga(p.id) || !blank && (wish[p.id] || last[p.id] || sw[p.id] || gaps.some((g) => g.pid === p.id)));
     const n = who.length;
     $('#want-gaps').classList.toggle('all-ok', !n);
-    // przy klikaniu dostępności osoby uwagi tylko przeszkadzają; w pustym miesiącu nie ma jeszcze czego oceniać
-    $('#want-gaps').hidden = !!view.who || empty === slots;
-    $('#want-gaps .head').innerHTML = `<span class="count">${n || '✓'}</span><b>Uwagi</b><span class="hint">${n ? 'prośby, dni „Chcę”, „W ostateczności” i kanapki' : 'wszystko się zgadza'}</span>`;
+    // przy klikaniu dostępności osoby uwagi tylko przeszkadzają
+    $('#want-gaps').hidden = !!view.who || blank && !n;
+    $('#want-gaps .head').innerHTML = `<span class="count">${n || '✓'}</span><b>Uwagi</b><span class="hint">${n ? 'prośby, dni „Chcę”, „W ostateczności”, kanapki i komentarze osób' : 'wszystko się zgadza'}</span>`;
     const days = (ds) => ds?.map((d) => `${d}.${String(m + 1).padStart(2, '0')}`).join(', ');
     const nums = (pid, f) => gaps.filter((g) => g.pid === pid && f(g)).map((g) => `${esc(label(g.k))}: <b>${g.got}</b> zamiast ${g.want}`).join('<br>');
     const dm = (key) => `${+key.slice(8)}.${key.slice(5, 7)}`;
     const pairs = (ps) => ps?.map(([a, b]) => `${dm(a)} i ${dm(b)}`).join(', ');
     const row = (cls, tag, text) => text ? `<p><span class="${cls}">${tag}</span><span>${text}</span></p>` : '';
     $('#want-gaps ul').innerHTML = who.map((p) => `<li><b>${esc(p.name)}</b>` +
+      row('note', 'Komentarz', esc(uwaga(p.id))) + (blank ? '' :
       row('few', 'Za mało', nums(p.id, (g) => g.got < g.want)) +
       row('over', 'Za dużo', nums(p.id, (g) => g.got > g.want)) +
       row('lvl-3', '„Chcę” bez dyżuru', days(wish[p.id])) +
       row('lvl-1', '„W ostateczności”', days(last[p.id])) +
-      row('lvl-2', 'Kanapki', pairs(sw[p.id])) + '</li>').join('');
+      row('lvl-2', 'Kanapki', pairs(sw[p.id]))) + '</li>').join('');
   }
   $('#bad-mode').setAttribute('aria-pressed', view.bad);
   if (document.activeElement !== $('#zapisy-od')) $('#zapisy-od').value = state.zapisyOd ?? '';
@@ -242,7 +247,17 @@ function render() {
 
 // Zapisy na dyżury: kiedy osoba ostatnio sama zmieniła dostępność/prośby (state.stamps stawia serwer)
 const when = (iso) => iso ? new Date(iso).toLocaleString('pl-PL', { dateStyle: 'short', timeStyle: 'short' }) : '—';
-const stamp = (pid) => state.stamps[pid] ? ` <small class="stamp">zmienione w Zapisach: ${when(state.stamps[pid])}</small>` : '';
+const stamp = (pid) => (state.stamps[pid] ? ` <small class="stamp">zmienione w Zapisach: ${when(state.stamps[pid])}</small>` : '') +
+  (uwaga(pid) ? ` <small class="stamp note-text">Komentarz: ${esc(uwaga(pid))}</small>` : '');
+// komentarz osoby z Zapisów do oglądanego miesiąca ('' = brak) — zwykły tekst, zawsze przez esc()
+const uwaga = (pid) => state.uwagi[pid]?.[dateKey(view.y, view.m, 1).slice(0, 7)]?.trim() ?? '';
+// Termin zapisów (pilnuje baza): osoby zmieniają miesiąc do 20. dnia poprzedniego; state.zapisyOd zamyka wcześniejsze miesiące
+function zapisyInfo(y, m) {
+  const closed = dateKey(now.getFullYear(), now.getMonth(), now.getDate()) > dateKey(y, m - 1, 20) ||
+    dateKey(y, m, 1).slice(0, 7) < (state.zapisyOd ?? '');
+  return `<span class="zapisy-info">${closed ? 'Zapisy osób zamknięte' :
+    `Zapisy osób na ten miesiąc: otwarte do ${new Date(y, m - 1, 20).toLocaleDateString('pl-PL', { day: 'numeric', month: 'long' })}`}</span>`;
+}
 
 function update(fn) { stopGeneration(); fn(); save(); render(); }
 
@@ -620,6 +635,7 @@ $('main').onclick = (e) => {
     delete state.limits[delPerson];
     delete state.wants[delPerson];
     delete state.mins[delPerson];
+    delete state.uwagi[delPerson];
     state.rules = state.rules.filter((r) => r.who !== delPerson && r.with !== delPerson);
     if (view.who === delPerson) view.who = null;
   });
@@ -771,7 +787,8 @@ function renderStats() {
       }).join('');
       const maxDow = Math.max(1, ...x.dow);
       statDetail[p.id] = { name: p.name, sub: `${ROLES[roleOf(p)]} · ${dyzury(x.total)} · ${places}`,
-        body: `<section><h4>Dlaczego tak</h4><ul class="why">${why.map(([t, w]) => `<li class="${t}">${w}</li>`).join('')}</ul></section>
+        body: (uwaga(p.id) ? `<section><h4>Komentarz <small>z Zapisów</small></h4><p class="note-text">${esc(uwaga(p.id))}</p></section>` : '') +
+          `<section><h4>Dlaczego tak</h4><ul class="why">${why.map(([t, w]) => `<li class="${t}">${w}</li>`).join('')}</ul></section>
           <section><h4>Limity i prośby <small>ten miesiąc</small></h4><div class="table-scroll"><table class="counts lims"><thead><tr><td></td><th scope="col">Dostał</th><th scope="col">Min.</th><th scope="col">Limit</th><th scope="col">Prośba</th><td></td></tr></thead><tbody>${limRows}</tbody></table></div></section>
           <section><h4>Dni tygodnia</h4><div class="dows">${DAYS.map((d, i) => `<span style="--k:${x.dow[i] / maxDow}" class="${x.dow[i] ? '' : 'zero'}"><small>${d}</small><b>${x.dow[i]}</b></span>`).join('')}</div></section>`,
         actions: `<button type="button" class="outlined" data-log="${p.id}">${HIST}Historia</button><button type="button" class="outlined" data-who="${p.id}">${CAL}Dostępność</button><button type="button" class="outlined" data-edit="${p.id}">${GEAR}Ustawienia</button><button>Zamknij</button>` };

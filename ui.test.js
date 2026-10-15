@@ -258,6 +258,10 @@ test('Zapisy na dyżury w trybie chmury: konto osoby, nowy PIN (zajęty → losu
   assert.equal($('.new-pin'), null);
   $('#person').close();
 
+  assert.match($('#status').textContent, /Zapisy osób (na ten miesiąc: otwarte do 20 |zamknięte)/);
+  $('#zapisy-od').value = '2999-01'; // zamyka oglądany miesiąc wcześniej
+  $('#zapisy-od').dispatchEvent(new w.Event('change', { bubbles: true }));
+  assert.match($('#status').textContent, /Zapisy osób zamknięte/);
   $('#zapisy-od').value = '2030-02';
   $('#zapisy-od').dispatchEvent(new w.Event('change', { bubbles: true }));
   assert.equal(state().zapisyOd, '2030-02');
@@ -271,6 +275,31 @@ test('Zapisy na dyżury w trybie chmury: konto osoby, nowy PIN (zajęty → losu
   assert.equal($('#reload-status').textContent, 'Odświeżono.');
   assert.deepEqual(state().stamps, fresh.stamps);
   assert.ok(state().priority.length, 'odświeżony stan przechodzi te same migracje');
+});
+
+test('komentarze osób z Zapisów: w Uwagach także przy pustym grafiku, przetrwają zapis, znikają z usuniętą osobą', async (t) => {
+  const days = [0, 1, 2, 3, 4, 5, 6], d = new Date();
+  const next = new Date(d.getFullYear(), d.getMonth() + 1, 15); // aplikacja startuje na następnym miesiącu
+  const shown = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}`;
+  const uwagi = { a: { [shown]: 'Wolę <b>OITN</b>\nproszę' }, b: { '2000-01': 'stary' } };
+  const { w, $, state } = await setup(t, {
+    people: [{ id: 'a', name: 'Anna Kowalska', prestige: 1 }, { id: 'b', name: 'Jan Nowak', prestige: 1 }],
+    shifts: [{ id: 'o', name: 'OITN', days }], schedule: {}, manual: {}, miejscaV2: true, uwagi,
+  });
+  assert.equal($('#want-gaps').hidden, false, 'pusty grafik, ale jest komentarz');
+  const li = $('#want-gaps li');
+  assert.match(li.textContent, /Anna Kowalska.*Komentarz.*Wolę <b>OITN<\/b>/s);
+  assert.equal(li.querySelector('b b'), null, 'tekst bez HTML');
+  assert.equal(w.document.querySelectorAll('#want-gaps li').length, 1, 'komentarz z innego miesiąca się nie liczy');
+  $('#people [data-who="a"]').click();
+  assert.match($('#status').textContent, /Komentarz: Wolę <b>OITN<\/b>/);
+  $('[data-avail]').click(); // zapis całego stanu
+  assert.deepEqual(state().uwagi, uwagi);
+  $('[data-done]').click();
+  w.confirm = () => true;
+  $('#people [data-del-person="a"]').click();
+  assert.deepEqual(state().uwagi, { b: uwagi.b });
+  assert.equal($('#want-gaps').hidden, true);
 });
 
 test('dekoracje odtwarzają się po wymianie DOM podczas logowania', async (t) => {

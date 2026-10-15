@@ -270,16 +270,23 @@ swoją dostępność i prośby, 6-cyfrowym PIN-em. Działa tylko w trybie chmury
   zmiana. **Nadaj PIN** losuje 6 cyfr (bez łatwych, np. 112211, 123456, 123123). PIN widać tylko raz — przekaż
   go osobie (**Skopiuj**). Nowy PIN unieważnia stary i wylogowuje osobę na wszystkich urządzeniach.
   **Usuń konto** odbiera dostęp (wpisana dostępność zostaje). Usunięcie osoby usuwa też jej konto.
-- **Co osoba widzi** — tylko swoje imię, nazwy miejsc, swoją dostępność (Mogę / Chcę / Muszę / Nie mogę /
-  W ostateczności) i swoje prośby. **Nie widzi** limitów, minimów, innych osób, warunków, gównianości dni ani grafiku.
-- **Zapisy otwarte od miesiąca** (zakładka Układanie) — osoby nie zmienią dni sprzed tego miesiąca (np. już
-  ułożonych) ani dni przeszłych; pilnuje tego baza. Puste = bez blokady (od dziś).
+- **Co osoba widzi** — swoje imię, nazwy miejsc, swoją dostępność (Mogę / Chcę / Muszę / Nie mogę /
+  W ostateczności), swoje prośby i komentarze. **Nie widzi** limitów, minimów, cudzej dostępności, warunków ani
+  gównianości dni.
+- **Grafik** — Zapisy pokazują wszystkim aktualny grafik od poprzedniego miesiąca (tylko imiona na miejscach), na
+  bieżąco, także w trakcie poprawiania.
+- **Komentarze** — osoba może dopisać komentarz do swoich dyżurów w danym miesiącu (do 500 znaków). Widać go w
+  **Uwagach** nad kalendarzem (także przy pustym grafiku), w oknie osoby w Statystykach i w trybie jej dostępności.
+- **Termin zapisów** — osoby zmieniają dostępność na dany miesiąc do 20. dnia poprzedniego miesiąca włącznie;
+  pilnuje tego baza. Pasek nad kalendarzem pokazuje, czy zapisy na oglądany miesiąc są otwarte. Pole **Zamknij
+  zapisy osób do miesiąca** (zakładka Układanie, opcjonalne) zamyka wcześniej wszystkie miesiące przed wybranym
+  (np. już ułożone).
 - **Kto to wpisał** — w trybie dostępności osoby przy imieniu widać „zmienione w Zapisach: data”, jeśli osoba
   coś tam zmieniała.
 - **Odświeżanie** — zmiany osób pojawiają się po powrocie na kartę przeglądarki albo po **Odśwież dane**
   (Ustawienia aplikacji). Nie w trakcie układania, przy otwartym oknie osoby ani gdy własne zmiany jeszcze się zapisują.
 - **Jednoczesna zmiana — wygrywa osoba.** Jeśli osoba zmieni swoją dostępność po wczytaniu danych w Układaczu,
-  przy zapisie jej dostępność i prośby zostają z bazy, a zmiany zrobione w Układaczu u tej osoby przepadają
+  przy zapisie jej dostępność, prośby i komentarze zostają z bazy, a zmiany zrobione w Układaczu u tej osoby przepadają
   (widać to po odświeżeniu). Reszta zmian zapisuje się normalnie.
 - **Ustawienia aplikacji → Zapisy na dyżury** — liczba złych prób logowania z 24 h (przy 100 logowanie wstrzymuje
   się dla wszystkich) i link do aplikacji Zapisów.

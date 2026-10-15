@@ -107,8 +107,8 @@
       </div>
       <div class="panel" id="panel-zapisy-od" hidden>
         <h3>Zapisy na dyżury</h3>
-        <p class="lead">Od którego miesiąca osoby mogą same zmieniać dostępność w aplikacji Zapisy. Wcześniejszych miesięcy (np. już ułożonych) nie zmienią. Puste = bez blokady (od dziś).</p>
-        <label class="field"><span>Zapisy otwarte od miesiąca</span><input id="zapisy-od" type="month"></label>
+        <p class="lead">Osoby zmieniają dostępność na dany miesiąc do 20. dnia poprzedniego miesiąca. Tu możesz zamknąć zapisy wcześniej: miesiące przed wybranym (np. już ułożone) są zamknięte. Puste = tylko termin 20.</p>
+        <label class="field"><span>Zamknij zapisy osób do miesiąca (opcjonalnie)</span><input id="zapisy-od" type="month"></label>
       </div>
     </section>
 
@@ -280,11 +280,13 @@
         <p>Osobna aplikacja <b>Zapisy na dyżury</b> pozwala każdej osobie samej wpisać swoją dostępność i prośby, 6-cyfrowym PIN-em. Działa tylko w trybie chmury, gdy ustawiony jest adres Zapisów.</p>
         <ul>
           <li><b>Konto osoby</b> — karta <b>Konto w Zapisach</b> w ustawieniach osoby: czy ma PIN, ostatnie logowanie i ostatnia zmiana. <b>Nadaj PIN</b> losuje 6 cyfr (bez łatwych, np. 112211, 123456, 123123). PIN widać tylko raz — przekaż go osobie (<b>Skopiuj</b>). Nowy PIN unieważnia stary i wylogowuje osobę na wszystkich urządzeniach. <b>Usuń konto</b> odbiera dostęp (wpisana dostępność zostaje). Usunięcie osoby usuwa też jej konto.</li>
-          <li><b>Co osoba widzi</b> — tylko swoje imię, nazwy miejsc, swoją dostępność i swoje prośby. <b>Nie widzi</b> limitów, minimów, innych osób, warunków, gównianości dni ani grafiku.</li>
-          <li><b>Zapisy otwarte od miesiąca</b> (zakładka Układanie) — osoby nie zmienią dni sprzed tego miesiąca (np. już ułożonych) ani dni przeszłych; pilnuje tego baza. Puste = bez blokady (od dziś).</li>
+          <li><b>Co osoba widzi</b> — swoje imię, nazwy miejsc, swoją dostępność, swoje prośby i komentarze. <b>Nie widzi</b> limitów, minimów, cudzej dostępności, warunków ani gównianości dni.</li>
+          <li><b>Grafik</b> — Zapisy pokazują wszystkim aktualny grafik od poprzedniego miesiąca (tylko imiona na miejscach), na bieżąco, także w trakcie poprawiania.</li>
+          <li><b>Komentarze</b> — osoba może dopisać komentarz do swoich dyżurów w danym miesiącu (do 500 znaków). Widać go w <b>Uwagach</b> nad kalendarzem (także przy pustym grafiku), w oknie osoby w Statystykach i w trybie jej dostępności.</li>
+          <li><b>Termin zapisów</b> — osoby zmieniają dostępność na dany miesiąc do 20. dnia poprzedniego miesiąca włącznie; pilnuje tego baza. Pasek nad kalendarzem pokazuje, czy zapisy na oglądany miesiąc są otwarte. Pole <b>Zamknij zapisy osób do miesiąca</b> (zakładka Układanie, opcjonalne) zamyka wcześniej wszystkie miesiące przed wybranym (np. już ułożone).</li>
           <li><b>Kto to wpisał</b> — w trybie dostępności osoby przy imieniu widać „zmienione w Zapisach: data”, jeśli osoba coś tam zmieniała.</li>
           <li><b>Odświeżanie</b> — zmiany osób pojawiają się po powrocie na kartę przeglądarki albo po <b>Odśwież dane</b> (Ustawienia aplikacji). Nie w trakcie układania, przy otwartym oknie osoby ani gdy własne zmiany jeszcze się zapisują.</li>
-          <li><b>Jednoczesna zmiana — wygrywa osoba.</b> Jeśli osoba zmieni swoją dostępność po wczytaniu danych w Układaczu, przy zapisie jej dostępność i prośby zostają z bazy, a zmiany zrobione w Układaczu u tej osoby przepadają (widać to po odświeżeniu). Reszta zmian zapisuje się normalnie.</li>
+          <li><b>Jednoczesna zmiana — wygrywa osoba.</b> Jeśli osoba zmieni swoją dostępność po wczytaniu danych w Układaczu, przy zapisie jej dostępność, prośby i komentarze zostają z bazy, a zmiany zrobione w Układaczu u tej osoby przepadają (widać to po odświeżeniu). Reszta zmian zapisuje się normalnie.</li>
           <li><b>Ustawienia aplikacji → Zapisy na dyżury</b> — liczba złych prób logowania z 24 h (przy 100 logowanie wstrzymuje się dla wszystkich) i link do aplikacji Zapisów.</li>
         </ul>
       </section>
