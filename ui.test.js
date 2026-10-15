@@ -44,7 +44,10 @@ async function setup(t) {
   const app = await source('./app.js');
   const client = await source('./scheduler-client.js');
   await client.link(() => { throw new Error('Nieoczekiwany import klienta workera'); });
-  await app.link((name) => name === './scheduler.js' ? scheduler : name === './scheduler-client.js' ? client : cloud);
+  const exporter = await source('./export.js');
+  await exporter.link(() => { throw new Error('Nieoczekiwany import eksportu'); });
+  const modules = { './scheduler.js': scheduler, './scheduler-client.js': client, './export.js': exporter };
+  await app.link((name) => modules[name] ?? cloud);
   await app.evaluate();
   const $ = (selector) => w.document.querySelector(selector);
   const tick = () => new Promise((resolve) => setImmediate(resolve));
@@ -60,7 +63,7 @@ async function setup(t) {
 test('nawigacja i motyw nie zmieniają zapisanych danych grafiku', async (t) => {
   const { w, $, tick } = await setup(t);
   const saved = w.localStorage.getItem('dyzury-v1');
-  for (const tab of ['people', 'settings', 'help', 'calendar']) {
+  for (const tab of ['people', 'stats', 'settings', 'help', 'calendar']) {
     $(`button[data-tab="${tab}"]`).click();
     await tick();
     assert.equal(w.document.body.dataset.tab, tab);
@@ -234,4 +237,32 @@ test('okno osoby: Min., Limit i Prośba zapisują się w każdym wierszu i dzia�
   await generated();
   assert.match(message, /minimum.*przekracza limit górny/);
   assert.deepEqual(state().schedule, previous);
+});
+
+test('statystyki: ręczny wpis od razu w zestawieniu, rozwinięta osoba zostaje otwarta, historia w osobnym oknie', async (t) => {
+  const { w, $, tick, state } = await setup(t);
+  const input = $('#calendar input');
+  input.focus();
+  input.value = 'Anna';
+  input.dispatchEvent(new w.Event('input', { bubbles: true }));
+  input.dispatchEvent(new w.KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+  const anna = state().people.find((p) => p.name === 'Anna Kowalska').id;
+  $('button[data-tab="stats"]').click();
+  await tick();
+  const row = () => $(`#stats details[data-pid="${anna}"]`);
+  assert.match(row().querySelector('.cell-n .big').textContent, /^1/);
+  assert.match($('#stats .kpi').textContent, /1 \/ \d+/);
+  row().open = true;
+  row().dispatchEvent(new w.Event('toggle'));
+  row().querySelector('[data-edit]').click();
+  assert.equal($('#person').open, true);
+  assert.equal($('#person [data-ptab]'), null);
+  assert.ok($('#person [data-limit="*"]'));
+  $('#person').close();
+  await tick();
+  assert.equal(row().open, true, 'po przerysowaniu osoba zostaje rozwinięta');
+  assert.equal(row().querySelector('.slog'), null, 'historia nie w rozwinięciu');
+  row().querySelector('[data-log]').click();
+  assert.equal($('#log').open, true);
+  assert.match($('#log-body').textContent, /ręczny/);
 });

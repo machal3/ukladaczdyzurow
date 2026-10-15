@@ -214,15 +214,19 @@ export const PRIORITY_ORDER = Object.keys(PRIORITIES);
 // Ocena gotowego grafiku miesiąca (mniej = lepiej) dla każdego kryterium PRIORITIES + unfilled (nieobsadzone dyżury) + min (brakujące dyżury do minimów limits[pid].min);
 // do pokazania: lastResort = dyżury „W ostateczności”, spread = różnica liczby dyżurów (najwięcej − najmniej).
 // ponytail: wagi na oko (W ostateczności = 10 × Mogę); suma kwadratów = kara za nierówny podział.
-// Dni „Chcę” bez dyżuru tej osoby w miesiącu y/m: { personId: [dzień] } — do pokazania po ułożeniu.
-export function missedWishes(y, m, schedule, people, avail = {}) {
+// Dni miesiąca y/m, w które test(poziom dostępności, czy ma dyżur) — { personId: [dzień] }, do pokazania po ułożeniu.
+function daysWhere(y, m, schedule, people, avail, test) {
   const out = {};
   for (const p of people) for (let d = 1; d <= daysInMonth(y, m); d++) {
     const key = dateKey(y, m, d);
-    if (availOf(avail, p.id, key) === 3 && !Object.values(schedule[key] || {}).includes(p.id)) (out[p.id] ??= []).push(d);
+    if (test(availOf(avail, p.id, key), Object.values(schedule[key] || {}).includes(p.id))) (out[p.id] ??= []).push(d);
   }
   return out;
 }
+// Dni „Chcę” bez dyżuru tej osoby.
+export const missedWishes = (y, m, schedule, people, avail = {}) => daysWhere(y, m, schedule, people, avail, (lvl, on) => lvl === 3 && !on);
+// Dyżury w dni „W ostateczności”.
+export const lastResortDays = (y, m, schedule, people, avail = {}) => daysWhere(y, m, schedule, people, avail, (lvl, on) => lvl === 1 && on);
 
 export function scoreMonth(y, m, schedule, shifts, people, avail = {}, bad = {}, wants = {}, limits = {}, asDay = {}) {
   const sc = { unfilled: 0, min: 0, avail: 0, sandwich: 0, weDow: 0, wants: 0, bad: 0, even: 0, lastResort: 0 };
@@ -767,4 +771,33 @@ export function listPeople(people, count, { q = '', role = null, none = false, s
   return people.filter((p) => words.every((w) => fold(p.name).includes(w)) &&
     (!role || (role === 'rez') === !p.prestige) && (!none || !count[p.id]))
     .sort((a, b) => cmp(a, b) || abc(a.name, b.name));
+}
+
+// Zakładka Statystyki: liczniki oglądanego miesiąca. people → { pid: { total, n: { '*' / shiftId / we / d4-d6 / d56: dyżury — klucze jak w limitach, z asDay },
+// dow: [7] (prawdziwy dzień tygodnia), bad: punkty gównianości, lvl: [5] dyżury wg dostępności tego dnia, days: [5] dni miesiąca wg dostępności,
+// sandwich: dyżury co drugi dzień (jak w scoreMonth), manual: wpisane ręcznie } }; do tego obsada całości i każdego miejsca.
+export function monthStats(y, m, schedule, shifts, people, avail = {}, bad = {}, asDay = {}, manual = {}) {
+  const st = { slots: 0, filled: 0, manual: 0, lastResort: 0, sandwich: 0, shifts: Object.fromEntries(shifts.map((s) => [s.id, { slots: 0, filled: 0 }])), people: {} };
+  for (const p of people) st.people[p.id] = { total: 0, n: {}, dow: [0, 0, 0, 0, 0, 0, 0], bad: 0, lvl: [0, 0, 0, 0, 0], days: [0, 0, 0, 0, 0], sandwich: 0, manual: 0 };
+  const pn1 = shifts.find((s) => s.name === 'PN1')?.id, last = {}, lastSid = {};
+  for (let d = 1; d <= daysInMonth(y, m); d++) {
+    const key = dateKey(y, m, d), day = schedule[key] || {}, wd = weekday(y, m, d);
+    for (const p of people) st.people[p.id].days[availOf(avail, p.id, key)]++;
+    for (const s of shiftsForDay(shifts, y, m, d)) {
+      st.slots++; st.shifts[s.id].slots++;
+      const x = st.people[day[s.id]];
+      if (!x) continue;
+      const pid = day[s.id], lvl = availOf(avail, pid, key);
+      st.filled++; st.shifts[s.id].filled++;
+      const lw = limitDay(asDay, y, m, d);
+      for (const k of ['*', s.id, ...(lw >= 4 ? ['we', `d${lw}`] : []), ...(lw >= 5 ? ['d56'] : [])]) x.n[k] = (x.n[k] || 0) + 1;
+      x.total++; x.dow[wd]++; x.lvl[lvl]++; x.bad += badOf(bad, y, m, d);
+      if (manual[key]?.[s.id] === pid) { x.manual++; st.manual++; }
+      st.lastResort += lvl === 1;
+      const pref = people.find((p) => p.id === pid).pn1Sandwich !== false;
+      if (last[pid] === d - 2 && lvl < 3 && !(pref && wd === 0 && lastSid[pid] === pn1)) { x.sandwich++; st.sandwich++; }
+      last[pid] = d; lastSid[pid] = s.id;
+    }
+  }
+  return st;
 }

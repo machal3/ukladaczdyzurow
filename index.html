@@ -16,14 +16,14 @@
 </head>
 <body data-tab="calendar">
   <a class="skip-link" href="#main">Przejdź do treści</a>
-  <header class="app-header"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h6v8H3V5a2 2 0 0 1 2-2Zm8 0h6a2 2 0 0 1 2 2v6h-8ZM3 13h8v8H5a2 2 0 0 1-2-2Zm10 0h8v6a2 2 0 0 1-2 2h-6Z"/></svg><h1>Układacz dyżurów</h1><button id="app-settings-open" class="ghost" type="button" aria-label="Ustawienia aplikacji" title="Ustawienia aplikacji"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg></button></header>
+  <header class="app-header"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h6v8H3V5a2 2 0 0 1 2-2Zm8 0h6a2 2 0 0 1 2 2v6h-8ZM3 13h8v8H5a2 2 0 0 1-2-2Zm10 0h8v6a2 2 0 0 1-2 2h-6Z"/></svg><h1>Układacz dyżurów</h1><button id="help-open" class="ghost" type="button" data-tab="help" aria-pressed="false" aria-label="Instrukcja" title="Instrukcja"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></button><button id="app-settings-open" class="ghost" type="button" aria-label="Ustawienia aplikacji" title="Ustawienia aplikacji"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg></button></header>
   <div class="bar">
     <nav class="tabs" aria-label="Widok">
       <div class="brand"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 3h6v8H3V5a2 2 0 0 1 2-2Zm8 0h6a2 2 0 0 1 2 2v6h-8ZM3 13h8v8H5a2 2 0 0 1-2-2Zm10 0h8v6a2 2 0 0 1-2 2h-6Z"/></svg></div>
       <button class="ghost" data-tab="calendar" aria-pressed="true"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 2v3"/><path d="M16 2v3"/><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M8 13h.01"/><path d="M12 13h.01"/><path d="M16 13h.01"/><path d="M8 17h.01"/><path d="M12 17h.01"/><path d="M16 17h.01"/></svg></span><span>Grafik</span></button>
       <button class="ghost" data-tab="people" aria-pressed="false"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M16 3.128a4 4 0 0 1 0 7.744"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><circle cx="9" cy="7" r="4"/></svg></span><span>Osoby</span></button>
+      <button class="ghost" data-tab="stats" aria-pressed="false"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg></span><span>Statystyki</span></button>
       <button class="ghost" data-tab="settings" aria-pressed="false"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5H3"/><path d="M12 19H3"/><path d="M14 3v4"/><path d="M16 17v4"/><path d="M21 12h-9"/><path d="M21 19h-5"/><path d="M21 5h-7"/><path d="M8 10v4"/><path d="M8 12H3"/></svg></span><span>Układanie</span></button>
-      <button class="ghost" data-tab="help" aria-pressed="false"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></span><span>Instrukcja</span></button>
     </nav>
     <nav class="month" aria-label="Miesiąc">
       <button id="prev" class="ghost" aria-label="Poprzedni miesiąc"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
@@ -43,7 +43,7 @@
   </div>
 
   <p id="generation-status" role="status" aria-live="polite"></p>
-  <section id="want-gaps" aria-label="Niespełnione prośby"><p class="head"></p><ul></ul></section>
+  <section id="want-gaps" aria-label="Uwagi"><p class="head"></p><ul></ul></section>
   <div id="status" role="status"></div>
 
   <main id="main" tabindex="-1">
@@ -60,7 +60,7 @@
     <section id="people-tab" class="people-tab" aria-label="Osoby">
       <div class="panel" id="panel-people">
         <h3>Osoby</h3>
-        <p class="lead">Kliknij imię, by zaznaczyć dostępność w kalendarzu. „Ustawienia” — funkcja, limity, prośby i historia. Na dole karty: liczba dyżurów w oglądanym miesiącu.</p>
+        <p class="lead">Kliknij imię, by zaznaczyć dostępność w kalendarzu. „Ustawienia” — funkcja, limity i prośby. Liczby dyżurów i historia są w zakładce Statystyki.</p>
         <div class="people-tools" role="search">
           <label class="search-bar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg><input id="people-q" type="search" placeholder="Szukaj osoby" aria-label="Szukaj osoby" autocomplete="off" spellcheck="false"></label>
           <label class="sort-menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 16-4 4-4-4"/><path d="M17 20V4"/><path d="m3 8 4-4 4 4"/><path d="M7 4v16"/></svg><select id="people-sort" aria-label="Sortuj osoby">
@@ -76,6 +76,8 @@
         <ul id="people" class="list"></ul>
       </div>
     </section>
+
+    <section id="stats" class="stats" aria-label="Statystyki"></section>
 
     <section id="settings" class="settings" aria-label="Ustawienia układania">
       <div class="panel" id="panel-add-person">
@@ -124,11 +126,12 @@
       <section id="h-start">
         <h3>1. Szybki start</h3>
         <ol>
-          <li><b>Osoby</b> — „Ustawienia” przy osobie otwierają jej ustawienia: funkcję (Rezydent / Starszy asystent), limity, prośby i historię dyżurów.</li>
+          <li><b>Osoby</b> — „Ustawienia” przy osobie otwierają jej ustawienia: funkcję (Rezydent / Starszy asystent), limity i prośby.</li>
           <li><b>Dostępność</b> — kliknij imię osoby, a kalendarz przełączy się w tryb jej dostępności. Klikanie w dzień zmienia poziom: <b>Mogę → Chcę → Nie mogę → W ostateczności → Mogę</b>. Na koniec <b>Gotowe</b>.</li>
           <li><b>Układanie</b> — dodaj wszystkich dyżurujących (<b>Nowa osoba</b>), ustaw kolejność priorytetów, dodaj warunki i oceń, które dni są ciężkie (<b>Oceń dni w kalendarzu →</b>).</li>
           <li><b>Grafik</b> — kliknij <b>Ułóż miesiąc</b>. Jeśli jest kilka równie dobrych grafików, nad kalendarzem pojawi się panel wariantów: zaznacz wariant, by go obejrzeć, i kliknij <b>Zostaw zaznaczony</b> (albo <b>Przywróć poprzedni grafik</b>).</li>
           <li>Popraw ręcznie, co chcesz: kliknij pole dyżuru i wybierz osobę (albo „—”, by zwolnić). Ręczne wpisy zostają przy każdym kolejnym układaniu.</li>
+          <li><b>Statystyki</b> — kto ile dyżurów dostał w oglądanym miesiącu i dlaczego: obsada, Pt/So/Nd, gównianość, dostępność w dni dyżurów, limity i prośby. Rozwiń osobę, by zobaczyć powody; przycisk „Historia” otwiera jej dyżury z 4 miesięcy w osobnym oknie.</li>
         </ol>
         <table>
           <tr><th>Oznaczenie w kalendarzu</th><th>Znaczenie</th></tr>
@@ -164,7 +167,7 @@
           <li><b>„Ostatnio gówniane (spoza grafiku)”</b> w ustawieniach osoby (0–3) — np. dla kogoś nowego; dodaje 0–3 × 3 punkty,</li>
           <li><b>Tragiczne</b> dni idą po kolei: dostaje je ten, kto miał ostatni Tragiczny najdawniej (albo wcale) — liczy się cały zapisany grafik, bez limitu wstecz.</li>
         </ul>
-        <p>Okno osoby („Ustawienia”) pokazuje, ile punktów z przeszłości liczy się przy układaniu oglądanego miesiąca.</p>
+        <p>Zakładka <b>Statystyki</b> pokazuje przy każdej osobie, ile punktów z przeszłości liczy się przy układaniu oglądanego miesiąca.</p>
         <h4>Dzień liczony jak inny dzień tygodnia</h4>
         <p>W trybie <b>Oceń dni w kalendarzu</b> pod gównianością każdego dnia jest lista <b>„Limity jak …”</b>. Dzień ustawiony np. jak niedziela (święto w środę) liczy się jak niedziela do limitów, minimów i próśb (Pt/So/Nd, ten sam dzień weekendu). Gównianość, miejsca do obsadzenia i wolne po OITN zostają według prawdziwego dnia tygodnia. W grafiku taki dzień ma etykietę „jak Nd”.</p>
         <h4>Limity — twarde</h4>
@@ -282,10 +285,18 @@
   <dialog id="person" aria-labelledby="person-title">
     <form method="dialog">
       <header class="person-head"><h3 id="person-title" tabindex="-1" autofocus></h3>
-      <nav class="tabs ptabs" aria-label="Okno osoby"><button type="button" class="ghost" data-ptab="settings"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Ustawienia</button><button type="button" class="ghost" data-ptab="history"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>Historia dyżurów</button></nav>
       <button class="ghost person-close" aria-label="Zamknij" title="Zamknij"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button></header>
       <div id="person-body"></div>
       <menu><button class="outlined" data-go="calendar" value="avail"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 2v3"/><path d="M16 2v3"/><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></svg>Dostępność</button><button>Zapisz</button></menu>
+    </form>
+  </dialog>
+
+  <dialog id="log" aria-labelledby="log-title">
+    <form method="dialog">
+      <header class="person-head"><h3 tabindex="-1" autofocus><span id="log-title"></span><small>Historia dyżurów · 4 miesiące</small></h3>
+      <button class="ghost person-close" aria-label="Zamknij" title="Zamknij"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button></header>
+      <div id="log-body"></div>
+      <menu><button>Zamknij</button></menu>
     </form>
   </dialog>
 

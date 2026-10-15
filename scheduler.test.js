@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { generateMonth, generateVariants, scoreMonth, dateKey, history, badOf, parseTable, matchPerson, personLog, listPeople, missedWishes } from './scheduler.js';
+import { generateMonth, generateVariants, scoreMonth, dateKey, history, badOf, parseTable, matchPerson, personLog, listPeople, missedWishes, lastResortDays, monthStats } from './scheduler.js';
 
 const people = ['a', 'b', 'c', 'd'].map((id) => ({ id, name: id }));
 const all = [0, 1, 2, 3, 4, 5, 6];
@@ -549,6 +549,12 @@ test('missedWishes: dni „Chcę” bez dyżuru tej osoby', () => {
   assert.deepEqual(missedWishes(2026, 9, schedule, people, avail), { a: [2] });
 });
 
+test('lastResortDays: dyżury w dni „W ostateczności”', () => {
+  const avail = { a: { '2026-10-02': 1, '2026-10-05': 1 }, b: { '2026-10-07': 1 } };
+  const schedule = { '2026-10-02': { s: 'a' }, '2026-10-07': { s: 'c' } };
+  assert.deepEqual(lastResortDays(2026, 9, schedule, people, avail), { a: [2] });
+});
+
 test('So + Nd łącznie (d56): limit i minimum twarde, prośba liczona, dzień „jak Nd” się wlicza', () => {
   const sh = [{ id: 's', name: 'S', days: all }];
   const keys = Array.from({ length: 31 }, (_, i) => dateKey(2026, 9, i + 1));
@@ -577,4 +583,25 @@ test('Kierownicy: maks. dwóch kierowników jednego dnia (też z minimami i w r�
   const min = { min: { '*': 14 } };
   assert.equal(bossDays(generateMonth(2026, 9, three, ppl, {}, avail, { k1: min, k2: min, k3: min })), 0);
   assert.throws(() => generateMonth(2026, 9, three, ppl, { [dateKey(2026, 9, 5)]: { x: 'k1', y: 'k2', z: 'k3' } }), /Ręczne wpisy/);
+});
+
+test('monthStats: obsada, liczniki osoby, dostępność, ręczne i kanapki', () => {
+  // paź 2026: 1 = czwartek, 2 = piątek, 3 = sobota
+  const schedule = { '2026-10-01': { s1: 'a', s2: 'b' }, '2026-10-03': { s1: 'a' } };
+  const avail = { a: { '2026-10-01': 3, '2026-10-05': 0 } };
+  const st = monthStats(2026, 9, schedule, shifts, people, avail, {}, { '2026-10-01': 6 }, { '2026-10-03': { s1: 'a' } });
+  assert.equal(st.slots, 62);
+  assert.equal(st.filled, 3);
+  assert.deepEqual(st.shifts.s1, { slots: 31, filled: 2 });
+  const a = st.people.a;
+  assert.equal(a.total, 2);
+  assert.deepEqual(a.n, { '*': 2, s1: 2, we: 2, d5: 1, d6: 1, d56: 2 }); // sobota + czwartek liczony jak Nd
+  assert.equal(a.dow[3] + a.dow[5], 2);
+  assert.equal(a.bad, 1); // sobota = Słaby
+  assert.deepEqual(a.lvl, [0, 0, 1, 1, 0]);
+  assert.equal(a.days[0], 1);
+  assert.equal(a.days[3], 1);
+  assert.equal(a.manual, 1);
+  assert.equal(a.sandwich, 1); // 1 i 3 — co drugi dzień, sobota nie jest „Chcę”
+  assert.equal(st.people.c.total, 0);
 });

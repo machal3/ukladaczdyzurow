@@ -1,4 +1,4 @@
-import { dateKey, daysInMonth, weekday, limitDay, shiftsForDay, scoreMonth, PRIORITIES, PRIORITY_ORDER, availOf, breaksRule, LEVELS, ROLES, roleOf, badOf, BAD, history, parseTable, matchPerson, personLog, PAST_WEIGHT, listPeople, missedWishes } from './scheduler.js';
+import { dateKey, daysInMonth, weekday, limitDay, shiftsForDay, scoreMonth, PRIORITIES, PRIORITY_ORDER, availOf, breaksRule, LEVELS, ROLES, roleOf, badOf, BAD, history, parseTable, matchPerson, personLog, PAST_WEIGHT, listPeople, missedWishes, lastResortDays, monthStats } from './scheduler.js';
 import { runScheduler } from './scheduler-client.js';
 import { cloudLoad, cloudSave, cloudLogout } from './cloud.js';
 import { pdf, docx } from './export.js';
@@ -7,6 +7,7 @@ const DAYS = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So', 'Nd'];
 const STORE = 'dyzury-v1';
 const GEAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5H3"/><path d="M12 19H3"/><path d="M14 3v4"/><path d="M16 17v4"/><path d="M21 12h-9"/><path d="M21 19h-5"/><path d="M21 5h-7"/><path d="M8 10v4"/><path d="M8 12H3"/></svg>'; // Lucide „sliders-horizontal” = ustawienia osoby
 const CAL = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 2v3"/><path d="M16 2v3"/><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></svg>'; // jak „Dostępność” w oknie osoby
+const HIST = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>'; // Lucide „history” = historia dyżurów
 const WEEKEND_LIMIT = 2; // domyślny limit dyżurów Pt/So/Nd w miesiącu, gdy osoba nie ustawiła własnego
 
 const cloud = await cloudLoad(); // null = tryb lokalny (tylko localStorage)
@@ -41,7 +42,8 @@ if (!state.miejscaV2) {
 }
 if (cloud && !cloud.data) save(); // pusta chmura → wysyłamy to, co było w tej przeglądarce
 const now = new Date();
-let view = { y: now.getFullYear(), m: now.getMonth(), who: null, bad: false, personTab: 'settings', q: '', role: null, none: false, sort: 'surname' }; // who: osoba, której dostępność edytujemy; bad: tryb oceny gównianości dni; personTab: karta okna osoby; q/role/none/sort: szukanie, filtry i sortowanie w zakładce Osoby (patrz listPeople)
+const next = new Date(now.getFullYear(), now.getMonth() + 1); // start na następnym miesiącu
+let view = { y: next.getFullYear(), m: next.getMonth(), who: null, bad: false, q: '', role: null, none: false, sort: 'surname' }; // who: osoba, której dostępność edytujemy; bad: tryb oceny gównianości dni; q/role/none/sort: szukanie, filtry i sortowanie w zakładce Osoby (patrz listPeople)
 let prevWho = null; // tryb sprzed otwarcia okna osoby
 let back = 'settings'; // karta, na którą wraca „Gotowe” — ta, z której włączono tryb
 let generation = null;
@@ -65,6 +67,8 @@ const monthKeys = () => Array.from({ length: daysInMonth(view.y, view.m) }, (_, 
 const dyzury = (n) => `${n} ${n === 1 ? 'dyżur' : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? 'dyżury' : 'dyżurów'}`;
 const team = () => state.people.filter((p) => !p.gone); // aktywne osoby
 const sameName = (a, b) => a.localeCompare(b, 'pl', { sensitivity: 'base' }) === 0;
+const initials = (name) => name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
+const statsOpen = new Set(); // rozwinięte osoby w zakładce Statystyki
 const pick = (obj, keys) => Object.fromEntries(keys.filter((k) => obj[k]).map((k) => [k, obj[k]]));
 
 function render() {
@@ -123,29 +127,27 @@ function render() {
   for (const k of monthKeys()) for (const pid of Object.values(state.schedule[k] || {})) if (pid in count) count[pid]++;
   const shown = listPeople(team(), count, view), filtered = view.q.trim() || view.role || view.none;
   $('#people').innerHTML = shown.map((p) => `<li class="${p.id === view.who ? 'on' : ''}">
-      <span class="avatar ${p.prestige ? '' : 'rez'}" aria-hidden="true">${esc(p.name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase())}</span>
+      <span class="avatar ${p.prestige ? '' : 'rez'}" aria-hidden="true">${esc(initials(p.name))}</span>
       <span class="id"><button class="who ${p.id === view.who ? 'on' : ''}" data-who="${p.id}" aria-pressed="${p.id === view.who}" title="Dostępność w grafiku">${esc(p.name)}</button><span class="sub">${ROLES[roleOf(p)]}</span></span>
       <button class="x" data-del-person="${p.id}" aria-label="Usuń ${esc(p.name)}">×</button>
       <span class="foot"><button class="edit" data-who="${p.id}" aria-pressed="${p.id === view.who}" aria-label="Dostępność: ${esc(p.name)}" title="Dostępność w grafiku">${CAL}<span>Dostępność</span></button>
-      <button class="edit" data-edit="${p.id}" aria-label="Ustawienia i historia: ${esc(p.name)}" title="Ustawienia i historia">${GEAR}<span>Ustawienia</span></button></span></li>`).join('') ||
+      <button class="edit" data-edit="${p.id}" aria-label="Ustawienia: ${esc(p.name)}" title="Funkcja, limity i prośby">${GEAR}<span>Ustawienia</span></button></span></li>`).join('') ||
     (team().length ? '<li class="no-match"><b>Nikt nie pasuje</b><span>Zmień wyszukiwanie lub filtry.</span><button type="button" class="outline" data-clear-filters>Wyczyść filtry</button></li>' : '');
   $('#people-count').textContent = filtered ? `Pokazano ${shown.length} z ${team().length}` : '';
   for (const b of document.querySelectorAll('[data-filter]')) b.setAttribute('aria-pressed', b.dataset.filter === 'none' ? view.none : b.dataset.filter === view.role);
-  // Okno osoby: ustawienia (limity i prośby obowiązują w każdym miesiącu) + historia dyżurów
+  // Okno osoby: ustawienia (limity i prośby obowiązują w każdym miesiącu); liczby i historia — zakładka Statystyki
   const who = state.people.find((p) => p.id === view.who);
-  // Treść budujemy tylko przy otwarciu / zmianie karty: przebudowa przy każdej zmianie pola zabiera fokus,
+  // Treść budujemy tylko przy otwarciu: przebudowa przy każdej zmianie pola zabiera fokus,
   // zamyka klawiaturę na telefonie i przewija okno do góry. Pola same pokazują zapisaną wartość.
-  const personKey = `${view.who}|${view.personTab}`;
-  if (who && $('#person').open && $('#person-body').dataset.key !== personKey) {
-    $('#person-body').dataset.key = personKey;
+  if (who && $('#person').open && $('#person-body').dataset.key !== view.who) {
+    $('#person-body').dataset.key = view.who;
     $('#person-title').textContent = who.name;
-    for (const b of document.querySelectorAll('[data-ptab]')) b.setAttribute('aria-pressed', b.dataset.ptab === view.personTab);
     // ustawienia: po lewej osoba, po prawej jedna tabela — limit i prośba w jednym wierszu
     const num = (kind, key, ph, label) => `<input type="number" min="0" step="1" placeholder="${ph}" data-${kind}="${key}" value="${{ limit: state.limits, min: state.mins, want: state.wants }[kind][who.id]?.[key] ?? ''}" aria-label="${label}">`;
     const row = (name, key, ph, label) => `<tr><th scope="row">${name}</th><td>${num('min', key, '—', `Minimum: ${label}`)}</td>` +
       `<td>${num('limit', key, ph, `Limit: ${label}`)}</td><td>${num('want', key, '—', `Prośba: ${label}`)}</td></tr>`;
     const field = (name, hint, control) => `<label class="field"><span>${name}${hint ? `<small>${hint}</small>` : ''}</span>${control}</label>`;
-    $('#person-body').innerHTML = view.personTab === 'history' ? logHtml(who) : `<div class="person-grid"><section><h4>Osoba</h4>` +
+    $('#person-body').innerHTML = `<div class="person-grid"><section><h4>Osoba</h4>` +
       field('Funkcja', '', `<select data-prestige>${ROLES.map((r, i) => `<option value="${i}" ${i === roleOf(who) ? 'selected' : ''}>${r}</option>`).join('')}</select>`) +
       field('Ostatnio gówniane', 'dyżury spoza grafiku, 0–3', `<select data-past>${BAD.map((_, i) => `<option value="${i}" ${i === (who.past ?? 0) ? 'selected' : ''}>${i}</option>`).join('')}</select>`) +
       field('Kanapka PN1 So + Pn', 'zaznaczone = woli ten układ', `<input type="checkbox" role="switch" data-pn1sandwich ${who.pn1Sandwich === false ? '' : 'checked'}>`) +
@@ -177,24 +179,29 @@ function render() {
     empty ? `<span>Obsadzone <b class="ok">${slots - empty} z ${slots}</b></span><span class="progress" role="progressbar" aria-label="Obsadzone dyżury" aria-valuenow="${Math.round((slots - empty) / slots * 100)}"><i style="width:${(slots - empty) / slots * 100}%"></i></span>` +
       `<span>wolne: <b>${empty}</b></span><button class="ghost" data-jump>Pokaż pierwszy wolny →</button>` : '';
   $('#status').classList.toggle('info', !!view.who || view.bad || empty === slots);
-  // Które prośby nie wyszły w oglądanym miesiącu — liczone na bieżąco, więc zmiana wariantu lub ręczna poprawka od razu się tu odbija
+  // Uwagi do oglądanego miesiąca: niespełnione prośby, dni „Chcę” bez dyżuru, dyżury „W ostateczności” —
+  // liczone na bieżąco, więc zmiana wariantu lub ręczna poprawka od razu się tu odbija
   {
     const gaps = scoreMonth(y, m, state.schedule, state.shifts, team(), {}, {}, state.wants, {}, state.asDay).gaps;
     const label = (k) => WANT_LABEL[k] ?? shiftName[k] ?? k;
     const wish = missedWishes(y, m, state.schedule, team(), state.avail);
-    const byPerson = new Map(Object.keys(wish).map((pid) => [pid, []]));
-    for (const g of gaps) byPerson.set(g.pid, [...(byPerson.get(g.pid) ?? []), g]);
-    const n = byPerson.size, osob = n === 1 ? 'osoba' : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? 'osoby' : 'osób';
+    const last = lastResortDays(y, m, state.schedule, team(), state.avail);
+    const who = team().filter((p) => wish[p.id] || last[p.id] || gaps.some((g) => g.pid === p.id));
+    const n = who.length;
     $('#want-gaps').classList.toggle('all-ok', !n);
-    $('#want-gaps .head').innerHTML = n ? `<span class="count">${n}</span><b>${osob} z niespełnionymi prośbami</b><span class="hint">liczba dyżurów i dni „Chcę”</span>`
-      : '<span class="count">✓</span><b>Wszystkie prośby spełnione</b><span class="hint">liczba dyżurów i dni „Chcę”</span>';
-    const dd = (d) => `${d}.${String(m + 1).padStart(2, '0')}`;
-    $('#want-gaps ul').innerHTML = !n ? '' : [...byPerson].map(([pid, g]) => `<li><b>${esc(nameOf[pid])}</b><span class="chips">` +
-      g.map((x) => `<span class="${x.got < x.want ? 'lvl-0' : 'lvl-1'}" title="${esc(label(x.k))}: dostał(a) ${x.got}, prosił(a) o ${x.want}">${esc(label(x.k))} <b>${x.got}</b> / ${x.want} ${x.got < x.want ? '↓' : '↑'}</span>`).join('') +
-      (wish[pid] ? `<span class="lvl-3" title="Dni „Chcę”, w które ta osoba nie ma dyżuru">„Chcę”: ${wish[pid].map(dd).join(', ')}</span>` : '') + '</span></li>').join('') +
-      '<li class="legend"><span class="lvl-0">↓ za mało</span><span class="lvl-1">↑ za dużo</span><span class="lvl-3">„Chcę” bez dyżuru</span><span>liczby: dostał / prosił</span></li>';
+    $('#want-gaps').hidden = !!view.who; // przy klikaniu dostępności osoby uwagi tylko przeszkadzają
+    $('#want-gaps .head').innerHTML = `<span class="count">${n || '✓'}</span><b>Uwagi</b><span class="hint">${n ? 'prośby, dni „Chcę” i „W ostateczności”' : 'wszystko się zgadza'}</span>`;
+    const days = (ds) => ds?.map((d) => `${d}.${String(m + 1).padStart(2, '0')}`).join(', ');
+    const nums = (pid, f) => gaps.filter((g) => g.pid === pid && f(g)).map((g) => `${esc(label(g.k))}: <b>${g.got}</b> zamiast ${g.want}`).join('<br>');
+    const row = (cls, tag, text) => text ? `<p><span class="${cls}">${tag}</span><span>${text}</span></p>` : '';
+    $('#want-gaps ul').innerHTML = who.map((p) => `<li><b>${esc(p.name)}</b>` +
+      row('few', 'Za mało', nums(p.id, (g) => g.got < g.want)) +
+      row('over', 'Za dużo', nums(p.id, (g) => g.got > g.want)) +
+      row('lvl-3', '„Chcę” bez dyżuru', days(wish[p.id])) +
+      row('lvl-1', '„W ostateczności”', days(last[p.id])) + '</li>').join('');
   }
   $('#bad-mode').setAttribute('aria-pressed', view.bad);
+  if (document.body.dataset.tab === 'stats') renderStats();
 }
 
 function update(fn) { stopGeneration(); fn(); save(); render(); }
@@ -265,17 +272,18 @@ $('#generate').onclick = async () => {
 };
 $('#variants-ok').onclick = () => { $('#panel-variants').hidden = true; };
 
-// Zakładki: Grafik / Osoby / Dostosowywanie (priorytety, warunki, gównianość)
+// Zakładki: Grafik / Osoby / Statystyki / Układanie (priorytety, warunki, gównianość) / Instrukcja
 // Każda zakładka pamięta swoje przewinięcie; ponowne kliknięcie aktywnej wraca na górę.
 const scrolls = {};
 function showTab(tab) {
   const cur = document.body.dataset.tab;
   scrolls[cur] = tab === cur ? 0 : scrollY;
   document.body.dataset.tab = tab;
-  for (const b of document.querySelectorAll('.tabs button')) b.setAttribute('aria-pressed', b.dataset.tab === tab);
+  for (const b of document.querySelectorAll('button[data-tab]')) b.setAttribute('aria-pressed', b.dataset.tab === tab);
+  if (tab === 'stats') renderStats(); // budowana tylko, gdy widoczna
   scrollTo({ top: scrolls[tab] ?? 0, behavior: 'instant' }); // instant: html ma scroll-behavior: smooth
 }
-$('.tabs').onclick = (e) => { const t = e.target.closest('[data-tab]'); if (t) showTab(t.dataset.tab); };
+$('.tabs').onclick = $('.app-header').onclick = (e) => { const t = e.target.closest('[data-tab]'); if (t) showTab(t.dataset.tab); };
 
 // „Gotowe” kończy dostępność/gównianość i wraca na kartę, z której je włączono
 $('#status').onclick = (e) => {
@@ -344,13 +352,20 @@ const sheetTable = () => {
     rows: rows.map((r) => ({ cells: [String(r.d), DAYS[r.wd], ...r.names.map((n) => n ?? '—')], we: r.wd >= 5, mon: r.wd === 0 })) } };
 };
 const download = (url, name) => { const a = document.createElement('a'); a.href = url; a.download = name; a.click(); };
-$('#export-pdf').onclick = () => {
-  const { file, table } = sheetTable(), url = URL.createObjectURL(new Blob([pdf(table)], { type: 'application/pdf' }));
+// krój z wydruku do osadzenia w PDF/Word, pobierany przy pierwszym eksporcie
+let fontsP;
+const fonts = () => fontsP ??= Promise.all(['Regular', 'Bold'].map(async (w) => {
+  const r = await fetch(`fonts/PlusJakartaSans-${w}.ttf`);
+  if (!r.ok) throw new Error(`font ${w}: ${r.status}`);
+  return new Uint8Array(await r.arrayBuffer());
+})).then(([regular, bold]) => ({ regular, bold }), (e) => { fontsP = null; throw e; });
+$('#export-pdf').onclick = async () => {
+  const { file, table } = sheetTable(), url = URL.createObjectURL(new Blob([pdf(table, await fonts())], { type: 'application/pdf' }));
   if (!window.open(url, '_blank')) download(url, `${file}.pdf`); // zablokowane okno → zwykłe pobranie
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
 };
-$('#export-docx').onclick = () => {
-  const { file, table } = sheetTable(), url = URL.createObjectURL(new Blob([docx(table)], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }));
+$('#export-docx').onclick = async () => {
+  const { file, table } = sheetTable(), url = URL.createObjectURL(new Blob([docx(table, await fonts())], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }));
   download(url, `${file}.docx`);
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
 };
@@ -439,7 +454,13 @@ $('#add-rule').onsubmit = (e) => {
 };
 
 $('main').onclick = (e) => {
-  const { delPerson, delRule, who, edit, up, filter } = e.target.dataset;
+  const { delPerson, delRule, who, edit, up, filter, log } = e.target.dataset;
+  if (log) { // historia osoby w osobnym oknie, żeby nie rozpychała Statystyk
+    const p = state.people.find((x) => x.id === log);
+    $('#log-title').textContent = p.name;
+    $('#log-body').innerHTML = logHtml(p);
+    $('#log').showModal();
+  }
   if (filter === 'none') { view.none = !view.none; render(); }
   else if (filter) { view.role = view.role === filter ? null : filter; render(); }
   if ('clearFilters' in e.target.dataset) { Object.assign(view, { q: '', role: null, none: false }); $('#people-q').value = ''; render(); }
@@ -447,8 +468,8 @@ $('main').onclick = (e) => {
   if (e.target.dataset.go) showTab(e.target.dataset.go);
   if (delRule) update(() => { state.rules = state.rules.filter((r) => r.id !== delRule); });
   // imię = tryb dostępności w kalendarzu; „Ustawienia” = okno osoby (po zamknięciu wraca poprzedni tryb, chyba że „Dostępność →”)
-  if (who) { view.who = view.who === who ? null : who; view.bad = false; back = 'people'; if (view.who) showTab('calendar'); render(); }
-  if (edit) { prevWho = view.who; view.who = edit; view.bad = false; view.personTab = 'settings'; $('#person').returnValue = ''; $('#person-body').dataset.key = ''; $('#person').showModal(); render(); }
+  if (who) { view.who = view.who === who ? null : who; view.bad = false; back = document.body.dataset.tab; if (view.who) showTab('calendar'); render(); }
+  if (edit) { prevWho = view.who; view.who = edit; view.bad = false; $('#person').returnValue = ''; $('#person-body').dataset.key = ''; $('#person').showModal(); render(); }
   if (delPerson && confirm(`Usunąć ${state.people.find((p) => p.id === delPerson).name}? Przeszłe dyżury zostaną w grafiku, przyszłe zostaną zwolnione.`)) update(() => {
     state.people.find((p) => p.id === delPerson).gone = true;
     const today = dateKey(now.getFullYear(), now.getMonth(), now.getDate());
@@ -463,12 +484,13 @@ $('main').onclick = (e) => {
   });
 };
 
+$('#stats').addEventListener('toggle', (e) => { const id = e.target.dataset?.pid; if (id) statsOpen[e.target.open ? 'add' : 'delete'](id); }, true);
+
 $('#people-q').oninput = (e) => { view.q = e.target.value; render(); };
 $('#people-sort').onchange = (e) => { view.sort = e.target.value; render(); };
 
 $('#person').onclose = () => { if ($('#person').returnValue !== 'avail') view.who = prevWho; render(); };
 $('#person').onclick = (e) => {
-  if (e.target.dataset.ptab) { view.personTab = e.target.dataset.ptab; render(); $('#person-body').scrollTop = 0; return; }
   if (e.target.dataset.go) showTab(e.target.dataset.go);
 };
 // Enter w polu liczby zatwierdza wartość zamiast zamykać okno (formularz method="dialog")
@@ -494,37 +516,126 @@ $('#person').onchange = (e) => {
   });
 };
 
-// Historia osoby p: każdy dyżur z oglądanego miesiąca i 3 poprzednich — data, miejsce, gównianość, przerwa, ręczny/zaplanowany
+// Historia osoby p: każdy dyżur z oglądanego miesiąca i 3 poprzednich — data, miejsce, dostępność, gównianość, przerwa, ręczny/zaplanowany
 function logHtml(p) {
   const pid = p.id;
   const shiftName = Object.fromEntries(state.shifts.map((s) => [s.id, s.name]));
   const today = dateKey(now.getFullYear(), now.getMonth(), now.getDate());
   const log = personLog(state.schedule, state.bad, pid, view.y, view.m);
   const monthName = (y, m) => new Date(y, m).toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' });
-  const summary = (list) => {
+  const sum = (list) => {
     const per = {};
     for (const x of list) per[x.sid] = (per[x.sid] || 0) + 1;
-    const we = list.filter((x) => limitDay(state.asDay, +x.key.slice(0, 4), x.key.slice(5, 7) - 1, +x.key.slice(8)) >= 4).length; // Pt/So/Nd (też dni liczone jak Pt/So/Nd)
-    return [dyzury(list.length), ...Object.entries(per).map(([sid, n]) => `${esc(shiftName[sid] ?? '(usunięte miejsce)')} ${n}`),
-      `Pt/So/Nd ${we}`, `gównianość ${list.reduce((a, x) => a + x.bad, 0)} pkt`].join(' · ');
+    return { n: list.length, bad: list.reduce((a, x) => a + x.bad, 0),
+      we: list.filter((x) => limitDay(state.asDay, +x.key.slice(0, 4), x.key.slice(5, 7) - 1, +x.key.slice(8)) >= 4).length, // Pt/So/Nd (też dni liczone jak Pt/So/Nd)
+      places: Object.entries(per).map(([sid, n]) => `${esc(shiftName[sid] ?? '(usunięte miejsce)')} ${n}`).join(' · ') };
   };
-  const hist = history(state.schedule, state.bad, view.y, view.m);
-  let html = `<h3>Historia dyżurów</h3><p class="hint">Razem: ${summary(log)}<br>Do układania ${monthName(view.y, view.m)} liczy się: gównianość z poprzednich miesięcy ${+(hist.pts[pid] ?? 0).toFixed(2)} pkt (ważona ½, ¼, ⅛)` +
-    ` + „ostatnio gówniane” ${p.past ?? 0} × ${PAST_WEIGHT}${hist.tragic[pid] ? ` · ostatni Tragiczny: ${hist.tragic[pid]}` : ''}</p>`;
+  const all = sum(log);
+  const tile = (label, value, sub) => `<div class="kpi"><span class="kpi-label">${label}</span><b class="kpi-value">${value}</b><span class="kpi-sub">${sub}</span></div>`;
+  let html = `<div class="kpis">${tile('Dyżury', all.n, all.places || 'brak dyżurów')}${tile('Pt/So/Nd', all.we, 'z wszystkich dyżurów')}${tile('Gównianość', `${all.bad}<small> pkt</small>`, 'suma z dyżurów')}</div>`;
   for (let i = 0; i < 4; i++) {
     const t = new Date(view.y, view.m - i), y = t.getFullYear(), m = t.getMonth();
     const list = log.filter((x) => x.key.startsWith(dateKey(y, m, 1).slice(0, 8))).reverse(); // najnowsze na górze
-    html += `<h4>${monthName(y, m)} <small>${summary(list)}</small></h4>` + (!list.length ? '' :
-      `<div class="table-scroll"><table class="preview"><tr><th>Dzień</th><th>Miejsce</th><th>Gównianość</th><th>Przerwa</th></tr>` +
-      list.map((x) => {
-        const d = +x.key.slice(8);
-        const note = [state.manual[x.key]?.[x.sid] === pid && 'ręczny', x.key > today && 'zaplanowany'].filter(Boolean).join(', ');
-        return `<tr class="${weekday(y, m, d) > 4 ? 'weekend' : ''}"><td>${d} ${DAYS[weekday(y, m, d)]}</td>` +
-          `<td>${esc(shiftName[x.sid] ?? '(usunięte miejsce)')}${note && ` <small class="hint">${note}</small>`}</td><td>${BAD[x.bad]}</td>` +
-          `<td>${x.gap === null ? '—' : x.gap === 1 ? '1 dzień' : `${x.gap} dni`}</td></tr>`;
-      }).join('') + '</table></div>');
+    const s = sum(list);
+    html += `<section class="log-month"><h4>${monthName(y, m)}<small>${list.length ? `${dyzury(s.n)} · ${s.places} · Pt/So/Nd ${s.we} · ${s.bad} pkt` : 'brak dyżurów'}</small></h4>` + (!list.length ? '' :
+      `<ul class="log">` + list.map((x) => { // wiersz listy MD3: dzień · miejsce + opis · dostępność
+        const d = +x.key.slice(8), lvl = availOf(state.avail, pid, x.key);
+        const sub = [`${BAD[x.bad]} dzień`, x.gap !== null && `przerwa ${x.gap === 1 ? '1 dzień' : `${x.gap} dni`}`,
+          state.manual[x.key]?.[x.sid] === pid && 'ręczny', x.key > today && 'zaplanowany'].filter(Boolean).join(' · ');
+        return `<li class="${weekday(y, m, d) > 4 ? 'weekend' : ''}"><span class="day"><b>${d}</b>${DAYS[weekday(y, m, d)]}</span>` +
+          `<span class="what"><b>${esc(shiftName[x.sid] ?? '(usunięte miejsce)')}</b><small>${sub}</small></span>` +
+          `<span class="pill lvl-${lvl}">${LEVELS[lvl]}</span></li>`;
+      }).join('') + '</ul>') + '</section>';
   }
   return html;
+}
+
+// Zakładka Statystyki: kto ile dyżurów dostał w oglądanym miesiącu i dlaczego. Budowana tylko, gdy widoczna.
+// Powody to te same czynniki, których używa układanie (dostępność, funkcja, limity/prośby, obciążenie z historii, ręczne wpisy, warunki).
+function renderStats() {
+  const { y, m } = view, ppl = team();
+  if (!ppl.length) { $('#stats').innerHTML = '<div class="panel"><h3>Statystyki</h3><p class="lead">Dodaj osoby w zakładce Układanie.</p></div>'; return; }
+  const monthName = new Date(y, m).toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' });
+  const st = monthStats(y, m, state.schedule, state.shifts, ppl, state.avail, state.bad, state.asDay, state.manual);
+  const wantDev = scoreMonth(y, m, state.schedule, state.shifts, ppl, {}, {}, state.wants, {}, state.asDay).wants;
+  const h = history(state.schedule, state.bad, y, m);
+  const nameOf = Object.fromEntries(state.people.map((p) => [p.id, p.name]));
+  const num = (x) => x.toLocaleString('pl-PL', { maximumFractionDigits: 1 });
+  const dni = (n) => `${n} ${n === 1 ? 'dzień' : 'dni'}`;
+  const start = (p) => (p.past ?? 0) * PAST_WEIGHT + (h.pts[p.id] ?? 0); // obciążenie sprzed miesiąca, jak w układaniu
+  const totals = ppl.map((p) => st.people[p.id].total);
+  const avg = totals.reduce((a, b) => a + b, 0) / ppl.length, maxN = Math.max(1, ...totals);
+  const avgStart = ppl.reduce((a, p) => a + start(p), 0) / ppl.length;
+  const maxBad = Math.max(1, ...ppl.map((p) => start(p) + st.people[p.id].bad));
+  const pct = st.slots ? Math.round(st.filled / st.slots * 100) : 0;
+  const bar = (part, cls = '') => `<span class="meter ${cls}" aria-hidden="true"><i style="width:${Math.min(100, part * 100)}%"></i></span>`;
+  const tile = (label, value, sub, cls = '') => `<div class="kpi ${cls}"><span class="kpi-label">${label}</span><b class="kpi-value">${value}</b><span class="kpi-sub">${sub}</span></div>`;
+
+  let html = `<div class="panel stats-top"><h3>Statystyki — ${monthName}</h3>
+    <p class="lead">Kto ile dyżurów dostał i dlaczego. Rozwiń osobę, by zobaczyć powody i limity; „Historia” pokazuje jej dyżury z 4 miesięcy.</p><div class="kpis">` +
+    tile('Obsadzone', `${st.filled}<small> / ${st.slots}</small>`, `${bar(st.slots && st.filled / st.slots, st.filled < st.slots ? 'warn' : '')}${pct}% · wolne ${st.slots - st.filled}`, st.filled < st.slots ? 'warn' : '') +
+    tile('Dyżury na osobę', `${Math.min(...totals)}–${Math.max(...totals)}`, `średnio ${num(avg)}`) +
+    tile('Odchylenie od próśb', wantDev, wantDev ? 'suma niedoborów i nadmiarów' : 'prośby spełnione', wantDev ? 'maybe' : '') +
+    tile('„W ostateczności”', st.lastResort, 'dyżury w takie dni', st.lastResort ? 'maybe' : '') +
+    tile('Kanapki', st.sandwich, 'dyżury co drugi dzień') +
+    tile('Wpisy ręczne', st.manual, 'algorytm ich nie zmienia') + '</div>' +
+    `<h4>Obsada miejsc</h4><ul class="places">` + state.shifts.filter((s) => st.shifts[s.id].slots).map((s) => {
+      const { slots, filled } = st.shifts[s.id];
+      return `<li><b>${esc(s.name)}</b>${bar(filled / slots, filled < slots ? 'warn' : '')}<span>${filled} / ${slots}</span></li>`;
+    }).join('') + '</ul></div>';
+
+  const rows = [...ppl].sort((a, b) => st.people[b.id].total - st.people[a.id].total || a.name.localeCompare(b.name, 'pl'));
+  html += `<div class="panel stats-people"><h3>Osoby <small>od najwięcej dyżurów · kliknij, by rozwinąć</small></h3>
+    <p class="stats-legend"><span><i class="sw start"></i>gównianość sprzed miesiąca</span><span><i class="sw"></i>w tym miesiącu</span>` +
+    `<span><span class="pill lvl-3">Chcę</span><span class="pill lvl-2">Mogę</span><span class="pill lvl-1">Ost.</span> dostępność w dni dyżurów</span></p>
+    <div class="srow shead" aria-hidden="true"><span>Osoba</span><span>Dyżury</span><span>Pt/So/Nd</span><span>Gównianość</span><span>Dostępność</span></div>` +
+    rows.map((p) => {
+      const x = st.people[p.id], s0 = start(p), lim = state.limits[p.id] ?? {}, min = state.mins[p.id] ?? {}, want = state.wants[p.id] ?? {};
+      const weLim = lim.we ?? WEEKEND_LIMIT;
+      const places = state.shifts.filter((s) => x.n[s.id]).map((s) => `${esc(s.name)} ${x.n[s.id]}`).join(' · ') || 'brak dyżurów';
+      const pills = [4, 3, 2, 1, 0].filter((l) => x.lvl[l]).map((l) => `<span class="pill lvl-${l}" title="${LEVELS[l]}">${['Nie mogę', 'Ost.', 'Mogę', 'Chcę', 'Muszę'][l]} ${x.lvl[l]}</span>`).join('') || '<span class="hint">—</span>';
+      // Powody: co sprawiło, że osoba ma tyle dyżurów i takie dni
+      const why = [];
+      const diff = x.total - avg;
+      why.push(['info', `<b>${dyzury(x.total)}</b> — ${Math.abs(diff) < 1 ? 'około' : diff > 0 ? 'więcej niż' : 'mniej niż'} średnio (${num(avg)})`]);
+      if (x.days[0]) why.push(['hard', `<b>Nie mogę</b>: ${dni(x.days[0])} — w te dni nie dostanie dyżuru`]);
+      if (x.days[4]) why.push(['hard', `<b>Muszę</b>: ${dni(x.days[4])} — dyżur obowiązkowy`]);
+      if (x.days[3]) why.push(['pref', `<b>Chcę</b>: ${dni(x.days[3])}, dyżur w ${x.lvl[3]} z nich — pierwszeństwo przy wyborze`]);
+      if (x.days[1]) why.push(['pref', `<b>W ostateczności</b>: ${dni(x.days[1])} — tylko gdy brak innych${x.lvl[1] ? `; użyte ${x.lvl[1]}×` : ''}`]);
+      if (x.lvl[0]) why.push(['hard', `<b>${dyzury(x.lvl[0])} w dzień „Nie mogę”</b> — wpis ręczny łamie dostępność`]);
+      if (p.prestige === 0) why.push(['info', '<b>Rezydent</b> — tego dnia najwyżej jeden rezydent, więc mniej wolnych terminów']);
+      if (p.boss) why.push(['info', '<b>Kierownik</b> — najwyżej dwóch kierowników dziennie']);
+      why.push(['info', `<b>Obciążenie na start: ${num(s0)} pkt</b> (średnio ${num(avgStart)}; historia ${num(h.pts[p.id] ?? 0)}${p.past ? ` + „ostatnio gówniane” ${p.past} × ${PAST_WEIGHT}` : ''})` +
+        (s0 - avgStart >= Math.max(1, avgStart / 5) ? ' — więcej niż inni, więc gówniane dni idą najpierw do innych' : avgStart - s0 >= Math.max(1, avgStart / 5) ? ' — mniej niż inni, więc w gówniane dni idzie wcześniej' : '')]);
+      why.push(['info', h.tragic[p.id] ? `<b>Ostatni Tragiczny:</b> ${h.tragic[p.id]} — Tragiczne idą do tych, którzy mieli je najdawniej` : '<b>Bez Tragicznego w historii</b> — w Tragiczny dzień idzie przed tymi, którzy już mieli']);
+      if (x.manual) why.push(['info', `<b>Wpisy ręczne: ${x.manual}</b> — algorytm ich nie zmienia`]);
+      if (x.sandwich) why.push(['pref', `<b>Kanapki: ${x.sandwich}</b> — dyżur co drugi dzień${p.pn1Sandwich === false ? '' : ' (PN1 So + Pn się nie liczy)'}`]);
+      for (const r of state.rules.filter((r) => r.who === p.id))
+        why.push(['hard', `<b>Warunek:</b> z ${esc(nameOf[r.with] ?? '?')} tylko na ${esc(r.places.map((id) => state.shifts.find((s) => s.id === id)?.name).filter(Boolean).join(', '))}`]);
+      // Limity i prośby: dostał / min / limit / prośba w każdej kategorii, która coś ma
+      const cats = [['*', 'Łącznie'], ['we', 'Pt/So/Nd'], ['d56', 'So + Nd'], ...state.shifts.map((s) => [s.id, esc(s.name)]), ['d4', 'Piątki'], ['d5', 'Soboty'], ['d6', 'Niedziele']];
+      const limRows = cats.filter(([k]) => k === '*' || k === 'we' || lim[k] != null || min[k] != null || want[k] != null).map(([k, label]) => {
+        const got = x.n[k] || 0, l = k === 'we' ? weLim : lim[k];
+        const [cls, msg] = got < (min[k] ?? 0) ? ['lvl-0', 'poniżej minimum'] : l != null && got >= l ? ['lvl-4', got > l ? 'ponad limit' : 'limit osiągnięty'] :
+          want[k] != null && want[k] !== got ? ['lvl-1', got < want[k] ? 'mniej niż prośba' : 'więcej niż prośba'] : want[k] != null ? ['lvl-3', 'prośba spełniona'] : ['', ''];
+        return `<tr><th scope="row">${label}</th><td><b>${got}</b></td><td>${min[k] ?? '—'}</td><td class="${k === 'we' && lim.we == null ? 'hint' : ''}">${l ?? '∞'}</td><td>${want[k] ?? '—'}</td><td>${msg && `<span class="pill ${cls}">${msg}</span>`}</td></tr>`;
+      }).join('');
+      const maxDow = Math.max(1, ...x.dow);
+      return `<details class="srow-wrap" data-pid="${p.id}" ${statsOpen.has(p.id) ? 'open' : ''}><summary class="srow">
+        <span class="who-cell"><span class="avatar ${p.prestige ? '' : 'rez'}" aria-hidden="true">${esc(initials(p.name))}</span><span><b>${esc(p.name)}</b><small>${ROLES[roleOf(p)]}</small></span></span>
+        <span class="cell-n"><span class="big">${x.total}<small> dyż.</small></span>${bar(x.total / maxN)}<small>${places}</small></span>
+        <span class="cell-we ${(x.n.we || 0) >= weLim ? 'full' : ''}"><span class="big">${x.n.we || 0}<small> / ${weLim} Pt/So/Nd</small></span><small>Pt ${x.n.d4 || 0} · So ${x.n.d5 || 0} · Nd ${x.n.d6 || 0}</small></span>
+        <span class="cell-bad"><span class="big">${num(s0 + x.bad)}<small> pkt</small></span><span class="meter two" aria-hidden="true"><i class="start" style="width:${s0 / maxBad * 100}%"></i><i style="width:${x.bad / maxBad * 100}%"></i></span><small>${num(s0)} wcześniej + ${x.bad} teraz</small></span>
+        <span class="cell-lvl">${pills}</span>
+        <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+      </summary><div class="sbody">
+        <section><h4>Dlaczego tak</h4><ul class="why">${why.map(([t, w]) => `<li class="${t}">${w}</li>`).join('')}</ul></section>
+        <section><h4>Limity i prośby <small>ten miesiąc</small></h4><div class="table-scroll"><table class="counts lims"><thead><tr><td></td><th scope="col">Dostał</th><th scope="col">Min.</th><th scope="col">Limit</th><th scope="col">Prośba</th><td></td></tr></thead><tbody>${limRows}</tbody></table></div>
+          <h4>Dni tygodnia</h4><div class="dows">${DAYS.map((d, i) => `<span style="--k:${x.dow[i] / maxDow}" class="${x.dow[i] ? '' : 'zero'}"><small>${d}</small><b>${x.dow[i]}</b></span>`).join('')}</div>
+          <div class="sactions"><button type="button" class="edit" data-edit="${p.id}" aria-label="Ustawienia: ${esc(p.name)}">${GEAR}<span>Ustawienia</span></button><button type="button" class="edit" data-who="${p.id}" aria-label="Dostępność: ${esc(p.name)}">${CAL}<span>Dostępność</span></button><button type="button" class="edit" data-log="${p.id}" aria-label="Historia dyżurów: ${esc(p.name)}">${HIST}<span>Historia</span></button></div></section>
+      </div></details>`;
+    }).join('') + '</div>';
+  $('#stats').innerHTML = html;
 }
 
 // Import grafiku z tabeli: plik .docx albo wklejony tekst → podgląd i łączenie osób → zapis jako ręczne dyżury.

@@ -26,7 +26,7 @@ Ta sama instrukcja jest w aplikacji, w zakładce **Instrukcja**.
 ## 1. Szybki start
 
 1. **Osoby** — przy każdej osobie ⚙ otwiera jej ustawienia: funkcję
-   (Rezydent / Starszy asystent), limity, prośby i historię dyżurów.
+   (Rezydent / Starszy asystent), limity i prośby.
 2. **Dostępność** — kliknij imię osoby, a kalendarz przełączy się w tryb jej dostępności. Klikanie w dzień zmienia
    poziom: **Mogę → Chcę → Nie mogę → W ostateczności → Mogę**. Na koniec **Gotowe**.
 3. **Układanie** — dodaj wszystkich dyżurujących (**Nowa osoba**), ustaw kolejność priorytetów, dodaj warunki („gdy X dyżuruje z Y, to X jest na…”) i oceń,
@@ -36,6 +36,8 @@ Ta sama instrukcja jest w aplikacji, w zakładce **Instrukcja**.
    (albo **Przywróć poprzedni grafik**).
 5. Popraw ręcznie, co chcesz: kliknij pole dyżuru i wybierz osobę (albo „—”, by zwolnić). Ręczne wpisy
    zostają przy każdym kolejnym **Ułóż miesiąc**.
+6. **Statystyki** — kto ile dyżurów dostał w oglądanym miesiącu i dlaczego: obsada, Pt/So/Nd, gównianość,
+   dostępność w dni dyżurów, limity i prośby. Rozwiń osobę, by zobaczyć powody i historię jej dyżurów z 4 miesięcy.
 
 Legenda w kalendarzu:
 
@@ -85,7 +87,7 @@ Do obciążenia na start miesiąca liczy się też przeszłość:
   których nie ma w programie; dodaje 0–3 × 3 punkty,
 - kto miał **Tragiczny** dzień w poprzednim miesiącu, w tym miesiącu dostaje Tragiczny dzień dopiero na końcu kolejki.
 
-Okno osoby (⚙) pokazuje, ile punktów z przeszłości liczy się przy układaniu oglądanego miesiąca.
+Zakładka **Statystyki** pokazuje przy każdej osobie, ile punktów z przeszłości liczy się przy układaniu oglądanego miesiąca.
 
 ### Dzień liczony jak inny dzień tygodnia
 
