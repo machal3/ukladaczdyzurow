@@ -282,8 +282,8 @@ test('Zapisy na dyżury w trybie chmury: konto osoby, nowy PIN (zajęty → losu
   const pins = calls.filter(([fn]) => fn === 'admin_set_pin').map(([, b]) => b.nowy);
   assert.equal(pins.length, 2, 'zajęty PIN → drugie losowanie');
   for (const pin of pins) {
-    assert.match(pin, /^\d{6}$/);
-    assert.ok(new Set(pin).size > 2 && pin.slice(0, 3) !== pin.slice(3));
+    assert.match(pin, /^\d{4}$/);
+    assert.ok(new Set(pin).size > 2);
   }
   assert.equal($('.new-pin b').textContent, pins[1]);
   $('[data-konto="del"]').click();
@@ -309,6 +309,70 @@ test('Zapisy na dyżury w trybie chmury: konto osoby, nowy PIN (zajęty → losu
   assert.equal($('#reload-status').textContent, 'Odświeżono.');
   assert.deepEqual(state().stamps, fresh.stamps);
   assert.ok(state().priority.length, 'odświeżony stan przechodzi te same migracje');
+});
+
+test('korekty administratora w trybie Zapisów: wpis osoby zostaje, korekta obok, ostrzeżenie raz, przywracanie', async (t) => {
+  const days = [0, 1, 2, 3, 4, 5, 6], d = new Date();
+  const next = new Date(d.getFullYear(), d.getMonth() + 1, 1); // aplikacja startuje na następnym miesiącu
+  const key = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-01`;
+  const data = {
+    people: [{ id: 'a', name: 'Anna Kowalska', prestige: 1 }, { id: 'b', name: 'Jan Nowak', prestige: 1 }],
+    shifts: [{ id: 'o', name: 'OITN', days }], schedule: {}, manual: {}, miejscaV2: true,
+    avail: { a: { [key]: 3 } }, wants: { a: { '*': 4 } }, stamps: { a: '2030-01-02T10:00:00.000Z' },
+  };
+  const { w, $, state } = await setup(t, null, {
+    cloudLoad: async () => ({ data: structuredClone(data) }),
+    cloudRpc: async () => ({ konta: [], fails24h: 0 }),
+  });
+  let asked = 0, answer = true;
+  w.confirm = () => { asked++; return answer; };
+  const day = (k) => $(`[data-avail="${k}"]`);
+  $('#people [data-who="a"]').click();
+  assert.match($('#status').textContent, /niewidoczne dla osoby/);
+  answer = false;
+  day(key).click();
+  assert.equal(asked, 1, 'ostrzeżenie przy wpisie osoby');
+  assert.equal(state()?.availAdm?.a, undefined, 'anulowane = bez zmian');
+  answer = true;
+  day(key).click(); // Chcę → Muszę
+  assert.equal(asked, 2);
+  assert.deepEqual([state().avail.a, state().availAdm.a], [{ [key]: 3 }, { [key]: 4 }], 'wpis osoby zostaje, korekta obok');
+  assert.ok(day(key).classList.contains('adm'));
+  assert.match(day(key).textContent, /Muszę.*osoba: Chcę/);
+  const other = w.document.querySelectorAll('[data-avail]')[1].dataset.avail;
+  day(other).click(); // Mogę → Chcę
+  assert.equal(asked, 2, 'ostrzeżenie raz na osobę');
+  assert.equal(state().availAdm.a[other], 3);
+  for (let i = 0; i < 4; i++) day(other).click(); // pełne koło → z powrotem Mogę, jak u osoby
+  assert.equal(state().availAdm.a[other], undefined, 'ten sam poziom co u osoby = bez korekty');
+  assert.match($('#people').textContent, /korekty/);
+  $('[data-restore]').click();
+  assert.deepEqual(state().availAdm.a, {});
+  assert.deepEqual(state().avail.a, { [key]: 3 });
+  $('[data-done]').click();
+  $('#people [data-who="b"]').click(); // bez wpisów w Zapisach: bez ostrzeżenia, ale też jako korekta
+  day(key).click();
+  assert.equal(asked, 3);
+  assert.deepEqual([state().avail.b, state().availAdm.b], [undefined, { [key]: 3 }]);
+  $('[data-done]').click();
+
+  // Prośby osobno od limitów: wpis osoby tylko do odczytu, korekta obok
+  $('[data-limits="a"]').click();
+  assert.equal($('[data-want="*"]'), null);
+  assert.match($('#person-body').textContent, /Limity.*tylko Ty.*Prośby.*wpisuje osoba/s);
+  const korekta = $('[data-want-adm="*"]');
+  assert.equal(korekta.placeholder, '4');
+  korekta.value = '6';
+  korekta.dispatchEvent(new w.Event('change', { bubbles: true }));
+  assert.equal(asked, 4, 'osobne ostrzeżenie dla próśb');
+  assert.deepEqual([state().wants.a, state().wantsAdm.a], [{ '*': 4 }, { '*': 6 }]);
+  korekta.value = '4';
+  korekta.dispatchEvent(new w.Event('change', { bubbles: true }));
+  assert.deepEqual(state().wantsAdm.a, {}, 'tyle samo co osoba = bez korekty');
+  $('#person').close();
+  w.confirm = () => true;
+  $('#people [data-del-person="b"]').click();
+  assert.equal(state().availAdm.b, undefined, 'korekty znikają z osobą');
 });
 
 test('komentarze osób z Zapisów: tylko w oknie osoby i Statystykach, przetrwają zapis, znikają z usuniętą osobą', async (t) => {
@@ -441,7 +505,7 @@ test('okno osoby: chip miejsca i zwinięte grupy; pigułki na karcie; pędzel z 
     input.dispatchEvent(new w.Event('change', { bubbles: true }));
   };
   $(`[data-limits="${anna.id}"]`).click();
-  assert.deepEqual([...w.document.querySelectorAll('#person details.limits-group')].map((d) => d.open), [false, false]);
+  assert.deepEqual([...w.document.querySelectorAll('#person details.limits-group')].map((d) => d.open), [false, false, false, false]); // Limity, potem Prośby
   const chip = () => $(`#person [data-place="${oitn}"]`);
   chip().click();
   assert.equal(state().limits[anna.id][oitn], 0);
@@ -454,7 +518,7 @@ test('okno osoby: chip miejsca i zwinięte grupy; pigułki na karcie; pędzel z 
   set('min', 'd5', '1');
   $('#person').close();
   $(`[data-limits="${anna.id}"]`).click(); // z wpisami grupy otwierają się same
-  assert.deepEqual([...w.document.querySelectorAll('#person details.limits-group')].map((d) => d.open), [true, true]);
+  assert.deepEqual([...w.document.querySelectorAll('#person details.limits-group')].map((d) => d.open), [true, true, false, false], 'prośby osobno');
   $('#person').close();
 
   // pędzel „Nie mogę” i przeciągnięcie przez trzy dni

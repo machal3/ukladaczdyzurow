@@ -265,11 +265,11 @@ reszta oceny do 10% gorsza), pojawia się panel **Warianty grafiku**
 ## 9. Dane od osób (Zapisy na dyżury)
 
 Osobna aplikacja **Zapisy na dyżury** (repo `machal3/ukladaczdyzurowzapisy`) pozwala każdej osobie samej wpisać
-swoją dostępność i prośby, 6-cyfrowym PIN-em. Działa tylko w trybie chmury, gdy w `config.js` ustawiony jest
+swoją dostępność i prośby, 4-cyfrowym PIN-em. Działa tylko w trybie chmury, gdy w `config.js` ustawiony jest
 `ZAPISY_URL`; w Supabase trzeba też uruchomić `supabase-zapisy.sql` z repo Zapisów (po `supabase.sql` stąd).
 
 - **Konto osoby** — karta **Konto w Zapisach** w ustawieniach osoby: czy ma PIN, ostatnie logowanie i ostatnia
-  zmiana. **Nadaj PIN** losuje 6 cyfr (bez łatwych, np. 112211, 123456, 123123). PIN widać tylko raz — przekaż
+  zmiana. **Nadaj PIN** losuje 4 cyfry (bez łatwych, np. 1111, 1212, 1234). PIN widać tylko raz — przekaż
   go osobie (**Skopiuj**). Nowy PIN unieważnia stary i wylogowuje osobę na wszystkich urządzeniach.
   **Usuń konto** odbiera dostęp (wpisana dostępność zostaje). Usunięcie osoby usuwa też jej konto.
 - **Co osoba widzi** — swoje imię, nazwy miejsc, swoją dostępność (Mogę / Chcę / Muszę / Nie mogę /

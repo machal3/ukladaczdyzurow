@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { generateMonth, generateVariants, scoreMonth, dateKey, history, badOf, parseTable, matchPerson, personLog, listPeople, missedWishes, lastResortDays, sandwichDays, monthStats } from './scheduler.js';
+import { generateMonth, generateVariants, scoreMonth, dateKey, history, badOf, parseTable, matchPerson, personLog, listPeople, missedWishes, lastResortDays, sandwichDays, monthStats, limitClash } from './scheduler.js';
 
 const people = ['a', 'b', 'c', 'd'].map((id) => ({ id, name: id }));
 const all = [0, 1, 2, 3, 4, 5, 6];
@@ -674,4 +674,13 @@ test('warianty różnią się składem dni, nie tylko rozstawieniem tych samych 
   const crew = (s) => Object.keys(s).sort().map((k) => Object.values(s[k]).sort().join(',')).join('|');
   for (const v of [generateVariants(2026, 9, shifts, people), generateVariants(2026, 9, shifts, people, {}, {}, {}, [], {}, { a: { s1: 5 } }, { timeBudgetMs: 1000 })])
     assert.equal(new Set(v.map((x) => crew(x.schedule))).size, v.length);
+});
+
+test('limitClash wskazuje sprzeczne limity i minima osoby', () => {
+  const places = ['a', 'b'];
+  assert.deepEqual([...limitClash({ we: 2 }, { a: 1, d5: 1 }, places)], []);
+  assert.ok(limitClash({ '*': 2 }, { a: 3 }, places).has('a')); // min miejsca > limit łącznie
+  assert.ok(limitClash({ we: 2 }, { d5: 2, d6: 1 }, places).has('we')); // So + Nd z minimów > limit Pt/So/Nd
+  assert.ok(limitClash({ a: 1, b: 1 }, { '*': 3 }, places).has('*')); // suma limitów miejsc < min łącznie
+  assert.ok(!limitClash({ a: 1, b: 1 }, { '*': 3 }, places).has('we'));
 });

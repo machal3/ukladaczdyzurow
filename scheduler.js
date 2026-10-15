@@ -393,7 +393,24 @@ function checkSettings(people, limits, wants) {
   }
 }
 
-const CAT = { '*': 'łącznie', we: 'Pt/So/Nd', d56: 'So + Nd', d4: 'ten sam Pt', d5: 'ten sam So', d6: 'ten sam Nd' };
+// Sprzeczne limity jednej osoby (bez dostępności i miesiąca): lim/min = { kategoria: n }, places = id miejsc.
+// Łącznie = suma miejsc ⊇ Pt/So/Nd = Pt + (So + Nd), So + Nd = So + Nd. Najmniej = własne Min. albo suma minimów części;
+// najwyżej = własny Limit, suma limitów części albo limit nadrzędnej kategorii. Zwraca Set kategorii, w których najmniej > najwyżej.
+// ponytail: bez wnioskowania w bok (rodzic − rodzeństwo), bo sprzeczność rozlewałaby się na niezwiązane pola.
+export function limitClash(lim, min, places) {
+  const kids = { d56: ['d5', 'd6'], we: ['d4', 'd56'], '*': places }, parent = { we: '*', d4: 'we', d56: 'we', d5: 'd56', d6: 'd56' };
+  for (const k of places) parent[k] = '*';
+  const order = ['d4', 'd5', 'd6', 'd56', 'we', ...places, '*'], L = {}, U = {}; // od liści do korzenia
+  const sum = (o, ks) => ks.reduce((n, k) => n + o[k], 0);
+  for (const k of order) {
+    L[k] = Math.max(min[k] ?? 0, kids[k] ? sum(L, kids[k]) : 0, k === '*' ? L.we : 0);
+    U[k] = Math.min(lim[k] ?? Infinity, kids[k] ? sum(U, kids[k]) : Infinity);
+  }
+  for (const k of [...order].reverse()) if (parent[k]) U[k] = Math.min(U[k], U[parent[k]]);
+  return new Set(order.filter((k) => L[k] > U[k]));
+}
+
+const CAT = { '*':'łącznie', we: 'Pt/So/Nd', d56: 'So + Nd', d4: 'ten sam Pt', d5: 'ten sam So', d6: 'ten sam Nd' };
 const PHRASE = { '*': 'łącznie', we: 'w Pt/So/Nd', d56: 'w So + Nd', d4: 'w piątki', d5: 'w soboty', d6: 'w niedziele' }; // w zdaniu; miejsce → „na OITN”
 const DOW = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So', 'Nd'];
 
