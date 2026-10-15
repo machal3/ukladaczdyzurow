@@ -7,12 +7,15 @@ import { BrowserWorker } from './scripts/test-worker.mjs';
 
 // Prawdziwe moduły aplikacji i DOM. Jedynym zamiennikiem usługi jest chmura:
 // test nigdy nie łączy się z produkcyjną bazą i nie potrzebuje PIN-u.
-async function setup(t) {
+// saved = stan w localStorage przed startem aplikacji (jak u użytkownika z zapisanymi danymi);
+// fake = podmienione eksporty atrapy cloud.js (np. tryb chmury z atrapą bazy)
+async function setup(t, saved, fake = {}) {
   const dom = new JSDOM(await readFile(new URL('./index.html', import.meta.url), 'utf8'), {
     url: 'http://localhost/', runScripts: 'outside-only', pretendToBeVisual: true,
   });
   t.after(() => dom.window.close());
   const w = dom.window;
+  if (saved) w.localStorage.setItem('dyzury-v1', JSON.stringify(saved));
   const workers = [];
   w.Worker = class extends BrowserWorker {
     constructor(...args) { super(...args); workers.push(this); }
@@ -32,10 +35,14 @@ async function setup(t) {
   });
   const scheduler = await source('./scheduler.js');
   await scheduler.link(() => { throw new Error('Nieoczekiwany import algorytmu'); });
-  const cloud = new SyntheticModule(['cloudLoad', 'cloudSave', 'cloudLogout'], function () {
-    this.setExport('cloudLoad', async () => null);
-    this.setExport('cloudSave', () => {});
-    this.setExport('cloudLogout', () => {});
+  const exports = {
+    cloudLoad: async () => null, cloudSave: () => {}, cloudLogout: () => {}, cloudReload: async () => null,
+    cloudRpc: async () => { throw new Error('Nieoczekiwane wywołanie bazy'); },
+    ZAPISY_URL: 'https://zapisy.example/', // ustawiony adres, a mimo to bez chmury Zapisów nie widać
+    ...fake,
+  };
+  const cloud = new SyntheticModule(Object.keys(exports), function () {
+    for (const [k, v] of Object.entries(exports)) this.setExport(k, v);
   }, { context });
   await cloud.link(() => {});
   const ui = await source('./ui.js');
@@ -177,6 +184,93 @@ test('dostępność i import tabeli działają po zmianie struktury formularzy',
   $('#import').close('ok');
   const shift = state().shifts.find((s) => s.name === 'OITN').id;
   assert.equal(state().manual[key][shift], person);
+});
+
+test('Zapisy na dyżury: bez chmury bez karty konta i wierszy; stamps przetrwają zapis i są widoczne przy dostępności', async (t) => {
+  const days = [0, 1, 2, 3, 4, 5, 6];
+  const { $, state } = await setup(t, {
+    people: [{ id: 'a', name: 'Anna Kowalska', prestige: 1 }, { id: 'b', name: 'Jan Nowak', prestige: 1 }],
+    shifts: [{ id: 'o', name: 'OITN', days }, { id: 'p1', name: 'PN1', days }, { id: 'p2', name: 'PN2', days }],
+    schedule: {}, manual: {}, miejscaV2: true,
+    avail: { a: { '2030-01-07': 0 } }, stamps: { a: '2030-01-02T10:00:00.000Z' }, zapisyOd: '2030-01',
+  });
+  $('#app-settings-open').click();
+  assert.equal($('#panel-zapisy').hidden, true);
+  assert.equal($('#panel-account').hidden, true);
+  assert.equal($('#panel-zapisy-od').hidden, true);
+  $('[data-edit="a"]').click();
+  assert.equal($('#konto'), null);
+  assert.doesNotMatch($('#person-body').textContent, /Konto w Zapisach/);
+  $('#person').close();
+
+  $('#people [data-who="a"]').click();
+  assert.match($('#status').textContent, /zmienione w Zapisach: /);
+  $('[data-avail]').click(); // zmiana dostępności zapisuje cały stan — stamps odsyłane bez zmian
+  assert.deepEqual(state().stamps, { a: '2030-01-02T10:00:00.000Z' });
+  assert.equal(state().zapisyOd, '2030-01');
+  $('[data-done]').click();
+  $('#people [data-who="b"]').click();
+  assert.doesNotMatch($('#status').textContent, /Zapisach/);
+});
+
+test('Zapisy na dyżury w trybie chmury: konto osoby, nowy PIN (zajęty → losuje znowu), usunięcie, pole „otwarte od”, odświeżenie', async (t) => {
+  const days = [0, 1, 2, 3, 4, 5, 6];
+  const data = {
+    people: [{ id: 'a', name: 'Anna Kowalska', prestige: 1 }, { id: 'b', name: 'Jan Nowak', prestige: 1 }],
+    shifts: [{ id: 'o', name: 'OITN', days }], schedule: {}, manual: {}, miejscaV2: true,
+  };
+  const calls = [], konta = [{ pid: 'a', last_login: '2030-01-03T08:00:00Z', last_change: null }];
+  let busy = 1, fresh = null;
+  const { w, $, tick, state } = await setup(t, null, {
+    cloudLoad: async () => ({ data: structuredClone(data) }),
+    cloudReload: async () => fresh,
+    cloudRpc: async (fn, body) => {
+      calls.push(JSON.parse(JSON.stringify([fn, body])));
+      if (fn === 'admin_konta') return { konta, fails24h: 7 };
+      if (fn === 'admin_set_pin' && busy-- > 0) throw new Error('Ten PIN jest już zajęty — wylosuj inny');
+      return {};
+    },
+  });
+  const settle = async () => { for (let i = 0; i < 5; i++) await tick(); };
+  w.confirm = () => true;
+  $('#app-settings-open').click();
+  await settle();
+  assert.equal($('#panel-zapisy').hidden, false);
+  assert.match($('#zapisy-fails').textContent, /24 h: 7/);
+  assert.equal($('#zapisy-link').getAttribute('href'), 'https://zapisy.example/');
+  $('#app-settings').close();
+
+  $('[data-edit="a"]').click();
+  await settle();
+  assert.match($('#konto').textContent, /ma PIN/);
+  $('[data-konto="pin"]').click();
+  await settle();
+  const pins = calls.filter(([fn]) => fn === 'admin_set_pin').map(([, b]) => b.nowy);
+  assert.equal(pins.length, 2, 'zajęty PIN → drugie losowanie');
+  for (const pin of pins) {
+    assert.match(pin, /^\d{6}$/);
+    assert.ok(new Set(pin).size > 2 && pin.slice(0, 3) !== pin.slice(3));
+  }
+  assert.equal($('.new-pin b').textContent, pins[1]);
+  $('[data-konto="del"]').click();
+  await settle();
+  assert.deepEqual(calls.at(-2), ['admin_usun_konto', { osoba: 'a' }]);
+  assert.equal($('.new-pin'), null);
+  $('#person').close();
+
+  $('#zapisy-od').value = '2030-02';
+  $('#zapisy-od').dispatchEvent(new w.Event('change', { bubbles: true }));
+  assert.equal(state().zapisyOd, '2030-02');
+
+  $(`#people [data-del-person="b"]`).click();
+  assert.deepEqual(calls.at(-1), ['admin_usun_konto', { osoba: 'b' }]);
+
+  fresh = { ...structuredClone(data), avail: { a: { '2030-02-04': 0 } }, stamps: { a: '2030-01-05T09:00:00Z' } };
+  $('#reload').click();
+  await settle();
+  assert.equal($('#reload-status').textContent, 'Odświeżono.');
+  assert.deepEqual(state().stamps, fresh.stamps);
+  assert.ok(state().priority.length, 'odświeżony stan przechodzi te same migracje');
 });
 
 test('dekoracje odtwarzają się po wymianie DOM podczas logowania', async (t) => {

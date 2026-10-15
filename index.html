@@ -105,6 +105,11 @@
         <p class="lead">Jak ciężki jest każdy dzień (0–3). Układanie dzieli gówniane dni sprawiedliwie między osoby. Tu też ustawisz, że dzień liczy się do limitów i próśb jak inny dzień tygodnia (np. święto w środę jak niedziela).</p>
         <button id="bad-mode" class="ghost outline" aria-pressed="false">Oceń dni w kalendarzu →</button>
       </div>
+      <div class="panel" id="panel-zapisy-od" hidden>
+        <h3>Zapisy na dyżury</h3>
+        <p class="lead">Od którego miesiąca osoby mogą same zmieniać dostępność w aplikacji Zapisy. Wcześniejszych miesięcy (np. już ułożonych) nie zmienią. Puste = bez blokady (od dziś).</p>
+        <label class="field"><span>Zapisy otwarte od miesiąca</span><input id="zapisy-od" type="month"></label>
+      </div>
     </section>
 
     <!-- Instrukcja: ta sama treść co README.md — zmieniając jedno, zmień drugie -->
@@ -120,6 +125,7 @@
         <li><a href="#h-variants">Warianty i ocena</a></li>
         <li><a href="#h-manual">Ręczne wpisy, import, usuwanie</a></li>
         <li><a href="#h-data">Zapis danych</a></li>
+        <li><a href="#h-zapisy">Dane od osób (Zapisy)</a></li>
         <li><a href="#h-limits">Znane ograniczenia</a></li>
       </ol></nav>
 
@@ -269,8 +275,22 @@
         </ul>
       </section>
 
+      <section id="h-zapisy">
+        <h3>9. Dane od osób (Zapisy na dyżury)</h3>
+        <p>Osobna aplikacja <b>Zapisy na dyżury</b> pozwala każdej osobie samej wpisać swoją dostępność i prośby, 6-cyfrowym PIN-em. Działa tylko w trybie chmury, gdy ustawiony jest adres Zapisów.</p>
+        <ul>
+          <li><b>Konto osoby</b> — karta <b>Konto w Zapisach</b> w ustawieniach osoby: czy ma PIN, ostatnie logowanie i ostatnia zmiana. <b>Nadaj PIN</b> losuje 6 cyfr (bez łatwych, np. 112211, 123456, 123123). PIN widać tylko raz — przekaż go osobie (<b>Skopiuj</b>). Nowy PIN unieważnia stary i wylogowuje osobę na wszystkich urządzeniach. <b>Usuń konto</b> odbiera dostęp (wpisana dostępność zostaje). Usunięcie osoby usuwa też jej konto.</li>
+          <li><b>Co osoba widzi</b> — tylko swoje imię, nazwy miejsc, swoją dostępność i swoje prośby. <b>Nie widzi</b> limitów, minimów, innych osób, warunków, gównianości dni ani grafiku.</li>
+          <li><b>Zapisy otwarte od miesiąca</b> (zakładka Układanie) — osoby nie zmienią dni sprzed tego miesiąca (np. już ułożonych) ani dni przeszłych; pilnuje tego baza. Puste = bez blokady (od dziś).</li>
+          <li><b>Kto to wpisał</b> — w trybie dostępności osoby przy imieniu widać „zmienione w Zapisach: data”, jeśli osoba coś tam zmieniała.</li>
+          <li><b>Odświeżanie</b> — zmiany osób pojawiają się po powrocie na kartę przeglądarki albo po <b>Odśwież dane</b> (Ustawienia aplikacji). Nie w trakcie układania, przy otwartym oknie osoby ani gdy własne zmiany jeszcze się zapisują.</li>
+          <li><b>Jednoczesna zmiana — wygrywa osoba.</b> Jeśli osoba zmieni swoją dostępność po wczytaniu danych w Układaczu, przy zapisie jej dostępność i prośby zostają z bazy, a zmiany zrobione w Układaczu u tej osoby przepadają (widać to po odświeżeniu). Reszta zmian zapisuje się normalnie.</li>
+          <li><b>Ustawienia aplikacji → Zapisy na dyżury</b> — liczba złych prób logowania z 24 h (przy 100 logowanie wstrzymuje się dla wszystkich) i link do aplikacji Zapisów.</li>
+        </ul>
+      </section>
+
       <section id="h-limits">
-        <h3>9. Znane ograniczenia</h3>
+        <h3>10. Znane ograniczenia</h3>
         <ul>
           <li>Wyszukiwanie ma ograniczony czas i nie gwarantuje najlepszego możliwego grafiku. Komunikat o braku wyniku nie dowodzi, że rozwiązanie nie istnieje. Możesz sprawdzić ustawienia albo ponowić próbę. Limity nie są automatycznie rozluźniane.</li>
           <li>Przełom miesięcy: „nie dzień po dniu”, „bez kanapek” i „wolne po weekendowym OITN” uwzględniają 2 ostatnie dni poprzedniego i 2 pierwsze dni następnego miesiąca, jeśli są już w grafiku (nie liczą się do limitów, minimów ani próśb tego miesiąca). Gdy następny miesiąc ułożysz wcześniej, jego początek też blokuje koniec tego.</li>
@@ -321,7 +341,9 @@
           <button class="swatch" type="button" data-color-theme-pick="bursztynowy" style="--swatch: #865319" role="radio" aria-label="Bursztynowy"></button>
         </div>
       </div>
-      <div class="app-row" id="panel-account" hidden><div><h4>Konto</h4><p class="hint">Wylogowanie zapomina PIN w tej przeglądarce.</p></div><button id="logout" type="button" class="ghost outline">Wyloguj</button></div>
+      <div class="app-row" id="panel-account" hidden><div><h4>Konto</h4><p class="hint">Odśwież dane wczytuje zmiany z innych komputerów i z Zapisów. Wylogowanie zapomina PIN w tej przeglądarce.</p><p class="hint" id="reload-status" role="status"></p></div>
+        <div class="app-actions"><button id="reload" type="button" class="ghost outline">Odśwież dane</button><button id="logout" type="button" class="ghost outline">Wyloguj</button></div></div>
+      <div class="app-row" id="panel-zapisy" hidden><div><h4>Zapisy na dyżury</h4><p class="hint" id="zapisy-fails" role="status"></p></div><a id="zapisy-link" class="outlined" target="_blank" rel="noopener">Otwórz Zapisy</a></div>
       <menu><button>Zamknij</button></menu>
     </form>
   </dialog>

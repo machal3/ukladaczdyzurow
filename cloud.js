@@ -68,3 +68,15 @@ function send() {
 addEventListener('beforeunload', (e) => { if (pending) e.preventDefault(); }); // niezapisane zmiany → przeglądarka pyta
 
 export function cloudLogout() { localStorage.removeItem(PIN); location.reload(); }
+
+// Wywołanie funkcji bazy z PIN-em administratora (np. admin_konta, admin_set_pin — patrz supabase-zapisy.sql w repo Zapisów)
+export const cloudRpc = (fn, body) => rpc(fn, { p: pin, ...body });
+
+// Świeży stan z bazy (np. zmiany osób z Zapisów) albo null, gdy coś czeka na wysłanie — wtedy lokalny stan jest nowszy
+export async function cloudReload() {
+  if (!pin || pending) return null;
+  const { data } = await rpc('load_state', { p: pin });
+  return pending ? null : data; // zmiana w trakcie wczytywania wygrywa
+}
+
+export { ZAPISY_URL } from './config.js';

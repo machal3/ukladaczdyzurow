@@ -57,11 +57,24 @@ begin
   return jsonb_build_object('data', (select data from public.dyzury where id = 1));
 end $$;
 
+-- Zapisy na dyżury (osobna aplikacja) zmieniają avail[pid] i wants[pid] wprost w tym wierszu i stawiają
+-- data.stamps[pid] = czas zmiany. Układacz odsyła stamps takie, jakie wczytał, więc nowszy stamp w bazie
+-- = osoba zmieniła coś po wczytaniu — wtedy jej avail/wants/stamp zostają z bazy, a nie z (starszego) stanu Układacza.
+-- ponytail: gdy Układacz i osoba zmienią tę samą osobę naraz, wygrywa osoba; Układacz widzi to po odświeżeniu.
 create function public.save_state(p text, d jsonb) returns jsonb
 language plpgsql security definer set search_path = '' as $$
-declare err text := public.check_pin(p);
+declare err text := public.check_pin(p); old jsonb; k text;
 begin
   if err is not null then return jsonb_build_object('error', err); end if;
+  select data into old from public.dyzury where id = 1 for update;
+  for k in select jsonb_object_keys(coalesce(old->'stamps', '{}')) loop
+    if d->'stamps'->>k is null or (old->'stamps'->>k)::timestamptz > (d->'stamps'->>k)::timestamptz then
+      d := d || jsonb_build_object(
+        'avail', coalesce(d->'avail', '{}') || jsonb_build_object(k, coalesce(old->'avail'->k, '{}')),
+        'wants', coalesce(d->'wants', '{}') || jsonb_build_object(k, coalesce(old->'wants'->k, '{}')),
+        'stamps', coalesce(d->'stamps', '{}') || jsonb_build_object(k, old->'stamps'->k));
+    end if;
+  end loop;
   insert into public.dyzury (id, data) values (1, d)
   on conflict (id) do update set data = excluded.data, updated_at = now();
   return '{}';

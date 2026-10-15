@@ -1,6 +1,6 @@
 import { dateKey, daysInMonth, weekday, limitDay, shiftsForDay, scoreMonth, PRIORITIES, PRIORITY_ORDER, availOf, breaksRule, LEVELS, ROLES, roleOf, badOf, BAD, history, parseTable, matchPerson, personLog, PAST_WEIGHT, listPeople, missedWishes, lastResortDays, sandwichDays, monthStats } from './scheduler.js';
 import { runScheduler } from './scheduler-client.js';
-import { cloudLoad, cloudSave, cloudLogout } from './cloud.js';
+import { cloudLoad, cloudSave, cloudLogout, cloudRpc, cloudReload, ZAPISY_URL } from './cloud.js';
 import { pdf, docx } from './export.js';
 
 const DAYS = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So', 'Nd'];
@@ -23,26 +23,32 @@ let state = cloud?.data ?? load() ?? {
   schedule: {}, // { 'YYYY-MM-DD': { shiftId: personId } }
   manual: {},   // ręczne przypisania — zachowane przy ponownym układaniu
 };
-state.avail ??= {}; // { personId: { 'YYYY-MM-DD': poziom 0-4 } } — patrz LEVELS
-state.limits ??= {}; // { personId: { shiftId: maks. dyżurów w miesiącu, '*': maks. łącznie, we: maks. Pt/So/Nd, d56: maks. So + Nd łącznie } } — brak = bez limitu (we: WEEKEND_LIMIT)
-state.mins ??= {}; // { personId: { shiftId / d4-d6 / d56 / we / '*': minimum dyżurów w miesiącu } } — idzie do generateMonth jako limits[pid].min
-state.wants ??= {}; // { personId: { shiftId / d4-d6 / d56 / we / '*': ile dyżurów chce w miesiącu } } — prośby, miękkie (patrz generateMonth)
-state.bad ??= {}; // { 'YYYY-MM-DD': gównianość 0-3 } — patrz BAD/badOf; osoba: person.past 0-3
-state.asDay ??= {}; // { 'YYYY-MM-DD': 0-6 } — dzień liczony do limitów i próśb jak inny dzień tygodnia (patrz limitDay)
-state.rules ??= []; // [{ id, who, with, places: [shiftId] }] — patrz breaksRule
-state.priority = [...new Set([...(state.priority ?? []), ...PRIORITY_ORDER])].filter((k) => k in PRIORITIES); // kolejność kryteriów układania
-state.aliases ??= {}; // { 'imię z importowanej tabeli' (małe litery): personId } — zapamiętane połączenia z importu
-for (const p of state.people) p.prestige ??= 1; // 0 = Rezydent, 1–2 = Starszy asystent, p.boss = Kierownik — patrz ROLES/roleOf; p.gone = usunięta (zostaje dla przeszłych dyżurów)
-// jednorazowa migracja zapisanych danych: stare domyślne miejsca → OITN, PN1, PN2 (id zostają, więc grafik i limity też)
-if (!state.miejscaV2) {
-  const rename = { 'Oddział': 'OITN', 'SOR': 'PN1' };
-  for (const s of state.shifts) s.name = rename[s.name] ?? s.name;
-  for (const name of ['OITN', 'PN1', 'PN2'])
-    if (!state.shifts.some((s) => s.name === name)) state.shifts.push({ id: uid(), name, days: [0, 1, 2, 3, 4, 5, 6] });
-  state.miejscaV2 = true;
-  save();
+migrate();
+// domyślne pola i migracje zapisanych danych — po wczytaniu i po odświeżeniu z chmury (reload)
+function migrate() {
+  state.avail ??= {}; // { personId: { 'YYYY-MM-DD': poziom 0-4 } } — patrz LEVELS
+  state.stamps ??= {}; // { personId: czas ISO } — ostatnia zmiana osoby w Zapisach; stawia tylko serwer, klient odsyła bez zmian (patrz save_state)
+  state.limits ??= {}; // { personId: { shiftId: maks. dyżurów w miesiącu, '*': maks. łącznie, we: maks. Pt/So/Nd, d56: maks. So + Nd łącznie } } — brak = bez limitu (we: WEEKEND_LIMIT)
+  state.mins ??= {}; // { personId: { shiftId / d4-d6 / d56 / we / '*': minimum dyżurów w miesiącu } } — idzie do generateMonth jako limits[pid].min
+  state.wants ??= {}; // { personId: { shiftId / d4-d6 / d56 / we / '*': ile dyżurów chce w miesiącu } } — prośby, miękkie (patrz generateMonth)
+  state.bad ??= {}; // { 'YYYY-MM-DD': gównianość 0-3 } — patrz BAD/badOf; osoba: person.past 0-3
+  state.asDay ??= {}; // { 'YYYY-MM-DD': 0-6 } — dzień liczony do limitów i próśb jak inny dzień tygodnia (patrz limitDay)
+  state.rules ??= []; // [{ id, who, with, places: [shiftId] }] — patrz breaksRule
+  state.priority = [...new Set([...(state.priority ?? []), ...PRIORITY_ORDER])].filter((k) => k in PRIORITIES); // kolejność kryteriów układania
+  state.aliases ??= {}; // { 'imię z importowanej tabeli' (małe litery): personId } — zapamiętane połączenia z importu
+  for (const p of state.people) p.prestige ??= 1; // 0 = Rezydent, 1–2 = Starszy asystent, p.boss = Kierownik — patrz ROLES/roleOf; p.gone = usunięta (zostaje dla przeszłych dyżurów)
+  // jednorazowa migracja zapisanych danych: stare domyślne miejsca → OITN, PN1, PN2 (id zostają, więc grafik i limity też)
+  if (!state.miejscaV2) {
+    const rename = { 'Oddział': 'OITN', 'SOR': 'PN1' };
+    for (const s of state.shifts) s.name = rename[s.name] ?? s.name;
+    for (const name of ['OITN', 'PN1', 'PN2'])
+      if (!state.shifts.some((s) => s.name === name)) state.shifts.push({ id: uid(), name, days: [0, 1, 2, 3, 4, 5, 6] });
+    state.miejscaV2 = true;
+    save();
+  }
 }
-if (cloud && !cloud.data) save(); // pusta chmura → wysyłamy to, co było w tej przeglądarce
+if (cloud && !cloud.data) save();
+const zapisy = !!(cloud && ZAPISY_URL); // Zapisy na dyżury: karta w oknie osoby, wiersz w ustawieniach, pole „otwarte od” // pusta chmura → wysyłamy to, co było w tej przeglądarce
 const now = new Date();
 const next = new Date(now.getFullYear(), now.getMonth() + 1); // start na następnym miesiącu
 let view = { y: next.getFullYear(), m: next.getMonth(), who: null, bad: false, q: '', role: null, none: false, sort: 'surname' }; // who: osoba, której dostępność edytujemy; bad: tryb oceny gównianości dni; q/role/none/sort: szukanie, filtry i sortowanie w zakładce Osoby (patrz listPeople)
@@ -164,6 +170,7 @@ function render() {
       card('Dyżuruje na', 'Kliknij miejsce, by je wykluczyć (Limit 0) lub znów dopuścić.',
         `<div class="place-chips" role="group" aria-label="Dyżuruje na">${state.shifts.map((s) =>
           `<button type="button" class="chip" data-place="${s.id}" aria-pressed="true" title="Kliknij, by wykluczyć lub dopuścić ${esc(s.name)} (Limit 0)">${CHECK}<span>${esc(s.name)}</span></button>`).join('')}</div>`) +
+      (zapisy ? card('Konto w Zapisach', 'Osoba sama wpisuje dostępność i prośby w aplikacji Zapisy na dyżury.', '<div id="konto"></div>') : '') +
       card('Limity i prośby', 'Liczba dyżurów w miesiącu — obowiązuje w każdym miesiącu.',
         `<table class="counts">${head}<tbody>${row('Łącznie', '*', '∞', 'łącznie') + row('Pt/So/Nd', 'we', WEEKEND_LIMIT, 'Pt/So/Nd')}</tbody></table>` +
         group(`Na miejscach <small>${esc(state.shifts.map((s) => s.name).join(', '))}</small>`, custom(state.shifts.map((s) => s.id)),
@@ -195,7 +202,7 @@ function render() {
   const done = '<button data-done>Gotowe</button>';
   const how = '<span class="hint"> — klikaj dni albo wybierz poziom i przeciągnij myszą po dniach:</span>';
   $('#status').innerHTML = view.bad ? `<span class="who"><b>Gównianość dni</b>${how}</span>${chips('bad', [0, 1, 2, 3], BAD, ['lvl-2', 'lvl-1', 'lvl-0', 'bad-3'])}<span class="hint">Pod spodem: limity i prośby liczone jak inny dzień tygodnia (np. święto jak Nd).</span>${done}` :
-    view.who ? `<span class="who"><b>Dostępność: ${esc(nameOf[view.who])}</b>${how}</span>${chips('avail', [2, 3, 4, 0, 1], [2, 3, 4, 0, 1].map((i) => LEVELS[i]), ['lvl-2', 'lvl-3', 'lvl-4', 'lvl-0', 'lvl-1'])}${done}` :
+    view.who ? `<span class="who"><b>Dostępność: ${esc(nameOf[view.who])}</b>${stamp(view.who)}${how}</span>${chips('avail', [2, 3, 4, 0, 1], [2, 3, 4, 0, 1].map((i) => LEVELS[i]), ['lvl-2', 'lvl-3', 'lvl-4', 'lvl-0', 'lvl-1'])}${done}` :
     empty === slots && slots ? '<span>Pusty grafik — <b>Ułóż miesiąc</b> wypełni go automatycznie; każde pole możesz też wpisać ręcznie.</span>' :
     empty ? `<span>Obsadzone <b class="ok">${slots - empty} z ${slots}</b></span><span class="progress" role="progressbar" aria-label="Obsadzone dyżury" aria-valuenow="${Math.round((slots - empty) / slots * 100)}"><i style="width:${(slots - empty) / slots * 100}%"></i></span>` +
       `<span>wolne: <b>${empty}</b></span><button class="ghost" data-jump>Pokaż pierwszy wolny →</button>` : '';
@@ -229,14 +236,74 @@ function render() {
       row('lvl-2', 'Kanapki', pairs(sw[p.id])) + '</li>').join('');
   }
   $('#bad-mode').setAttribute('aria-pressed', view.bad);
+  if (document.activeElement !== $('#zapisy-od')) $('#zapisy-od').value = state.zapisyOd ?? '';
   if (document.body.dataset.tab === 'stats') renderStats();
 }
+
+// Zapisy na dyżury: kiedy osoba ostatnio sama zmieniła dostępność/prośby (state.stamps stawia serwer)
+const when = (iso) => iso ? new Date(iso).toLocaleString('pl-PL', { dateStyle: 'short', timeStyle: 'short' }) : '—';
+const stamp = (pid) => state.stamps[pid] ? ` <small class="stamp">zmienione w Zapisach: ${when(state.stamps[pid])}</small>` : '';
 
 function update(fn) { stopGeneration(); fn(); save(); render(); }
 
 // Okno osoby: chipy miejsc (dozwolone = bez Limitu 0) — odświeżane przy każdej zmianie, bez przebudowy pól
 function personStatus(pid) {
   for (const b of document.querySelectorAll('#person [data-place]')) b.setAttribute('aria-pressed', state.limits[pid]?.[b.dataset.place] !== 0);
+}
+
+// Okno osoby → „Konto w Zapisach”: stan kont z admin_konta (raz przy otwarciu okna), nowy PIN widać tylko raz
+let konta = null, kontoPin = null; // konta: { konta: [{ pid, last_login, last_change }], fails24h } | { error } | null = wczytuje
+const fetchKonta = () => cloudRpc('admin_konta', {}).catch((e) => ({ error: e.message }));
+async function openKonto() { konta = kontoPin = null; renderKonto(); konta = await fetchKonta(); renderKonto(); }
+function renderKonto() {
+  const el = $('#konto'), k = konta?.konta?.find((x) => x.pid === view.who);
+  if (!el) return;
+  el.innerHTML = !konta ? '<p class="hint">Wczytuję…</p>' : konta.error ? `<p class="hint">Nie udało się wczytać: ${esc(konta.error)}</p>` :
+    `<dl class="konto"><dt>Konto</dt><dd>${k ? 'ma PIN' : 'bez konta'}</dd><dt>Ostatnie logowanie</dt><dd>${when(k?.last_login)}</dd><dt>Ostatnia zmiana w Zapisach</dt><dd>${when(k?.last_change)}</dd></dl>` +
+    (kontoPin ? `<p class="new-pin">Nowy PIN: <b>${kontoPin}</b> <button type="button" class="outlined" data-konto="copy">Skopiuj</button></p>` +
+      '<p class="hint">PIN widać tylko teraz — przekaż go osobie. Stary PIN i zalogowane sesje przestały działać.</p>' : '') +
+    `<div class="konto-actions"><button type="button" class="outlined" data-konto="pin">${k ? 'Nadaj nowy PIN' : 'Nadaj PIN'}</button>` +
+    (k ? '<button type="button" class="ghost outline" data-konto="del">Usuń konto</button>' : '') + '</div>';
+}
+// 6 losowych cyfr bez łatwych do zgadnięcia: ≤ 2 różne cyfry, ciąg rosnący/malejący (123456, 987654), abcabc
+// ponytail: % 10 na 32 bitach ma pomijalne (~10⁻⁹) przesunięcie rozkładu
+function randomPin() {
+  for (;;) {
+    const d = [...crypto.getRandomValues(new Uint32Array(6))].map((x) => x % 10), s = d.join('');
+    const steps = new Set(d.slice(1).map((x, i) => (x - d[i] + 10) % 10));
+    if (new Set(d).size > 2 && !(steps.size === 1 && (steps.has(1) || steps.has(9))) && s.slice(0, 3) !== s.slice(3)) return s;
+  }
+}
+async function kontoAction(btn) {
+  const pid = view.who, name = state.people.find((p) => p.id === pid).name, has = konta?.konta?.some((k) => k.pid === pid);
+  if (btn.dataset.konto === 'copy') return navigator.clipboard.writeText(kontoPin).then(() => { btn.textContent = 'Skopiowano'; }, () => prompt('Skopiuj PIN:', kontoPin));
+  if (btn.dataset.konto === 'del' && !confirm(`Usunąć konto ${name} w Zapisach? PIN i sesje przestaną działać; wpisana dostępność zostaje.`)) return;
+  if (btn.dataset.konto === 'pin' && has && !confirm(`Nadać ${name} nowy PIN? Stary przestanie działać.`)) return;
+  btn.disabled = true;
+  try {
+    if (btn.dataset.konto === 'del') { await cloudRpc('admin_usun_konto', { osoba: pid }); kontoPin = null; }
+    else for (let i = 0; ; i++) { // PIN-y się nie powtarzają: zajęty → losuj jeszcze raz
+      const nowy = randomPin();
+      try { await cloudRpc('admin_set_pin', { osoba: pid, nowy }); kontoPin = nowy; break; }
+      catch (e) { if (!/zajęty/.test(e.message) || i >= 4) throw e; }
+    }
+    konta = await fetchKonta();
+  } catch (e) { alert(`Nie udało się: ${e.message}`); }
+  renderKonto();
+}
+
+// Świeże dane z chmury (np. zmiany osób z Zapisów): po powrocie na kartę i przyciskiem „Odśwież dane”.
+// Nie w trakcie układania ani przy otwartym oknie osoby — wynik i pola dotyczyłyby starego stanu.
+async function reload() {
+  if (generation || $('#person').open) return 'Teraz nie — trwa układanie albo otwarte jest okno osoby.';
+  const data = await cloudReload();
+  if (!data || generation || $('#person').open) return 'Zmiany jeszcze się zapisują — spróbuj za chwilę.';
+  state = data;
+  migrate();
+  if (!team().some((p) => p.id === view.who)) view.who = null; // osoba usunięta na innym komputerze
+  try { localStorage.setItem(STORE, JSON.stringify(state)); } catch {}
+  render();
+  return 'Odświeżono.';
 }
 
 $('#prev').onclick = () => { $('#panel-variants').hidden = true; view = { ...view, ...(view.m ? { m: view.m - 1 } : { y: view.y - 1, m: 11 }) }; render(); };
@@ -542,8 +609,9 @@ $('main').onclick = (e) => {
   if (delRule) update(() => { state.rules = state.rules.filter((r) => r.id !== delRule); });
   // imię = tryb dostępności w kalendarzu; „Ustawienia” = okno osoby (po zamknięciu wraca poprzedni tryb, chyba że „Dostępność →”)
   if (who) { view.who = view.who === who ? null : who; view.bad = false; back = document.body.dataset.tab; if (view.who) showTab('calendar'); render(); }
-  if (edit) { prevWho = view.who; view.who = edit; view.bad = false; $('#person').returnValue = ''; $('#person-body').dataset.key = ''; $('#person').showModal(); render(); }
+  if (edit) { prevWho = view.who; view.who = edit; view.bad = false; $('#person').returnValue = ''; $('#person-body').dataset.key = ''; $('#person').showModal(); render(); if (zapisy) openKonto(); }
   if (delPerson && confirm(`Usunąć ${state.people.find((p) => p.id === delPerson).name}? Przeszłe dyżury zostaną w grafiku, przyszłe zostaną zwolnione.`)) update(() => {
+    if (zapisy) cloudRpc('admin_usun_konto', { osoba: delPerson }).catch((e) => alert(`Nie usunięto konta w Zapisach: ${e.message}`));
     state.people.find((p) => p.id === delPerson).gone = true;
     const today = dateKey(now.getFullYear(), now.getMonth(), now.getDate());
     for (const obj of [state.schedule, state.manual]) for (const [k, day] of Object.entries(obj))
@@ -566,6 +634,7 @@ $('#people-sort').onchange = (e) => { view.sort = e.target.value; render(); };
 $('#person').onclose = () => { if ($('#person').returnValue !== 'avail') view.who = prevWho; render(); };
 $('#person').onclick = (e) => {
   if (e.target.dataset.go) showTab(e.target.dataset.go);
+  if (e.target.dataset.konto) kontoAction(e.target);
   const place = e.target.closest('[data-place]')?.dataset.place; // chip miejsca: wyklucz (Limit 0) ↔ dopuść (puste pole)
   if (place) update(() => {
     const l = (state.limits[view.who] ??= {});
@@ -790,7 +859,14 @@ function renderImport() {
 
 document.querySelectorAll('dialog').forEach((d) => d.addEventListener('click', (e) => { if (e.target === d) d.close(); }));
 
-$('#app-settings-open').onclick = () => $('#app-settings').showModal();
+$('#app-settings-open').onclick = () => {
+  $('#app-settings').showModal();
+  if (!zapisy) return;
+  $('#zapisy-fails').textContent = 'Wczytuję…';
+  fetchKonta().then((k) => { $('#zapisy-fails').textContent = k.error ? `Nie udało się wczytać: ${k.error}` :
+    `Złe próby logowania z 24 h: ${k.fails24h} (przy 100 logowanie wstrzymuje się dla wszystkich).`; });
+};
+$('#zapisy-od').onchange = (e) => update(() => { if (e.target.value) state.zapisyOd = e.target.value; else delete state.zapisyOd; });
 $('#import-open').onclick = () => {
   imp = null;
   dlg.returnValue = '';
@@ -836,6 +912,16 @@ dlg.onclose = () => {
   });
 };
 
-if (cloud) { $('#panel-account').hidden = false; $('#logout').onclick = cloudLogout; }
+if (cloud) {
+  $('#panel-account').hidden = false;
+  $('#logout').onclick = cloudLogout;
+  $('#reload').onclick = async (e) => {
+    e.target.disabled = true;
+    $('#reload-status').textContent = await reload().catch((err) => `Nie udało się: ${err.message}`);
+    e.target.disabled = false;
+  };
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') reload().catch(() => {}); });
+}
+if (zapisy) { $('#panel-zapisy').hidden = $('#panel-zapisy-od').hidden = false; $('#zapisy-link').href = ZAPISY_URL; }
 
 render();

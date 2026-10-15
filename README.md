@@ -18,8 +18,9 @@ Ta sama instrukcja jest w aplikacji, w zakładce **Instrukcja**.
 6. [Warianty grafiku i ich ocena](#6-warianty-grafiku-i-ich-ocena)
 7. [Ręczne wpisy, import, usuwanie osób](#7-ręczne-wpisy-import-usuwanie-osób)
 8. [Gdzie zapisują się dane](#8-gdzie-zapisują-się-dane)
-9. [Znane ograniczenia](#9-znane-ograniczenia)
-10. [Dla programistów](#10-dla-programistów)
+9. [Dane od osób (Zapisy na dyżury)](#9-dane-od-osób-zapisy-na-dyżury)
+10. [Znane ograniczenia](#10-znane-ograniczenia)
+11. [Dla programistów](#11-dla-programistów)
 
 ---
 
@@ -259,7 +260,33 @@ reszta oceny do 10% gorsza), pojawia się panel **Warianty grafiku**
 
 ---
 
-## 9. Znane ograniczenia
+## 9. Dane od osób (Zapisy na dyżury)
+
+Osobna aplikacja **Zapisy na dyżury** (repo `machal3/ukladaczdyzurowzapisy`) pozwala każdej osobie samej wpisać
+swoją dostępność i prośby, 6-cyfrowym PIN-em. Działa tylko w trybie chmury, gdy w `config.js` ustawiony jest
+`ZAPISY_URL`; w Supabase trzeba też uruchomić `supabase-zapisy.sql` z repo Zapisów (po `supabase.sql` stąd).
+
+- **Konto osoby** — karta **Konto w Zapisach** w ustawieniach osoby: czy ma PIN, ostatnie logowanie i ostatnia
+  zmiana. **Nadaj PIN** losuje 6 cyfr (bez łatwych, np. 112211, 123456, 123123). PIN widać tylko raz — przekaż
+  go osobie (**Skopiuj**). Nowy PIN unieważnia stary i wylogowuje osobę na wszystkich urządzeniach.
+  **Usuń konto** odbiera dostęp (wpisana dostępność zostaje). Usunięcie osoby usuwa też jej konto.
+- **Co osoba widzi** — tylko swoje imię, nazwy miejsc, swoją dostępność (Mogę / Chcę / Muszę / Nie mogę /
+  W ostateczności) i swoje prośby. **Nie widzi** limitów, minimów, innych osób, warunków, gównianości dni ani grafiku.
+- **Zapisy otwarte od miesiąca** (zakładka Układanie) — osoby nie zmienią dni sprzed tego miesiąca (np. już
+  ułożonych) ani dni przeszłych; pilnuje tego baza. Puste = bez blokady (od dziś).
+- **Kto to wpisał** — w trybie dostępności osoby przy imieniu widać „zmienione w Zapisach: data”, jeśli osoba
+  coś tam zmieniała.
+- **Odświeżanie** — zmiany osób pojawiają się po powrocie na kartę przeglądarki albo po **Odśwież dane**
+  (Ustawienia aplikacji). Nie w trakcie układania, przy otwartym oknie osoby ani gdy własne zmiany jeszcze się zapisują.
+- **Jednoczesna zmiana — wygrywa osoba.** Jeśli osoba zmieni swoją dostępność po wczytaniu danych w Układaczu,
+  przy zapisie jej dostępność i prośby zostają z bazy, a zmiany zrobione w Układaczu u tej osoby przepadają
+  (widać to po odświeżeniu). Reszta zmian zapisuje się normalnie.
+- **Ustawienia aplikacji → Zapisy na dyżury** — liczba złych prób logowania z 24 h (przy 100 logowanie wstrzymuje
+  się dla wszystkich) i link do aplikacji Zapisów.
+
+---
+
+## 10. Znane ograniczenia
 
 - Wyszukiwanie i poprawianie grafiku mają ograniczony budżet czasu i nie gwarantują globalnego optimum.
   Brak wyniku nie jest dowodem niewykonalności. Można sprawdzić ustawienia lub ponowić próbę;
@@ -272,7 +299,7 @@ reszta oceny do 10% gorsza), pojawia się panel **Warianty grafiku**
 
 ---
 
-## 10. Dla programistów
+## 11. Dla programistów
 
 Vanilla JS (moduły ES), bez zależności uruchomieniowych. Zależności npm służą do generowania
 motywu i kontroli kodu. Narzędzia deweloperskie wymagają Node ≥ 22.13 (zalecany Node 24).
@@ -301,7 +328,7 @@ node --test --test-name-pattern="fragment nazwy testu"
 | `theme.css`, `scripts/theme.mjs` | palety HCT i role kolorów M3; seed `#236a4c` |
 | `ui.test.js` | integracja formularzy, nawigacji, importu i ręcznych przypisań |
 | `scripts/build.mjs` | powtarzalny build statyczny do `dist/` |
-| `cloud.js`, `config.js`, `supabase.sql` | opcjonalny tryb chmury (Supabase, dostęp przez PIN) |
+| `cloud.js`, `config.js`, `supabase.sql` | opcjonalny tryb chmury (Supabase, dostęp przez PIN); `save_state` zachowuje zmiany osób z Zapisów (`data.stamps`) |
 | `server.js` | minimalny serwer plików do pracy lokalnej |
 
 Zmiany logiki układania wprowadzaj w `scheduler.js` razem z testem. `generateMonth` ma stały interfejs — można go
