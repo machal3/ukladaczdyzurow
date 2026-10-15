@@ -8,9 +8,10 @@ export const weekday = (y, m, d) => (new Date(y, m, d).getDay() + 6) % 7; // 0 =
 // Gównianość, miejsca do obsadzenia i odpoczynek po OITN idą dalej według prawdziwego dnia tygodnia.
 export const limitDay = (asDay, y, m, d) => asDay[dateKey(y, m, d)] ?? weekday(y, m, d);
 
-// Dostępność: 0 = Nie mogę (twardy zakaz), 1 = W ostateczności, 2 = Mogę (domyślnie), 3 = Chcę.
+// Dostępność: 0 = Nie mogę (twardy zakaz), 1 = W ostateczności, 2 = Mogę (domyślnie), 3 = Chcę, 4 = Muszę (twardo: jakiś dyżur tego dnia).
 // avail = { personId: { 'YYYY-MM-DD': poziom } }
-export const LEVELS = ['Nie mogę', 'W ostateczności', 'Mogę', 'Chcę'];
+export const LEVELS = ['Nie mogę', 'W ostateczności', 'Mogę', 'Chcę', 'Muszę'];
+export const MUST = 4;
 // Funkcja = punkty prestiżu (person.prestige: 0 = Rezydent, 1–2 = Starszy asystent) + person.boss (Kierownik, 1–2 pkt).
 export const ROLES = ['Rezydent', 'Starszy asystent · 1 pkt', 'Starszy asystent · 2 pkt', 'Kierownik 1 · 1 pkt', 'Kierownik 2 · 2 pkt'];
 export const roleOf = (p) => p.boss ? p.prestige + 2 : p.prestige; // indeks w ROLES
@@ -75,7 +76,7 @@ export function personLog(schedule, bad, pid, y, m, months = 4) {
 export const shiftsForDay = (shifts, y, m, d) => shifts.filter((s) => s.days.includes(weekday(y, m, d)));
 
 // Zwraca { 'YYYY-MM-DD': { shiftId: personId } }.
-// Twarde zasady: nikt dwa razy tego samego dnia, nikt dzień po dniu, nikt w dzień „Nie mogę”,
+// Twarde zasady: nikt dwa razy tego samego dnia, nikt dzień po dniu, nikt w dzień „Nie mogę”, każdy w swój dzień „Muszę”,
 // nikt ponad swój miesięczny limit na danym dyżurze: limits = { personId: { shiftId: n, '*': n łącznie, we: n w Pt/So/Nd, d56: n w So + Nd łącznie } } (brak = bez limitu;
 // d4/d5/d6 = ile razy ten sam Pt/So/Nd: wpisany — twardy; bez wpisu domyślnie 1 albo wg próśb (sameDow) — tylko priorytet weDow; min = { shiftId / '*' / we / d4-d6: n } minimum dyżurów — patrz niżej),
 // maks. jeden rezydent i maks. MAX_BOSS kierowników dziennie (licząc ręczne wpisy), suma punktów prestiżu dnia ≥ MIN_PRESTIGE (licząc ręczne wpisy), warunki z `rules` (patrz breaksRule),
@@ -131,6 +132,8 @@ function greedyMonth(y, m, shifts, people, locked = {}, avail = {}, limits = {},
   const oitnWe = (d, pid) => d >= 1 && weekday(y, m, d) >= 5 && (result[dateKey(y, m, d)] ?? locked[dateKey(y, m, d)] ?? {})[oitn] === pid;
   for (const [key, day] of Object.entries(locked))
     for (const [sid, pid] of Object.entries(day)) if (pid in count) add(pid, sid, +key.slice(8));
+  // dzień d już zajęty: ręczny wpis albo „Muszę” — nie dawać dyżuru dzień wcześniej (ani weekendowego OITN 2 dni wcześniej)
+  const takenOn = (d, pid) => lockedOn(locked, y, m, d, pid) || (d <= daysInMonth(y, m) && availOf(avail, pid, dateKey(y, m, d)) === MUST);
 
   for (let d = 1; d <= daysInMonth(y, m); d++) {
     const key = dateKey(y, m, d);
@@ -169,11 +172,12 @@ function greedyMonth(y, m, shifts, people, locked = {}, avail = {}, limits = {},
         bad: (a, b) => (isTragic && tragic[a.id].localeCompare(tragic[b.id])) || (isBad && burden[a.id] - burden[b.id]),
         even: (a, b) => count[a.id] - count[b.id],
       };
+      const must = (p) => +(availOf(avail, p.id, key) === MUST);
       const pick = people
-        .filter((p) => availOf(avail, p.id, key) > 0 && !busy.has(p.id) && lastDay[p.id] !== d - 1 && !lockedOn(locked, y, m, d + 1, p.id) && underLimit(p.id, s.id, d) &&
+        .filter((p) => availOf(avail, p.id, key) > 0 && !busy.has(p.id) && lastDay[p.id] !== d - 1 && !takenOn(d + 1, p.id) && underLimit(p.id, s.id, d) &&
           !(hasResident && resident.has(p.id)) && !(bosses >= MAX_BOSS && boss.has(p.id)) && prest[p.id] >= need && !breaksRule(rules, day, p.id, s.id) &&
-          !oitnWe(d - 2, p.id) && !(s.id === oitn && wd >= 5 && lockedOn(locked, y, m, d + 2, p.id)))
-        .sort((a, b) => belowMin(b.id, s.id, d, key) - belowMin(a.id, s.id, d, key) || order.reduce((r, k) => r || cmp[k](a, b), 0) ||
+          !oitnWe(d - 2, p.id) && !(s.id === oitn && wd >= 5 && takenOn(d + 2, p.id)))
+        .sort((a, b) => must(b) - must(a) || belowMin(b.id, s.id, d, key) - belowMin(a.id, s.id, d, key) || order.reduce((r, k) => r || cmp[k](a, b), 0) ||
           (noise ? noise[a.id] - noise[b.id] : (lastDay[a.id] ?? -99) - (lastDay[b.id] ?? -99)))[0];
       if (!pick) continue; // brak wolnej osoby → dyżur zostaje pusty, widoczny w UI
       day[s.id] = pick.id;
@@ -233,7 +237,7 @@ export function scoreMonth(y, m, schedule, shifts, people, avail = {}, bad = {},
       const pid = day[s.id];
       if (!(pid in count)) { sc.unfilled += !pid; continue; }
       const lvl = availOf(avail, pid, key);
-      sc.avail += [0, 10, 1, 0][lvl];
+      sc.avail += [0, 10, 1, 0, 0][lvl];
       sc.lastResort += lvl === 1;
       const wd = weekday(y, m, d);
       if (last[pid] === d - 2 && lvl < 3 && !(pref[pid] && wd === 0 && lastSid[pid] === pn1)) sc.sandwich++; // PN1 So + Pn nie liczy się jako kanapka
@@ -276,6 +280,9 @@ function constraints(y, m, shifts, people, avail, limits, rules, asDay = {}) {
     s.capacity = dayShifts[s.d].length;
     s.candidates = people.filter((p) => availOf(avail, p.id, s.key) > 0 && s.cats.every((k) => (limits[p.id]?.[k] ?? Infinity) > 0)).map((p) => p.id);
   }
+  // dni „Muszę” (tylko dni z dyżurami w tym miesiącu): [{ key, d, pid }]
+  const musts = people.flatMap((p) => [...new Set(slots.map((s) => s.d))]
+    .filter((d) => availOf(avail, p.id, days[d]) === MUST).map((d) => ({ key: days[d], d, pid: p.id })));
   const counts = (schedule) => {
     const out = Object.fromEntries(people.map((p) => [p.id, {}]));
     for (const s of slots) {
@@ -309,9 +316,10 @@ function constraints(y, m, shifts, people, avail, limits, rules, asDay = {}) {
       (partial[s.key] ??= {})[s.sid] = pid;
       if (tally[pid]) for (const k of s.cats) tally[pid][k] = (tally[pid][k] || 0) + 1;
     }
-    return !minimum || people.every((p) => Object.entries(limits[p.id]?.min || {}).every(([k, n]) => (tally[p.id][k] || 0) >= n));
+    return !minimum || (people.every((p) => Object.entries(limits[p.id]?.min || {}).every(([k, n]) => (tally[p.id][k] || 0) >= n)) &&
+      musts.every(({ key, pid }) => Object.values(schedule[key] || {}).includes(pid)));
   };
-  return { slots, counts, can, valid };
+  return { slots, counts, can, valid, musts };
 }
 
 function checkSettings(people, limits, wants) {
@@ -344,6 +352,7 @@ function personFits(model, avail, locked, pid, lim, min) {
   const keys = [...new Set([...Object.keys(lim), ...Object.keys(min)])];
   const cap = keys.map((k) => lim[k] ?? min[k]);
   const daysWith = keys.map((k) => opts.map((o) => o.some((s) => s.cats.includes(k))));
+  const must = new Set(model.musts.filter((x) => x.pid === pid).map((x) => x.d));
   const memo = new Set();
   let nodes = 0;
   const rec = (d, blocked, blockedNext, cnt) => {
@@ -362,7 +371,7 @@ function personFits(model, avail, locked, pid, lim, min) {
       if (keys.some((k, i) => s.cats.includes(k) && cnt[i] + 1 > (lim[k] ?? Infinity))) continue;
       if (rec(d + 1, true, !!s.beforeRest, next)) return true;
     }
-    if (!forced[d] && rec(d + 1, blockedNext, false, cnt)) return true;
+    if (!forced[d] && !must.has(d) && rec(d + 1, blockedNext, false, cnt)) return true;
     memo.add(id);
     return false;
   };
@@ -383,6 +392,12 @@ function conflicts(model, y, m, shifts, people, locked, avail, limits, asDay = {
       Object.fromEntries(list.filter((x) => x[0] === 'Limit').map((x) => [x[1], x[2]])),
       Object.fromEntries(list.filter((x) => x[0] === 'Min.').map((x) => [x[1], x[2]])));
     if (fits(items) !== false) continue;
+    const mustDays = model.musts.filter((x) => x.pid === p.id).map((x) => x.d);
+    if (mustDays.length && fits([]) === false) {
+      out.push(`${p.name}: dni „Muszę” (${mustDays.join(', ')}) nie dają się spełnić — nie ma dyżuru dzień po dniu ani 2 dni po weekendowym OITN, ` +
+        `a w dzień „Muszę” musi zostać wolne miejsce (bez ręcznego wpisu innej osoby). Zmień dostępność: ${p.name}.`);
+      continue;
+    }
     let core = items; // najmniejszy zestaw ustawień, który nadal się wyklucza
     for (const it of items) { const rest = core.filter((x) => x !== it); if (fits(rest) === false) core = rest; }
     const days = [...new Set(model.slots.filter((s) => availOf(avail, p.id, s.key) > 0 && (!isLocked(s) || isLocked(s) === p.id)).map((s) => s.d))];
@@ -410,6 +425,14 @@ function conflicts(model, y, m, shifts, people, locked, avail, limits, asDay = {
   const resDays = new Set(model.slots.map((s) => s.d)).size - new Set(model.slots.filter((s) => res.some((p) => isLocked(s) === p.id)).map((s) => s.d)).size;
   const resNeed = res.reduce((n, p) => n + Math.max(0, eff(p, '*') - model.slots.filter((s) => isLocked(s) === p.id).length), 0);
   if (resNeed > resDays) out.push(`Minima rezydentów razem: ${resNeed}, a dni (maks. jeden rezydent dziennie) zostało ${resDays}${why(res, '*')}.`);
+  for (const key of new Set(model.musts.map((x) => x.key))) {
+    const day = model.slots.filter((s) => s.key === key);
+    const who = people.filter((p) => model.musts.some((x) => x.key === key && x.pid === p.id) && !day.some((s) => isLocked(s) === p.id));
+    const free = day.filter((s) => !isLocked(s)).length;
+    const names = (list) => list.map((p) => p.name).join(', ');
+    if (who.length > free) out.push(`${+key.slice(8)}.${key.slice(5, 7)}: „Muszę” ma ${who.length} osób (${names(who)}), a wolnych miejsc jest ${free}.`);
+    else if (who.filter(isResident).length > 1) out.push(`${+key.slice(8)}.${key.slice(5, 7)}: „Muszę” ma kilku rezydentów (${names(who.filter(isResident))}), a dziennie może być tylko jeden.`);
+  }
   return out;
 }
 
@@ -429,7 +452,8 @@ function anneal(model, people, locked, limits, rules, { deadline, now = () => pe
   const ok = slots.map((s, i) => { const a = new Uint8Array(N); for (const p of cand[i]) a[p] = 1; return a; });
   const cap = new Int8Array(W), daySlots = Array.from({ length: W }, () => []);
   slots.forEach((s, i) => { cap[s.d]++; daySlots[s.d].push(i); });
-  const w = new Int8Array(N * W), oi = new Int8Array(N * W), cnt = new Int16Array(N * C);
+  const w = new Int8Array(N * W), oi = new Int8Array(N * W), cnt = new Int16Array(N * C), must = new Uint8Array(N * W);
+  for (const x of model.musts) must[ix[x.pid] * W + x.d] = 1;
   const dRes = new Int8Array(W), dBoss = new Int8Array(W), dPres = new Int16Array(W), fill = new Int8Array(W);
   const a = new Int16Array(slots.length).fill(-1);
   const put = (i, p, sign) => {
@@ -446,6 +470,7 @@ function anneal(model, people, locked, limits, rules, { deadline, now = () => pe
     for (let d = 1, o = p * W; d <= D; d++) {
       const x = w[o + d];
       if (x > 1) v += x - 1;
+      if (must[o + d] && !x) v++;
       if (x && w[o + d + 1]) v++;
       if (oi[o + d] && w[o + d + 2]) v++;
     }
@@ -526,7 +551,7 @@ function solveOrExplain(y, m, shifts, people, locked, avail, limits, rules, asDa
     if (anneal(constraints(y, m, shifts, people, avail, relaxed, rules, asDay), people, locked, relaxed, rules,
       { deadline: now() + left / (withMins.length - i), now, rand, start: seed })) blockers.push(p.name);
   }
-  throw new Error('Nie znaleziono grafiku spełniającego wszystkie limity dolne i górne. Nie wykryłem prostej sprzeczności (każda osoba z osobna i sumy minimów są w porządku), ' +
+  throw new Error('Nie znaleziono grafiku spełniającego wszystkie limity dolne i górne oraz dni „Muszę”. Nie wykryłem prostej sprzeczności (każda osoba z osobna i sumy minimów są w porządku), ' +
     (blockers.length ? `ale grafik daje się ułożyć po zdjęciu minimów jednej z osób: ${blockers.join(', ')}. Tam szukaj konfliktu (np. te same wolne dni co inni, rezydenci, punkty prestiżu).`
       : 'a zdjęcie minimów pojedynczej osoby nie wystarcza. Zmniejsz kilka minimów albo ponów próbę.'));
 }

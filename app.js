@@ -18,7 +18,7 @@ let state = cloud?.data ?? load() ?? {
   schedule: {}, // { 'YYYY-MM-DD': { shiftId: personId } }
   manual: {},   // ręczne przypisania — zachowane przy ponownym układaniu
 };
-state.avail ??= {}; // { personId: { 'YYYY-MM-DD': poziom 0-3 } } — patrz LEVELS
+state.avail ??= {}; // { personId: { 'YYYY-MM-DD': poziom 0-4 } } — patrz LEVELS
 state.limits ??= {}; // { personId: { shiftId: maks. dyżurów w miesiącu, '*': maks. łącznie, we: maks. Pt/So/Nd, d56: maks. So + Nd łącznie } } — brak = bez limitu (we: WEEKEND_LIMIT)
 state.mins ??= {}; // { personId: { shiftId / d4-d6 / d56 / we / '*': minimum dyżurów w miesiącu } } — idzie do generateMonth jako limits[pid].min
 state.wants ??= {}; // { personId: { shiftId / d4-d6 / d56 / we / '*': ile dyżurów chce w miesiącu } } — prośby, miękkie (patrz generateMonth)
@@ -179,7 +179,7 @@ function render() {
   const chips = (names, cls) => `<span class="cycle">${names.map((n, i) => `<span class="${cls[i]}">${n}</span>`).join('<span aria-hidden="true">→</span>')}</span>`;
   const done = '<button data-done>Gotowe</button>';
   $('#status').innerHTML = view.bad ? `<span><b>Gównianość dni</b> — klikaj dni, by zmienić:</span>${chips(BAD, ['lvl-2', 'lvl-1', 'lvl-0', 'bad-3'])}<span>Pod spodem: limity i prośby liczone jak inny dzień tygodnia (np. święto jak Nd).</span>${done}` :
-    view.who ? `<span><b>Dostępność: ${esc(nameOf[view.who])}</b> — klikaj dni, by zmienić:</span>${chips([2, 3, 0, 1].map((i) => LEVELS[i]), ['lvl-2', 'lvl-3', 'lvl-0', 'lvl-1'])}${done}` :
+    view.who ? `<span><b>Dostępność: ${esc(nameOf[view.who])}</b> — klikaj dni, by zmienić:</span>${chips([2, 3, 4, 0, 1].map((i) => LEVELS[i]), ['lvl-2', 'lvl-3', 'lvl-4', 'lvl-0', 'lvl-1'])}${done}` :
     empty === slots && slots ? '<span>Pusty grafik — <b>Ułóż miesiąc</b> wypełni go automatycznie; każde pole możesz też wpisać ręcznie.</span>' :
     empty ? `<span>Obsadzone <b class="ok">${slots - empty} z ${slots}</b></span><span class="progress" role="progressbar" aria-label="Obsadzone dyżury" aria-valuenow="${Math.round((slots - empty) / slots * 100)}"><i style="width:${(slots - empty) / slots * 100}%"></i></span>` +
       `<span>wolne: <b>${empty}</b></span><button class="ghost" data-jump>Pokaż pierwszy wolny →</button>` : '';
@@ -293,7 +293,7 @@ $('#status').onclick = (e) => {
 };
 $('#bad-mode').onclick = () => { view.bad = !view.bad; view.who = null; back = 'settings'; if (view.bad) showTab('calendar'); render(); };
 
-// Klik w dzień w trybie dostępności: Mogę → Chcę → Nie mogę → W ostateczności → Mogę
+// Klik w dzień w trybie dostępności: Mogę → Chcę → Muszę → Nie mogę → W ostateczności → Mogę
 // W trybie gównianości: 0 → 1 → 2 → 3 → 0 (wartość równa domyślnej nie jest zapisywana)
 $('#calendar').onclick = (e) => {
   const d = +e.target.dataset.bad;

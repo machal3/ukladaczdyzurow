@@ -149,6 +149,7 @@ main > :is(section, article), .board { animation: appear 350ms var(--motion); }
 .lvl-1 { background: var(--maybe-soft); color: var(--md-sys-color-on-tertiary-container); }
 .lvl-2 { background: var(--md-sys-color-surface-container-high); color: var(--muted); }
 .lvl-3 { background: var(--ok-soft); color: var(--md-sys-color-on-primary-container); }
+.lvl-4 { background: var(--strong); color: var(--on-strong); font-weight: 600; }
 .bad-3 { background: var(--warn); color: var(--md-sys-color-on-error); }
 .summary { position: static; padding: 24px; background: var(--md-sys-color-surface-container-low); color: var(--text); border-radius: var(--shape-card); }
 .summary .list { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }

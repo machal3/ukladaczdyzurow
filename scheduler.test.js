@@ -127,6 +127,24 @@ test('dostępność: Chcę > Mogę > W ostateczności, Nie mogę = nigdy', () =>
   assert.equal(pick(Object.fromEntries(people.map((p) => [p.id, { [k]: 0 }]))), undefined); // wszyscy „Nie mogę” → pusto
 });
 
+test('„Muszę” jest twarde: wygrywa z „Chcę”, nie ma dyżuru dzień wcześniej, sprzeczności są wyjaśniane', () => {
+  const one = [{ id: 's', name: 'S', days: all }];
+  const avail = { a: { '2026-10-02': 4, '2026-10-05': 4 }, b: { '2026-10-02': 3, '2026-10-05': 3 } };
+  const out = generateMonth(2026, 9, one, people, {}, avail);
+  assert.equal(out['2026-10-02'].s, 'a');
+  assert.equal(out['2026-10-05'].s, 'a');
+  assert.notEqual(out['2026-10-01'].s, 'a');
+  assert.notEqual(out['2026-10-04'].s, 'a');
+  for (const v of generateVariants(2026, 9, one, people, {}, avail, {}, [], {}, {}, { tries: 5, timeBudgetMs: 200 }))
+    for (const d of ['02', '05']) assert.equal(v.schedule[`2026-10-${d}`].s, 'a');
+  // „Muszę” mimo limitu łącznego: reszta miesiąca bez tej osoby
+  const lim = generateMonth(2026, 9, one, people, {}, avail, { a: { '*': 2 } });
+  assert.equal(Object.values(lim).filter((day) => day.s === 'a').length, 2);
+  assert.throws(() => generateMonth(2026, 9, one, people, {}, { a: { '2026-10-02': 4, '2026-10-03': 4 } }), /a: dni „Muszę” \(2, 3\)/);
+  assert.throws(() => generateMonth(2026, 9, one, people, {}, { a: { '2026-10-02': 4 }, b: { '2026-10-02': 4 } }), /2\.10: „Muszę” ma 2 osób/);
+  assert.throws(() => generateMonth(2026, 9, one, people, { '2026-10-02': { s: 'b' } }, { a: { '2026-10-02': 4 } }), /Muszę/);
+});
+
 test('limit: nikt ponad swój limit na danym dyżurze, 0 = nigdy, ręczne wpisy się liczą', () => {
   const locked = { [dateKey(2026, 9, 1)]: { s1: 'a' } };
   const limits = { a: { s1: 2, s2: 0 }, b: { s2: 3 } };
