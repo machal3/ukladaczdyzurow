@@ -1,6 +1,7 @@
 import { dateKey, daysInMonth, weekday, limitDay, shiftsForDay, scoreMonth, PRIORITIES, PRIORITY_ORDER, availOf, breaksRule, LEVELS, ROLES, roleOf, badOf, BAD, history, parseTable, matchPerson, personLog, PAST_WEIGHT, listPeople, missedWishes } from './scheduler.js';
 import { runScheduler } from './scheduler-client.js';
 import { cloudLoad, cloudSave, cloudLogout } from './cloud.js';
+import { pdf, docx } from './export.js';
 
 const DAYS = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So', 'Nd'];
 const STORE = 'dyzury-v1';
@@ -113,13 +114,10 @@ function render() {
   $('#calendar').innerHTML = html;
 
   // Wydruk (pionowo, jedna kartka): dzień pod dniem, miejsca w kolumnach — widoczny tylko w @media print
-  const cols = state.shifts.filter((s) => s.days.length);
-  $('#print-sheet').innerHTML = `<h2>Grafik dyżurów — ${monthName[0].toUpperCase() + monthName.slice(1)}</h2><table><colgroup><col class="c-d"><col class="c-wd"></colgroup><thead><tr><th colspan="2">Dzień</th>${cols.map((s) => `<th>${esc(s.name)}</th>`).join('')}</tr></thead><tbody>` +
-    Array.from({ length: daysInMonth(y, m) }, (_, i) => {
-      const d = i + 1, key = dateKey(y, m, d), wd = weekday(y, m, d), day = state.schedule[key] || {};
-      return `<tr class="${wd >= 5 ? 'we' : ''} ${wd === 0 ? 'mon' : ''}"><td class="d">${d}</td><td class="wd">${DAYS[wd]}</td>${cols.map((s) =>
-        `<td>${!s.days.includes(wd) ? '' : nameOf[day[s.id]] ? esc(nameOf[day[s.id]]) : '<span class="none">—</span>'}</td>`).join('')}</tr>`;
-    }).join('') + '</tbody></table>';
+  const { title, cols, rows: sheetRows } = sheet();
+  $('#print-sheet').innerHTML = `<h2>${esc(title)}</h2><table><colgroup><col class="c-d"><col class="c-wd"></colgroup><thead><tr><th colspan="2">Dzień</th>${cols.map((s) => `<th>${esc(s.name)}</th>`).join('')}</tr></thead><tbody>` +
+    sheetRows.map((r) => `<tr class="${r.wd >= 5 ? 'we' : ''} ${r.wd === 0 ? 'mon' : ''}"><td class="d">${r.d}</td><td class="wd">${DAYS[r.wd]}</td>${r.names.map((n) =>
+      `<td>${n === '' ? '' : n ? esc(n) : '<span class="none">—</span>'}</td>`).join('')}</tr>`).join('') + '</tbody></table>';
 
   // Statystyki miesiąca
   const count = Object.fromEntries(team().map((p) => [p.id, 0]));
@@ -333,6 +331,37 @@ $('#clear').onclick = () => {
 };
 
 $('#print').onclick = () => window.print(); // wydruk / „Zapisz jako PDF” — obsługuje przeglądarka, patrz @media print w style.css
+
+// Tabela wydruku i eksportu: miejsca w kolejności PRINT_ORDER (po nazwie), pozostałe za nimi.
+// names: '' = miejsce nie działa tego dnia, null = nieobsadzone.
+const PRINT_ORDER = ['OITN', 'PN2', 'PN1'];
+function sheet() {
+  const { y, m } = view, nameOf = Object.fromEntries(state.people.map((p) => [p.id, p.name]));
+  const rank = (s) => { const i = PRINT_ORDER.indexOf(s.name.trim().toUpperCase()); return i < 0 ? PRINT_ORDER.length : i; };
+  const cols = state.shifts.filter((s) => s.days.length).sort((a, b) => rank(a) - rank(b));
+  const month = new Date(y, m).toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' });
+  const rows = Array.from({ length: daysInMonth(y, m) }, (_, i) => {
+    const d = i + 1, wd = weekday(y, m, d), day = state.schedule[dateKey(y, m, d)] || {};
+    return { d, wd, names: cols.map((s) => !s.days.includes(wd) ? '' : nameOf[day[s.id]] ?? null) };
+  });
+  return { title: `Grafik dyżurów — ${month[0].toUpperCase() + month.slice(1)}`, cols, rows, file: `grafik-${dateKey(y, m, 1).slice(0, 7)}` };
+}
+const sheetTable = () => {
+  const { title, cols, rows, file } = sheet();
+  return { file, table: { title, head: ['Dzień', '', ...cols.map((s) => s.name)],
+    rows: rows.map((r) => ({ cells: [String(r.d), DAYS[r.wd], ...r.names.map((n) => n ?? '—')], we: r.wd >= 5, mon: r.wd === 0 })) } };
+};
+const download = (url, name) => { const a = document.createElement('a'); a.href = url; a.download = name; a.click(); };
+$('#export-pdf').onclick = () => {
+  const { file, table } = sheetTable(), url = URL.createObjectURL(new Blob([pdf(table)], { type: 'application/pdf' }));
+  if (!window.open(url, '_blank')) download(url, `${file}.pdf`); // zablokowane okno → zwykłe pobranie
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+};
+$('#export-docx').onclick = () => {
+  const { file, table } = sheetTable(), url = URL.createObjectURL(new Blob([docx(table)], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' }));
+  download(url, `${file}.docx`);
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+};
 
 // Pole osoby: po kliknięciu czyści się i pokazuje własną listę osób, wpisywanie ją filtruje
 // (bez wielkości liter i polskich znaków). Enter/klik wybiera, Esc lub brak dopasowania przywraca poprzednią wartość.
