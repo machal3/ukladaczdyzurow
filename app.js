@@ -1,4 +1,4 @@
-import { dateKey, daysInMonth, weekday, limitDay, shiftsForDay, scoreMonth, PRIORITIES, PRIORITY_ORDER, availOf, breaksRule, LEVELS, ROLES, badOf, BAD, history, parseTable, matchPerson, personLog, PAST_WEIGHT, listPeople, missedWishes } from './scheduler.js';
+import { dateKey, daysInMonth, weekday, limitDay, shiftsForDay, scoreMonth, PRIORITIES, PRIORITY_ORDER, availOf, breaksRule, LEVELS, ROLES, roleOf, badOf, BAD, history, parseTable, matchPerson, personLog, PAST_WEIGHT, listPeople, missedWishes } from './scheduler.js';
 import { runScheduler } from './scheduler-client.js';
 import { cloudLoad, cloudSave, cloudLogout } from './cloud.js';
 
@@ -27,7 +27,7 @@ state.asDay ??= {}; // { 'YYYY-MM-DD': 0-6 } — dzień liczony do limitów i pr
 state.rules ??= []; // [{ id, who, with, places: [shiftId] }] — patrz breaksRule
 state.priority = [...new Set([...(state.priority ?? []), ...PRIORITY_ORDER])].filter((k) => k in PRIORITIES); // kolejność kryteriów układania
 state.aliases ??= {}; // { 'imię z importowanej tabeli' (małe litery): personId } — zapamiętane połączenia z importu
-for (const p of state.people) p.prestige ??= 1; // 0 = Rezydent, 1–2 = Starszy asystent — patrz ROLES; p.gone = usunięta (zostaje dla przeszłych dyżurów)
+for (const p of state.people) p.prestige ??= 1; // 0 = Rezydent, 1–2 = Starszy asystent, p.boss = Kierownik — patrz ROLES/roleOf; p.gone = usunięta (zostaje dla przeszłych dyżurów)
 // jednorazowa migracja zapisanych danych: stare domyślne miejsca → OITN, PN1, PN2 (id zostają, więc grafik i limity też)
 if (!state.miejscaV2) {
   const rename = { 'Oddział': 'OITN', 'SOR': 'PN1' };
@@ -126,7 +126,7 @@ function render() {
   const shown = listPeople(team(), count, view), filtered = view.q.trim() || view.role || view.none;
   $('#people').innerHTML = shown.map((p) => `<li class="${p.id === view.who ? 'on' : ''}">
       <span class="avatar ${p.prestige ? '' : 'rez'}" aria-hidden="true">${esc(p.name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase())}</span>
-      <span class="id"><button class="who ${p.id === view.who ? 'on' : ''}" data-who="${p.id}" aria-pressed="${p.id === view.who}" title="Dostępność w grafiku">${esc(p.name)}</button><span class="sub">${ROLES[p.prestige]}</span></span>
+      <span class="id"><button class="who ${p.id === view.who ? 'on' : ''}" data-who="${p.id}" aria-pressed="${p.id === view.who}" title="Dostępność w grafiku">${esc(p.name)}</button><span class="sub">${ROLES[roleOf(p)]}</span></span>
       <button class="x" data-del-person="${p.id}" aria-label="Usuń ${esc(p.name)}">×</button>
       <span class="foot"><span class="count"><b>${count[p.id]}</b>${dyzury(count[p.id]).replace(/^\d+ /, '')}<br>w tym miesiącu</span>
       <button class="edit" data-edit="${p.id}" aria-label="Ustawienia i historia: ${esc(p.name)}" title="Ustawienia i historia">${GEAR}<span>Ustawienia</span></button></span></li>`).join('') ||
@@ -153,7 +153,7 @@ function render() {
       `<td>${num('limit', key, ph, `Limit: ${label}`)}</td><td>${num('want', key, '—', `Prośba: ${label}`)}</td></tr>`;
     const field = (name, hint, control) => `<label class="field"><span>${name}${hint ? `<small>${hint}</small>` : ''}</span>${control}</label>`;
     $('#person-body').innerHTML = view.personTab === 'history' ? logHtml(who) : `<div class="person-grid"><section><h4>Osoba</h4>` +
-      field('Funkcja', '', `<select data-prestige>${ROLES.map((r, i) => `<option value="${i}" ${i === who.prestige ? 'selected' : ''}>${r}</option>`).join('')}</select>`) +
+      field('Funkcja', '', `<select data-prestige>${ROLES.map((r, i) => `<option value="${i}" ${i === roleOf(who) ? 'selected' : ''}>${r}</option>`).join('')}</select>`) +
       field('Ostatnio gówniane', 'dyżury spoza grafiku, 0–3', `<select data-past>${BAD.map((_, i) => `<option value="${i}" ${i === (who.past ?? 0) ? 'selected' : ''}>${i}</option>`).join('')}</select>`) +
       field('Kanapka PN1 So + Pn', 'zaznaczone = woli ten układ', `<input type="checkbox" role="switch" data-pn1sandwich ${who.pn1Sandwich === false ? '' : 'checked'}>`) +
       `</section><section><h4>Limity i prośby</h4><table class="counts"><thead><tr><td></td><th scope="col">Min.</th><th scope="col">Limit</th><th scope="col">Prośba</th></tr></thead><tbody>` +
@@ -453,7 +453,7 @@ $('#person').onchange = (e) => {
   if ('pn1sandwich' in e.target.dataset) // brak pola = włączone
     return update(() => { state.people.find((p) => p.id === view.who).pn1Sandwich = e.target.checked; });
   if ('prestige' in e.target.dataset)
-    return update(() => { state.people.find((p) => p.id === view.who).prestige = +e.target.value; });
+    return update(() => { const p = state.people.find((p) => p.id === view.who), i = +e.target.value; p.boss = i > 2; p.prestige = p.boss ? i - 2 : i; });
   const { limit, min, want } = e.target.dataset, sid = limit ?? min ?? want;
   if (!sid) return;
   const n = e.target.value === '' ? null : Number(e.target.value);

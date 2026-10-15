@@ -11,9 +11,11 @@ export const limitDay = (asDay, y, m, d) => asDay[dateKey(y, m, d)] ?? weekday(y
 // Dostępność: 0 = Nie mogę (twardy zakaz), 1 = W ostateczności, 2 = Mogę (domyślnie), 3 = Chcę.
 // avail = { personId: { 'YYYY-MM-DD': poziom } }
 export const LEVELS = ['Nie mogę', 'W ostateczności', 'Mogę', 'Chcę'];
-// Funkcja wynika z punktów prestiżu (person.prestige): 0 = Rezydent, 1–2 = Starszy asystent.
-export const ROLES = ['Rezydent', 'Starszy asystent · 1 pkt', 'Starszy asystent · 2 pkt']; // indeks = punkty prestiżu
+// Funkcja = punkty prestiżu (person.prestige: 0 = Rezydent, 1–2 = Starszy asystent) + person.boss (Kierownik, 1–2 pkt).
+export const ROLES = ['Rezydent', 'Starszy asystent · 1 pkt', 'Starszy asystent · 2 pkt', 'Kierownik 1 · 1 pkt', 'Kierownik 2 · 2 pkt'];
+export const roleOf = (p) => p.boss ? p.prestige + 2 : p.prestige; // indeks w ROLES
 export const isResident = (p) => p.prestige === 0;
+export const MAX_BOSS = 2; // twardo: maks. tylu kierowników jednego dnia
 export const MIN_PRESTIGE = 3; // twardo: suma punktów prestiżu osób dyżurujących danego dnia co najmniej tyle
 export const availOf = (avail, pid, key) => avail[pid]?.[key] ?? 2;
 
@@ -76,7 +78,7 @@ export const shiftsForDay = (shifts, y, m, d) => shifts.filter((s) => s.days.inc
 // Twarde zasady: nikt dwa razy tego samego dnia, nikt dzień po dniu, nikt w dzień „Nie mogę”,
 // nikt ponad swój miesięczny limit na danym dyżurze: limits = { personId: { shiftId: n, '*': n łącznie, we: n w Pt/So/Nd, d56: n w So + Nd łącznie } } (brak = bez limitu;
 // d4/d5/d6 = ile razy ten sam Pt/So/Nd: wpisany — twardy; bez wpisu domyślnie 1 albo wg próśb (sameDow) — tylko priorytet weDow; min = { shiftId / '*' / we / d4-d6: n } minimum dyżurów — patrz niżej),
-// maks. jeden rezydent dziennie (licząc ręczne wpisy), suma punktów prestiżu dnia ≥ MIN_PRESTIGE (licząc ręczne wpisy), warunki z `rules` (patrz breaksRule),
+// maks. jeden rezydent i maks. MAX_BOSS kierowników dziennie (licząc ręczne wpisy), suma punktów prestiżu dnia ≥ MIN_PRESTIGE (licząc ręczne wpisy), warunki z `rules` (patrz breaksRule),
 // po OITN w sobotę wolny poniedziałek, po OITN w niedzielę wolny wtorek (czyli 2 dni po weekendowym OITN).
 // Najpierw (przed `order`) ci poniżej któregoś swojego minimum z limits[pid].min (łącznie, na tym miejscu, w Pt/So/Nd, w ten dzień weekendu)
 // — ale tylko w dni Chcę/Mogę, nie „W ostateczności”.
@@ -120,7 +122,8 @@ function greedyMonth(y, m, shifts, people, locked = {}, avail = {}, limits = {},
   const short = (pid, sid) => +((perShift[`${pid}:${sid}`] || 0) < (wants[pid]?.[sid] ?? 0)); // 1 = jeszcze poniżej prośby
   const lastDay = {};
   const resident = new Set(people.filter(isResident).map((p) => p.id));
-  const maxPrest = ROLES.length - 1;
+  const boss = new Set(people.filter((p) => p.boss).map((p) => p.id));
+  const maxPrest = 2;
   const prest = Object.fromEntries(people.map((p) => [p.id, p.prestige ?? maxPrest])); // bez prestige = bez ograniczeń (app.js zawsze ustawia)
   // ponytail: OITN rozpoznawany po nazwie miejsca; bez sprawdzania przełomu miesięcy (jak „dzień po dniu”)
   const oitn = shifts.find((s) => s.name === 'OITN')?.id;
@@ -134,6 +137,7 @@ function greedyMonth(y, m, shifts, people, locked = {}, avail = {}, limits = {},
     const day = { ...(locked[key] || {}) };
     const busy = new Set(Object.values(day));
     let hasResident = [...busy].some((pid) => resident.has(pid));
+    let bosses = [...busy].filter((pid) => boss.has(pid)).length;
     const isBad = badOf(bad, y, m, d) > 0;
     const isTragic = badOf(bad, y, m, d) === 3;
     // 1 = kanapka, −1 = preferowana kanapka PN1 w sobotę + poniedziałek (osoba bez pn1Sandwich === false), suma dla obu stron
@@ -167,7 +171,7 @@ function greedyMonth(y, m, shifts, people, locked = {}, avail = {}, limits = {},
       };
       const pick = people
         .filter((p) => availOf(avail, p.id, key) > 0 && !busy.has(p.id) && lastDay[p.id] !== d - 1 && !lockedOn(locked, y, m, d + 1, p.id) && underLimit(p.id, s.id, d) &&
-          !(hasResident && resident.has(p.id)) && prest[p.id] >= need && !breaksRule(rules, day, p.id, s.id) &&
+          !(hasResident && resident.has(p.id)) && !(bosses >= MAX_BOSS && boss.has(p.id)) && prest[p.id] >= need && !breaksRule(rules, day, p.id, s.id) &&
           !oitnWe(d - 2, p.id) && !(s.id === oitn && wd >= 5 && lockedOn(locked, y, m, d + 2, p.id)))
         .sort((a, b) => belowMin(b.id, s.id, d, key) - belowMin(a.id, s.id, d, key) || order.reduce((r, k) => r || cmp[k](a, b), 0) ||
           (noise ? noise[a.id] - noise[b.id] : (lastDay[a.id] ?? -99) - (lastDay[b.id] ?? -99)))[0];
@@ -176,6 +180,7 @@ function greedyMonth(y, m, shifts, people, locked = {}, avail = {}, limits = {},
       busy.add(pick.id);
       add(pick.id, s.id, d);
       hasResident ||= resident.has(pick.id);
+      bosses += boss.has(pick.id);
       sum += prest[pick.id];
     }
     for (const pid of busy) lastDay[pid] = d;
@@ -285,7 +290,8 @@ function constraints(y, m, shifts, people, avail, limits, rules, asDay = {}) {
       [s.previous, s.next].some((key) => Object.values(schedule[key] || {}).includes(pid)) ||
       s.cats.some((k) => (tally[pid]?.[k] || 0) >= (limits[pid]?.[k] ?? Infinity)) ||
       breaksRule(rules, day, pid, s.sid) ||
-      (isResident(p) && Object.values(day).some((id) => persons[id] && isResident(persons[id])))) return false;
+      (isResident(p) && Object.values(day).some((id) => persons[id] && isResident(persons[id]))) ||
+      (p.boss && Object.values(day).filter((id) => persons[id]?.boss).length >= MAX_BOSS)) return false;
     if (s.afterOitn && schedule[s.afterOitn]?.[oitn] === pid) return false;
     if (s.beforeRest && Object.values(schedule[s.beforeRest] || {}).includes(pid)) return false;
     const ids = [...Object.values(day), pid];
@@ -417,14 +423,14 @@ function anneal(model, people, locked, limits, rules, { deadline, now = () => pe
   const cats = [...new Set(slots.flatMap((s) => s.cats))], C = cats.length;
   const lim = people.flatMap((p) => cats.map((c) => limits[p.id]?.[c] ?? Infinity));
   const min = people.flatMap((p) => cats.map((c) => limits[p.id]?.min?.[c] ?? 0));
-  const pres = people.map((p) => p.prestige ?? 2), res = people.map(isResident);
+  const pres = people.map((p) => p.prestige ?? 2), res = people.map(isResident), bos = people.map((p) => +!!p.boss);
   const sc = slots.map((s) => s.cats.map((c) => cats.indexOf(c)));
   const cand = slots.map((s) => s.candidates.map((pid) => ix[pid]).filter((i) => i !== undefined));
   const ok = slots.map((s, i) => { const a = new Uint8Array(N); for (const p of cand[i]) a[p] = 1; return a; });
   const cap = new Int8Array(W), daySlots = Array.from({ length: W }, () => []);
   slots.forEach((s, i) => { cap[s.d]++; daySlots[s.d].push(i); });
   const w = new Int8Array(N * W), oi = new Int8Array(N * W), cnt = new Int16Array(N * C);
-  const dRes = new Int8Array(W), dPres = new Int16Array(W), fill = new Int8Array(W);
+  const dRes = new Int8Array(W), dBoss = new Int8Array(W), dPres = new Int16Array(W), fill = new Int8Array(W);
   const a = new Int16Array(slots.length).fill(-1);
   const put = (i, p, sign) => {
     const s = slots[i];
@@ -432,7 +438,7 @@ function anneal(model, people, locked, limits, rules, { deadline, now = () => pe
     if (p < 0) return;
     w[p * W + s.d] += sign; if (s.beforeRest) oi[p * W + s.d] += sign;
     for (const c of sc[i]) cnt[p * C + c] += sign;
-    dRes[s.d] += res[p] * sign; dPres[s.d] += pres[p] * sign; fill[s.d] += sign;
+    dRes[s.d] += res[p] * sign; dBoss[s.d] += bos[p] * sign; dPres[s.d] += pres[p] * sign; fill[s.d] += sign;
   };
   const pc = (p) => {
     if (p < 0) return 0;
@@ -447,7 +453,7 @@ function anneal(model, people, locked, limits, rules, { deadline, now = () => pe
     return 3 * v;
   };
   const dc = (d) => {
-    let v = Math.max(0, dRes[d] - 1);
+    let v = Math.max(0, dRes[d] - 1) + Math.max(0, dBoss[d] - MAX_BOSS);
     if (fill[d] === cap[d] && cap[d] * 2 >= MIN_PRESTIGE && dPres[d] < MIN_PRESTIGE) v += MIN_PRESTIGE - dPres[d];
     if (rules.length) {
       const day = {};

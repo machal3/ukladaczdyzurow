@@ -546,3 +546,17 @@ test('So + Nd łącznie (d56): limit i minimum twarde, prośba liczona, dzień �
   assert.deepEqual(gaps, [{ pid: 'a', k: 'd56', want: 3, got: 2 }]); // So 3.10 + Śr 7.10 jak Nd
   assert.throws(() => generateMonth(2026, 9, sh, people, {}, {}, { a: { d56: 2, min: { d5: 3 } } }), /minimum.*limit górny/);
 });
+
+test('Kierownicy: maks. dwóch kierowników jednego dnia (też z minimami i w ręcznych wpisach)', () => {
+  const three = ['x', 'y', 'z'].map((id) => ({ id, name: id, days: all }));
+  const ppl = [
+    { id: 'k1', name: 'K1', prestige: 1, boss: true }, { id: 'k2', name: 'K2', prestige: 2, boss: true }, { id: 'k3', name: 'K3', prestige: 2, boss: true },
+    { id: 'a', name: 'A', prestige: 2 }, { id: 'b', name: 'B', prestige: 2 }, { id: 'c', name: 'C', prestige: 1 },
+  ];
+  const avail = Object.fromEntries(['k1', 'k2', 'k3'].map((id) => [id, Object.fromEntries(Array.from({ length: 31 }, (_, i) => [dateKey(2026, 9, i + 1), 3]))]));
+  const bossDays = (out) => Object.values(out).filter((day) => Object.values(day).filter((id) => id.startsWith('k')).length > 2).length;
+  assert.equal(bossDays(generateMonth(2026, 9, three, ppl, {}, avail)), 0);
+  const min = { min: { '*': 14 } };
+  assert.equal(bossDays(generateMonth(2026, 9, three, ppl, {}, avail, { k1: min, k2: min, k3: min })), 0);
+  assert.throws(() => generateMonth(2026, 9, three, ppl, { [dateKey(2026, 9, 5)]: { x: 'k1', y: 'k2', z: 'k3' } }), /Ręczne wpisy/);
+});
