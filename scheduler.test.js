@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { generateMonth, generateVariants, scoreMonth, dateKey, history, badOf, parseTable, matchPerson, personLog, listPeople } from './scheduler.js';
+import { generateMonth, generateVariants, scoreMonth, dateKey, history, badOf, parseTable, matchPerson, personLog, listPeople, missedWishes } from './scheduler.js';
 
 const people = ['a', 'b', 'c', 'd'].map((id) => ({ id, name: id }));
 const all = [0, 1, 2, 3, 4, 5, 6];
@@ -516,4 +516,33 @@ test('scoreMonth.gaps: lista niespełnionych próśb (osoba, kategoria, prośba,
   const { gaps, wants } = scoreMonth(2026, 9, schedule, sh, people, {}, {}, { a: { '*': 3, d4: 1 }, b: { '*': 1 } });
   assert.deepEqual(gaps, [{ pid: 'a', k: '*', want: 3, got: 2 }]);
   assert.equal(wants, 1);
+});
+
+test('suma minimów liczy minimum faktyczne: minima na miejscach ponad „Min. łącznie”', () => {
+  const sh = [{ id: 'o', name: 'OITN', days: [0] }, { id: 'p', name: 'PN1', days: [0] }]; // 4 poniedziałki × 2 = 8 miejsc
+  const limits = { a: { min: { '*': 3 } }, b: { min: { '*': 3, o: 2, p: 2 } }, c: { min: { '*': 2 } } }; // b faktycznie 4 → razem 9 > 8
+  assert.throws(() => generateVariants(2026, 9, sh, people.slice(0, 3), {}, {}, limits),
+    /Minima „łącznie” wszystkich osób razem: 9, a wolnych dyżurów w tej kategorii jest tylko 8 \(b: minima 2 na OITN \+ 2 na PN1 = 4, więcej niż Min\. łącznie 3\)/);
+});
+
+test('missedWishes: dni „Chcę” bez dyżuru tej osoby', () => {
+  const avail = { a: { '2026-10-02': 3, '2026-10-05': 3, '2026-10-07': 2 }, b: { '2026-10-02': 3 } };
+  const schedule = { '2026-10-02': { s: 'b' }, '2026-10-05': { s: 'a' } };
+  assert.deepEqual(missedWishes(2026, 9, schedule, people, avail), { a: [2] });
+});
+
+test('So + Nd łącznie (d56): limit i minimum twarde, prośba liczona, dzień „jak Nd” się wlicza', () => {
+  const sh = [{ id: 's', name: 'S', days: all }];
+  const keys = Array.from({ length: 31 }, (_, i) => dateKey(2026, 9, i + 1));
+  const soNd = (out, pid, asDay = {}) => keys.filter((k, i) => ([5, 6].includes((new Date(2026, 9, i + 1).getDay() + 6) % 7) || asDay[k] >= 5) && out[k]?.s === pid).length;
+  const wantAll = { a: Object.fromEntries(keys.map((k) => [k, 3])) }; // a chce każdego dnia
+  const limited = generateVariants(2026, 9, sh, people, {}, wantAll, { a: { d56: 1 } }, [], {}, {}, { tries: 5, timeBudgetMs: 300 })[0].schedule;
+  assert.ok(soNd(limited, 'a') <= 1);
+  const asDay = { '2026-10-07': 6 }; // środa liczona jak niedziela
+  const atLeast = generateVariants(2026, 9, sh, people, {}, {}, { a: { min: { d56: 6 } } }, [], {}, {}, { asDay, tries: 5, timeBudgetMs: 300 })[0];
+  assert.ok(soNd(atLeast.schedule, 'a', asDay) >= 6);
+  assert.equal(atLeast.score.min, 0);
+  const { gaps } = scoreMonth(2026, 9, { '2026-10-03': { s: 'a' }, '2026-10-07': { s: 'a' } }, sh, people, {}, {}, { a: { d56: 3 } }, {}, asDay);
+  assert.deepEqual(gaps, [{ pid: 'a', k: 'd56', want: 3, got: 2 }]); // So 3.10 + Śr 7.10 jak Nd
+  assert.throws(() => generateMonth(2026, 9, sh, people, {}, {}, { a: { d56: 2, min: { d5: 3 } } }), /minimum.*limit górny/);
 });

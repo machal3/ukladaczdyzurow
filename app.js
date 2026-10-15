@@ -1,4 +1,4 @@
-import { dateKey, daysInMonth, weekday, limitDay, shiftsForDay, scoreMonth, PRIORITIES, PRIORITY_ORDER, availOf, breaksRule, LEVELS, ROLES, badOf, BAD, history, parseTable, matchPerson, personLog, PAST_WEIGHT, listPeople } from './scheduler.js';
+import { dateKey, daysInMonth, weekday, limitDay, shiftsForDay, scoreMonth, PRIORITIES, PRIORITY_ORDER, availOf, breaksRule, LEVELS, ROLES, badOf, BAD, history, parseTable, matchPerson, personLog, PAST_WEIGHT, listPeople, missedWishes } from './scheduler.js';
 import { runScheduler } from './scheduler-client.js';
 import { cloudLoad, cloudSave, cloudLogout } from './cloud.js';
 
@@ -19,9 +19,9 @@ let state = cloud?.data ?? load() ?? {
   manual: {},   // ręczne przypisania — zachowane przy ponownym układaniu
 };
 state.avail ??= {}; // { personId: { 'YYYY-MM-DD': poziom 0-3 } } — patrz LEVELS
-state.limits ??= {}; // { personId: { shiftId: maks. dyżurów w miesiącu, '*': maks. łącznie, we: maks. Pt/So/Nd } } — brak = bez limitu (we: WEEKEND_LIMIT)
-state.mins ??= {}; // { personId: { shiftId / d4-d6 / we / '*': minimum dyżurów w miesiącu } } — idzie do generateMonth jako limits[pid].min
-state.wants ??= {}; // { personId: { shiftId / d4-d6 / we / '*': ile dyżurów chce w miesiącu } } — prośby, miękkie (patrz generateMonth)
+state.limits ??= {}; // { personId: { shiftId: maks. dyżurów w miesiącu, '*': maks. łącznie, we: maks. Pt/So/Nd, d56: maks. So + Nd łącznie } } — brak = bez limitu (we: WEEKEND_LIMIT)
+state.mins ??= {}; // { personId: { shiftId / d4-d6 / d56 / we / '*': minimum dyżurów w miesiącu } } — idzie do generateMonth jako limits[pid].min
+state.wants ??= {}; // { personId: { shiftId / d4-d6 / d56 / we / '*': ile dyżurów chce w miesiącu } } — prośby, miękkie (patrz generateMonth)
 state.bad ??= {}; // { 'YYYY-MM-DD': gównianość 0-3 } — patrz BAD/badOf; osoba: person.past 0-3
 state.asDay ??= {}; // { 'YYYY-MM-DD': 0-6 } — dzień liczony do limitów i próśb jak inny dzień tygodnia (patrz limitDay)
 state.rules ??= []; // [{ id, who, with, places: [shiftId] }] — patrz breaksRule
@@ -44,7 +44,7 @@ let prevWho = null; // tryb sprzed otwarcia okna osoby
 let back = 'settings'; // karta, na którą wraca „Gotowe” — ta, z której włączono tryb
 let generation = null;
 let gapsMonth = null; // 'y-m' ostatnio ułożonego miesiąca — tam pokazujemy niespełnione prośby
-const WANT_LABEL = { '*': 'łącznie', we: 'Pt/So/Nd', d4: 'piątki', d5: 'soboty', d6: 'niedziele' }; // reszta = nazwa miejsca
+const WANT_LABEL = { '*': 'łącznie', we: 'Pt/So/Nd', d56: 'So + Nd', d4: 'piątki', d5: 'soboty', d6: 'niedziele' }; // reszta = nazwa miejsca
 const stopGeneration = () => {
   if (!generation) return;
   generation.controller.abort();
@@ -157,7 +157,7 @@ function render() {
       field('Ostatnio gówniane', 'dyżury spoza grafiku, 0–3', `<select data-past>${BAD.map((_, i) => `<option value="${i}" ${i === (who.past ?? 0) ? 'selected' : ''}>${i}</option>`).join('')}</select>`) +
       field('Kanapka PN1 So + Pn', 'zaznaczone = woli ten układ', `<input type="checkbox" role="switch" data-pn1sandwich ${who.pn1Sandwich === false ? '' : 'checked'}>`) +
       `</section><section><h4>Limity i prośby</h4><table class="counts"><thead><tr><td></td><th scope="col">Min.</th><th scope="col">Limit</th><th scope="col">Prośba</th></tr></thead><tbody>` +
-      row('Łącznie', '*', '∞', 'łącznie') + row('Pt/So/Nd', 'we', WEEKEND_LIMIT, 'Pt/So/Nd') +
+      row('Łącznie', '*', '∞', 'łącznie') + row('Pt/So/Nd', 'we', WEEKEND_LIMIT, 'Pt/So/Nd') + row('So + Nd', 'd56', '∞', 'soboty i niedziele łącznie') +
       state.shifts.map((s) => row(esc(s.name), s.id, '∞', esc(s.name))).join('') +
       `<tr class="sub"><th colspan="4" scope="rowgroup">Ten sam dzień weekendu</th></tr>` +
       ['Pt', 'So', 'Nd'].map((n, i) => row(n, `d${i + 4}`, '∞', `ten sam dzień ${n}`)).join('') +
@@ -189,12 +189,14 @@ function render() {
   if (gapsMonth === `${y}-${m}`) {
     const gaps = scoreMonth(y, m, state.schedule, state.shifts, team(), {}, {}, state.wants, {}, state.asDay).gaps;
     const label = (k) => WANT_LABEL[k] ?? shiftName[k] ?? k;
-    const byPerson = new Map();
+    const wish = missedWishes(y, m, state.schedule, team(), state.avail);
+    const byPerson = new Map(Object.keys(wish).map((pid) => [pid, []]));
     for (const g of gaps) byPerson.set(g.pid, [...(byPerson.get(g.pid) ?? []), g]);
     const n = byPerson.size, osob = n === 1 ? 'osoba' : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? 'osoby' : 'osób';
-    $('#want-gaps summary').textContent = n ? `Niespełnione prośby: ${n} ${osob} — pokaż` : 'Wszystkie prośby o liczbę dyżurów spełnione.';
+    $('#want-gaps summary').textContent = n ? `Niespełnione prośby: ${n} ${osob} — pokaż` : 'Wszystkie prośby spełnione (liczba dyżurów i dni „Chcę”).';
     $('#want-gaps ul').innerHTML = [...byPerson].map(([pid, g]) => `<li><b>${esc(nameOf[pid])}</b>: ` +
-      g.map((x) => `${label(x.k)} ${x.got} zamiast ${x.want}`).join(', ') + '</li>').join('');
+      [...g.map((x) => `${label(x.k)} ${x.got} zamiast ${x.want}`),
+        ...(wish[pid] ? [`„Chcę” bez dyżuru: ${wish[pid].map((d) => `${d}.${String(m + 1).padStart(2, '0')}`).join(', ')}`] : [])].join(', ') + '</li>').join('');
   }
   $('#bad-mode').setAttribute('aria-pressed', view.bad);
 }

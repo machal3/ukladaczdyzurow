@@ -74,7 +74,7 @@ export const shiftsForDay = (shifts, y, m, d) => shifts.filter((s) => s.days.inc
 
 // Zwraca { 'YYYY-MM-DD': { shiftId: personId } }.
 // Twarde zasady: nikt dwa razy tego samego dnia, nikt dzień po dniu, nikt w dzień „Nie mogę”,
-// nikt ponad swój miesięczny limit na danym dyżurze: limits = { personId: { shiftId: n, '*': n łącznie, we: n w Pt/So/Nd } } (brak = bez limitu;
+// nikt ponad swój miesięczny limit na danym dyżurze: limits = { personId: { shiftId: n, '*': n łącznie, we: n w Pt/So/Nd, d56: n w So + Nd łącznie } } (brak = bez limitu;
 // d4/d5/d6 = ile razy ten sam Pt/So/Nd: wpisany — twardy; bez wpisu domyślnie 1 albo wg próśb (sameDow) — tylko priorytet weDow; min = { shiftId / '*' / we / d4-d6: n } minimum dyżurów — patrz niżej),
 // maks. jeden rezydent dziennie (licząc ręczne wpisy), suma punktów prestiżu dnia ≥ MIN_PRESTIGE (licząc ręczne wpisy), warunki z `rules` (patrz breaksRule),
 // po OITN w sobotę wolny poniedziałek, po OITN w niedzielę wolny wtorek (czyli 2 dni po weekendowym OITN).
@@ -102,17 +102,19 @@ function greedyMonth(y, m, shifts, people, locked = {}, avail = {}, limits = {},
   const add = (pid, sid, d) => {
     count[pid]++; perShift[`${pid}:${sid}`] = (perShift[`${pid}:${sid}`] || 0) + 1; perShift[`${pid}:*`] = count[pid];
     if (isWe(d)) { perShift[`${pid}:we`] = we[pid] = (we[pid] || 0) + 1; perShift[`${pid}:d${ld(d)}`] = (perShift[`${pid}:d${ld(d)}`] || 0) + 1; }
+    if (ld(d) >= 5) perShift[`${pid}:d56`] = (perShift[`${pid}:d56`] || 0) + 1; // So + Nd łącznie
     burden[pid] += badOf(bad, y, m, d);
     if (badOf(bad, y, m, d) === 3) tragic[pid] = dateKey(y, m, d);
   };
   const underLimit = (pid, sid, d) => (perShift[`${pid}:${sid}`] || 0) < (limits[pid]?.[sid] ?? Infinity) &&
     count[pid] < (limits[pid]?.['*'] ?? Infinity) && (!isWe(d) || ((we[pid] || 0) < (limits[pid]?.we ?? Infinity) &&
-      (perShift[`${pid}:d${ld(d)}`] || 0) < (limits[pid]?.[`d${ld(d)}`] ?? Infinity))); // wpisany limit Pt/So/Nd — twardy
+      (perShift[`${pid}:d${ld(d)}`] || 0) < (limits[pid]?.[`d${ld(d)}`] ?? Infinity))) && // wpisany limit Pt/So/Nd — twardy
+    (ld(d) < 5 || (perShift[`${pid}:d56`] || 0) < (limits[pid]?.d56 ?? Infinity));
   const dowFull = (pid, d) => +(isWe(d) && (perShift[`${pid}:d${ld(d)}`] || 0) >= sameDow(limits, pid, ld(d), wants)); // 1 = ma już dość tego dnia
   // Heurystyka minimum w propozycji startowej. Końcowa walidacja wymaga każdego minimum.
   const under = (pid, k) => (perShift[`${pid}:${k}`] || 0) < (limits[pid]?.min?.[k] ?? 0);
   const belowMin = (pid, sid, d, key) => +(availOf(avail, pid, key) >= 2 &&
-    (under(pid, sid) || under(pid, '*') || (isWe(d) && (under(pid, 'we') || under(pid, `d${ld(d)}`))))) -
+    (under(pid, sid) || under(pid, '*') || (isWe(d) && (under(pid, 'we') || under(pid, `d${ld(d)}`))) || (ld(d) >= 5 && under(pid, 'd56')))) -
     // −1 = zostaw na jutro: jutro Pt/So/Nd, którego osoba ma za mało (dyżur dziś zablokowałby jutro)
     +(d < daysInMonth(y, m) && isWe(d + 1) && under(pid, `d${ld(d + 1)}`) && availOf(avail, pid, dateKey(y, m, d + 1)) >= 2);
   const short = (pid, sid) => +((perShift[`${pid}:${sid}`] || 0) < (wants[pid]?.[sid] ?? 0)); // 1 = jeszcze poniżej prośby
@@ -158,6 +160,7 @@ function greedyMonth(y, m, shifts, people, locked = {}, avail = {}, limits = {},
         sandwich: (a, b) => sandwich(a, s.id) - sandwich(b, s.id),
         weDow: (a, b) => dowFull(a.id, d) - dowFull(b.id, d),
         wants: (a, b) => short(b.id, s.id) - short(a.id, s.id) || (isWe(d) && (short(b.id, `d${ld(d)}`) - short(a.id, `d${ld(d)}`) || short(b.id, 'we') - short(a.id, 'we'))) ||
+          (ld(d) >= 5 && short(b.id, 'd56') - short(a.id, 'd56')) ||
           short(b.id, '*') - short(a.id, '*'),
         bad: (a, b) => (isTragic && tragic[a.id].localeCompare(tragic[b.id])) || (isBad && burden[a.id] - burden[b.id]),
         even: (a, b) => count[a.id] - count[b.id],
@@ -202,6 +205,16 @@ export const PRIORITY_ORDER = Object.keys(PRIORITIES);
 // Ocena gotowego grafiku miesiąca (mniej = lepiej) dla każdego kryterium PRIORITIES + unfilled (nieobsadzone dyżury) + min (brakujące dyżury do minimów limits[pid].min);
 // do pokazania: lastResort = dyżury „W ostateczności”, spread = różnica liczby dyżurów (najwięcej − najmniej).
 // ponytail: wagi na oko (W ostateczności = 10 × Mogę); suma kwadratów = kara za nierówny podział.
+// Dni „Chcę” bez dyżuru tej osoby w miesiącu y/m: { personId: [dzień] } — do pokazania po ułożeniu.
+export function missedWishes(y, m, schedule, people, avail = {}) {
+  const out = {};
+  for (const p of people) for (let d = 1; d <= daysInMonth(y, m); d++) {
+    const key = dateKey(y, m, d);
+    if (availOf(avail, p.id, key) === 3 && !Object.values(schedule[key] || {}).includes(p.id)) (out[p.id] ??= []).push(d);
+  }
+  return out;
+}
+
 export function scoreMonth(y, m, schedule, shifts, people, avail = {}, bad = {}, wants = {}, limits = {}, asDay = {}) {
   const sc = { unfilled: 0, min: 0, avail: 0, sandwich: 0, weDow: 0, wants: 0, bad: 0, even: 0, lastResort: 0 };
   const count = Object.fromEntries(people.map((p) => [p.id, 0]));
@@ -223,6 +236,7 @@ export function scoreMonth(y, m, schedule, shifts, people, avail = {}, bad = {},
       const lw = limitDay(asDay, y, m, d);
       if (lw >= 4) sc.weDow += (perShift[`${pid}:d${lw}`] = (perShift[`${pid}:d${lw}`] || 0) + 1) > sameDow(limits, pid, lw, wants); // ponad limit tego samego dnia weekendu
       if (lw >= 4) perShift[`${pid}:we`] = (perShift[`${pid}:we`] || 0) + 1;
+      if (lw >= 5) perShift[`${pid}:d56`] = (perShift[`${pid}:d56`] || 0) + 1;
       perShift[`${pid}:*`] = ++count[pid];
       burden[pid] += badOf(bad, y, m, d);
       perShift[`${pid}:${s.id}`] = (perShift[`${pid}:${s.id}`] || 0) + 1;
@@ -246,7 +260,8 @@ function constraints(y, m, shifts, people, avail, limits, rules, asDay = {}) {
   const dayShifts = Array.from({ length: daysInMonth(y, m) + 1 }, (_, d) => shiftsForDay(shifts, y, m, d));
   const slots = Array.from({ length: daysInMonth(y, m) }, (_, i) =>
     dayShifts[i + 1].map((s) => ({ key: days[i + 1], d: i + 1, sid: s.id,
-      cats: [s.id, '*', ...(limitDay(asDay, y, m, i + 1) >= 4 ? ['we', `d${limitDay(asDay, y, m, i + 1)}`] : [])] }))).flat();
+      cats: [s.id, '*', ...(limitDay(asDay, y, m, i + 1) >= 4 ? ['we', `d${limitDay(asDay, y, m, i + 1)}`] : []),
+        ...(limitDay(asDay, y, m, i + 1) >= 5 ? ['d56'] : [])] }))).flat();
   const persons = Object.fromEntries(people.map((p) => [p.id, p]));
   const oitn = shifts.find((s) => s.name === 'OITN')?.id;
   for (const s of slots) {
@@ -300,13 +315,13 @@ function checkSettings(people, limits, wants) {
       for (const [k, n] of Object.entries(values)) if (!Number.isInteger(n) || n < 0)
         throw new Error(`${p.name}: wartość „${k}” musi być nieujemną liczbą całkowitą.`);
     for (const [k, n] of Object.entries(l.min || {})) if (n > Math.min(l[k] ?? Infinity, l['*'] ?? Infinity,
-      /^d[456]$/.test(k) ? l.we ?? Infinity : Infinity))
+      /^d(4|5|6|56)$/.test(k) ? l.we ?? Infinity : Infinity, /^d[56]$/.test(k) ? l.d56 ?? Infinity : Infinity))
       throw new Error(`${p.name}: minimum „${k}” (${n}) przekracza limit górny.`);
   }
 }
 
-const CAT = { '*': 'łącznie', we: 'Pt/So/Nd', d4: 'ten sam Pt', d5: 'ten sam So', d6: 'ten sam Nd' };
-const PHRASE = { '*': 'łącznie', we: 'w Pt/So/Nd', d4: 'w piątki', d5: 'w soboty', d6: 'w niedziele' }; // w zdaniu; miejsce → „na OITN”
+const CAT = { '*': 'łącznie', we: 'Pt/So/Nd', d56: 'So + Nd', d4: 'ten sam Pt', d5: 'ten sam So', d6: 'ten sam Nd' };
+const PHRASE = { '*': 'łącznie', we: 'w Pt/So/Nd', d56: 'w So + Nd', d4: 'w piątki', d5: 'w soboty', d6: 'w niedziele' }; // w zdaniu; miejsce → „na OITN”
 const DOW = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So', 'Nd'];
 
 // Czy osoba sama, bez innych, zmieści swoje minima: dostępność, ręczne wpisy, dzień po dniu, wolne po weekendowym OITN, limity.
@@ -372,16 +387,23 @@ function conflicts(model, y, m, shifts, people, locked, avail, limits, asDay = {
       (few ? ` przy dostępnych dniach: ${days.map((d) => d + dayName(d)).join(', ')} (bez dyżuru dzień po dniu ani 2 dni po weekendowym OITN)` : '') +
       `. Zmień jedno z tych pól${few ? ' albo dostępność' : ''} w Osoby → ${p.name} → Ustawienia (puste pole Limit = wartość domyślna, szara).`);
   }
+  // Minimum faktyczne: łącznie ≥ suma minimów na miejscach, Pt/So/Nd ≥ Pt + So + Nd albo Pt + (So + Nd), So + Nd ≥ So + Nd osobno
+  const parts = { '*': [shifts.map((s) => s.id)], we: [['d4', 'd5', 'd6'], ['d4', 'd56']], d56: [['d5', 'd6']] };
+  const sum = (p, list) => list.reduce((n, c) => n + (limits[p.id]?.min?.[c] ?? 0), 0);
+  const top = (p, k) => (parts[k] ?? []).reduce((b, list) => (sum(p, list) > sum(p, b) ? list : b), []); // składniki dające największą sumę
+  const eff = (p, k) => Math.max(limits[p.id]?.min?.[k] ?? 0, sum(p, top(p, k)));
+  const why = (list, k) => list.filter((p) => eff(p, k) > (limits[p.id]?.min?.[k] ?? 0)).map((p) =>
+    ` (${p.name}: minima ${top(p, k).filter((c) => limits[p.id]?.min?.[c]).map((c) => `${limits[p.id].min[c]} ${PHRASE[c] ?? `na ${label(c)}`}`).join(' + ')} = ${eff(p, k)}, więcej niż Min. ${label(k)} ${limits[p.id]?.min?.[k] ?? 0})`).join('');
   for (const k of new Set(model.slots.flatMap((s) => s.cats))) {
     const free = model.slots.filter((s) => s.cats.includes(k) && !isLocked(s)).length;
     const own = (pid) => model.slots.filter((s) => s.cats.includes(k) && isLocked(s) === pid).length;
-    const need = people.reduce((n, p) => n + Math.max(0, (limits[p.id]?.min?.[k] ?? 0) - own(p.id)), 0);
-    if (need > free) out.push(`Minima „${label(k)}” wszystkich osób razem: ${need}, a wolnych dyżurów w tej kategorii jest tylko ${free}.`);
+    const need = people.reduce((n, p) => n + Math.max(0, eff(p, k) - own(p.id)), 0);
+    if (need > free) out.push(`Minima „${label(k)}” wszystkich osób razem: ${need}, a wolnych dyżurów w tej kategorii jest tylko ${free}${why(people, k)}.`);
   }
   const res = people.filter(isResident);
   const resDays = new Set(model.slots.map((s) => s.d)).size - new Set(model.slots.filter((s) => res.some((p) => isLocked(s) === p.id)).map((s) => s.d)).size;
-  const resNeed = res.reduce((n, p) => n + Math.max(0, (limits[p.id]?.min?.['*'] ?? 0) - model.slots.filter((s) => isLocked(s) === p.id).length), 0);
-  if (resNeed > resDays) out.push(`Minima rezydentów razem: ${resNeed}, a dni (maks. jeden rezydent dziennie) zostało ${resDays}.`);
+  const resNeed = res.reduce((n, p) => n + Math.max(0, eff(p, '*') - model.slots.filter((s) => isLocked(s) === p.id).length), 0);
+  if (resNeed > resDays) out.push(`Minima rezydentów razem: ${resNeed}, a dni (maks. jeden rezydent dziennie) zostało ${resDays}${why(res, '*')}.`);
   return out;
 }
 
