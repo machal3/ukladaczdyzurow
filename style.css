@@ -83,12 +83,7 @@ h1 { font: var(--type-display); letter-spacing: -.025em; text-wrap: balance; }
 #generation-status { margin: 0 0 16px; color: var(--muted); font-size: 14px; }
 #generation-status:empty { display: none; }
 #want-gaps { margin: -8px 0 16px; padding: 4px; background: var(--md-sys-color-surface-container-low); border-radius: var(--shape-card); }
-#want-gaps summary { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 12px; min-height: 48px; padding: 8px 16px; border-radius: calc(var(--shape-card) - 4px); cursor: pointer; list-style: none; }
-#want-gaps summary::-webkit-details-marker { display: none; }
-#want-gaps summary::after { content: '▾'; margin-left: auto; font-size: 20px; color: var(--muted); transition: transform 220ms var(--motion); }
-#want-gaps[open] summary::after { transform: rotate(180deg); }
-#want-gaps summary:hover { background: var(--faint); }
-#want-gaps summary:focus-visible { outline: 2px solid var(--strong); outline-offset: 2px; }
+#want-gaps .head { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 12px; min-height: 48px; padding: 8px 16px; }
 #want-gaps .count { display: grid; place-items: center; min-width: 28px; height: 28px; padding: 0 8px; border-radius: var(--shape-full); background: var(--warn-soft); color: var(--md-sys-color-on-error-container); font: var(--type-label); }
 #want-gaps.all-ok .count { background: var(--ok-soft); color: var(--md-sys-color-on-primary-container); }
 #want-gaps .hint { color: var(--muted); font-size: 13px; }
@@ -100,17 +95,17 @@ h1 { font: var(--type-display); letter-spacing: -.025em; text-wrap: balance; }
 #status :is([data-done], [data-jump]) { margin-left: auto; }
 .cycle { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; }
 .cycle span[class] { padding: 5px 12px; border-radius: 999px; }
-.progress, .meter { display: inline-block; height: 6px; width: 120px; border-radius: 999px; overflow: hidden; background: var(--md-sys-color-surface-container-highest); flex: none; }
-.progress i, .meter i { display: block; height: 100%; border-radius: inherit; background: var(--strong); transition: width 300ms var(--motion); }
+.progress { display: inline-block; height: 6px; width: 120px; border-radius: 999px; overflow: hidden; background: var(--md-sys-color-surface-container-highest); flex: none; }
+.progress i { display: block; height: 100%; border-radius: inherit; background: var(--strong); transition: width 300ms var(--motion); }
 body:not([data-tab=calendar]) #status { display: none; }
 main { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
-body:not([data-tab=settings]) #settings, body:not([data-tab=people]) #people-tab, body:not([data-tab=calendar]) .board, body:not([data-tab=calendar]) #panel-variants, body:not([data-tab=help]) #help, body:not([data-tab=calendar]) .actions { display: none; }
+body:not([data-tab=settings]) #settings, body:not([data-tab=people]) #people-tab, body:not([data-tab=calendar]) .board, body:not([data-tab=calendar]) #panel-variants, body:not([data-tab=calendar]) #want-gaps, body:not([data-tab=help]) #help, body:not([data-tab=calendar]) .actions { display: none; }
 main > :is(section, article), .board { animation: appear 350ms var(--motion); }
 @keyframes appear { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
 /* Hierarchia tonalna i kalendarz. */
-.panel, .summary, .help { background: var(--md-sys-color-surface-container-low); border-radius: 28px; padding: 28px; }
-.panel h3, .summary h3 { font: var(--type-title); letter-spacing: -.01em; margin-bottom: 12px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
+.panel, .help { background: var(--md-sys-color-surface-container-low); border-radius: 28px; padding: 28px; }
+.panel h3 { font: var(--type-title); letter-spacing: -.01em; margin-bottom: 12px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
 .panel small { font: 400 12px/1.5 var(--headline); color: var(--muted); }
 .lead { font-size: 14px; color: var(--muted); margin-bottom: 24px; max-width: 65ch; }
 .hint, dialog h4 small { font-size: 12px; color: var(--muted); font-weight: 400; }
@@ -163,13 +158,6 @@ main > :is(section, article), .board { animation: appear 350ms var(--motion); }
 .lvl-3 { background: var(--ok-soft); color: var(--md-sys-color-on-primary-container); }
 .lvl-4 { background: var(--strong); color: var(--on-strong); font-weight: 600; }
 .bad-3 { background: var(--warn); color: var(--md-sys-color-on-error); }
-.summary { position: static; padding: 24px; background: var(--md-sys-color-surface-container-low); color: var(--text); border-radius: var(--shape-card); }
-.summary .list { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
-.summary .list { gap: 4px; }
-.summary .list li { padding: 2px 0; background: transparent; gap: 6px; }
-.summary .who { font-size: 13px; }
-.meter { width: 28px; height: 4px; }
-.summary .hint { margin-top: 20px; color: var(--muted); }
 .legend { list-style: none; padding: 20px 0 0; display: flex; flex-direction: column; gap: 8px; font-size: 12px; color: var(--muted); }
 .legend li { display: flex; align-items: center; gap: 8px; }
 .mark { display: inline-block; flex: none; width: 14px; text-align: center; font-style: normal; }
@@ -361,13 +349,6 @@ body:has(.login) { padding: 24px; min-height: 100dvh; display: grid; place-items
 @media (max-width: 1439px) {
   body { --gutter: 24px; padding-bottom: 40px; }
   .board { grid-template-columns: minmax(0, 1fr); }
-  .summary { position: static; order: -1; padding: 16px 20px; border-radius: 24px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 20px; }
-  .summary h3 { font-size: 18px; margin: 0; }
-  .summary .list { display: flex; flex: 1; flex-direction: row; overflow-x: auto; min-width: 0; gap: 16px; }
-  .summary .list li { flex: none; }
-  .summary .hint { width: 100%; margin: 0; font-size: 11px; }
-  .summary .legend { flex-direction: row; flex-wrap: wrap; padding: 0; gap: 8px 16px; }
-  .summary .meter { display: none; }
 }
 @media (min-width: 1100px) and (max-width: 1439px) {
   .month h2 { font-size: 22px; margin-right: 4px; }
@@ -406,15 +387,6 @@ body:has(.login) { padding: 24px; min-height: 100dvh; display: grid; place-items
   #status .cycle { flex-basis: 100%; order: 2; }
   #status [data-jump] { margin: 0; }
   .board { gap: 16px; }
-  /* Na telefonie obsada pod kalendarzem, pełna lista zamiast przewijanego paska. */
-  .summary { order: 0; display: block; padding: 20px 16px; }
-  .summary h3 { margin-bottom: 12px; }
-  .summary .list { display: flex; flex-direction: column; overflow: visible; gap: 4px; }
-  .summary .list li { padding: 0; }
-  .summary .who { font-size: 15px; }
-  .summary .meter { display: inline-block; width: 48px; }
-  .summary .hint { margin-top: 16px; font-size: 12px; }
-  .summary .legend { padding-top: 12px; font-size: 12px; }
   .calendar { grid-template-columns: 1fr; gap: 12px; padding: 8px; border-radius: 24px; }
   .dow, .cell.empty { display: none; }
   .cell { padding: 12px; gap: 12px; border-radius: 20px; }

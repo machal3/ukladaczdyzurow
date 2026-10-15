@@ -43,7 +43,7 @@
   </div>
 
   <p id="generation-status" role="status" aria-live="polite"></p>
-  <details id="want-gaps" hidden><summary></summary><ul></ul></details>
+  <section id="want-gaps" aria-label="Niespełnione prośby"><p class="head"></p><ul></ul></section>
   <div id="status" role="status"></div>
 
   <main id="main" tabindex="-1">
@@ -55,16 +55,6 @@
 
     <div class="board">
       <section id="calendar" class="calendar" aria-label="Grafik miesiąca"></section>
-      <aside id="summary" class="summary" aria-labelledby="summary-title">
-        <h3 id="summary-title">Obsada</h3>
-        <ul id="summary-list" class="list"></ul>
-        <p class="hint">Kliknij osobę, by zaznaczać jej dostępność.</p>
-        <ul class="legend" aria-label="Legenda">
-          <li><i class="mark manual"></i>wpisany ręcznie</li>
-          <li><i class="mark unfilled"></i>nieobsadzony</li>
-          <li><i class="mark clash"></i>nie może / łamie warunek</li>
-        </ul>
-      </aside>
     </div>
 
     <section id="people-tab" class="people-tab" aria-label="Osoby">

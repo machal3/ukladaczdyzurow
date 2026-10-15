@@ -45,7 +45,6 @@ let view = { y: now.getFullYear(), m: now.getMonth(), who: null, bad: false, per
 let prevWho = null; // tryb sprzed otwarcia okna osoby
 let back = 'settings'; // karta, na którą wraca „Gotowe” — ta, z której włączono tryb
 let generation = null;
-let gapsMonth = null; // 'y-m' ostatnio ułożonego miesiąca — tam pokazujemy niespełnione prośby
 const WANT_LABEL = { '*': 'łącznie', we: 'Pt/So/Nd', d56: 'So + Nd', d4: 'piątki', d5: 'soboty', d6: 'niedziele' }; // reszta = nazwa miejsca
 const stopGeneration = () => {
   if (!generation) return;
@@ -132,11 +131,6 @@ function render() {
     (team().length ? '<li class="no-match"><b>Nikt nie pasuje</b><span>Zmień wyszukiwanie lub filtry.</span><button type="button" class="outline" data-clear-filters>Wyczyść filtry</button></li>' : '');
   $('#people-count').textContent = filtered ? `Pokazano ${shown.length} z ${team().length}` : '';
   for (const b of document.querySelectorAll('[data-filter]')) b.setAttribute('aria-pressed', b.dataset.filter === 'none' ? view.none : b.dataset.filter === view.role);
-  const max = Math.max(1, ...Object.values(count));
-  const short = (p) => scoreMonth(view.y, view.m, state.schedule, state.shifts, [p], {}, {}, {}, { [p.id]: { min: state.mins[p.id] } }).min; // brak do minimów
-  $('#summary-list').innerHTML = team().map((p) => `<li>
-      <button class="who ${p.id === view.who ? 'on' : ''}" data-who="${p.id}" aria-pressed="${p.id === view.who}" title="Dostępność w grafiku">${esc(p.name)}</button>
-      <span class="meter" aria-hidden="true"><i style="width:${count[p.id] / max * 100}%"></i></span>${short(p) ? `<span class="badge under" title="Do minimum brakuje: ${short(p)}">${count[p.id]}</span>` : `<span class="badge">${count[p.id]}</span>`}</li>`).join('');
   // Okno osoby: ustawienia (limity i prośby obowiązują w każdym miesiącu) + historia dyżurów
   const who = state.people.find((p) => p.id === view.who);
   // Treść budujemy tylko przy otwarciu / zmianie karty: przebudowa przy każdej zmianie pola zabiera fokus,
@@ -183,9 +177,8 @@ function render() {
     empty ? `<span>Obsadzone <b class="ok">${slots - empty} z ${slots}</b></span><span class="progress" role="progressbar" aria-label="Obsadzone dyżury" aria-valuenow="${Math.round((slots - empty) / slots * 100)}"><i style="width:${(slots - empty) / slots * 100}%"></i></span>` +
       `<span>wolne: <b>${empty}</b></span><button class="ghost" data-jump>Pokaż pierwszy wolny →</button>` : '';
   $('#status').classList.toggle('info', !!view.who || view.bad || empty === slots);
-  // Po ułożeniu: które prośby nie wyszły — liczone na bieżąco, więc zmiana wariantu lub ręczna poprawka od razu się tu odbija
-  $('#want-gaps').hidden = gapsMonth !== `${y}-${m}`;
-  if (gapsMonth === `${y}-${m}`) {
+  // Które prośby nie wyszły w oglądanym miesiącu — liczone na bieżąco, więc zmiana wariantu lub ręczna poprawka od razu się tu odbija
+  {
     const gaps = scoreMonth(y, m, state.schedule, state.shifts, team(), {}, {}, state.wants, {}, state.asDay).gaps;
     const label = (k) => WANT_LABEL[k] ?? shiftName[k] ?? k;
     const wish = missedWishes(y, m, state.schedule, team(), state.avail);
@@ -193,7 +186,7 @@ function render() {
     for (const g of gaps) byPerson.set(g.pid, [...(byPerson.get(g.pid) ?? []), g]);
     const n = byPerson.size, osob = n === 1 ? 'osoba' : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? 'osoby' : 'osób';
     $('#want-gaps').classList.toggle('all-ok', !n);
-    $('#want-gaps summary').innerHTML = n ? `<span class="count">${n}</span><b>${osob} z niespełnionymi prośbami</b><span class="hint">liczba dyżurów i dni „Chcę”</span>`
+    $('#want-gaps .head').innerHTML = n ? `<span class="count">${n}</span><b>${osob} z niespełnionymi prośbami</b><span class="hint">liczba dyżurów i dni „Chcę”</span>`
       : '<span class="count">✓</span><b>Wszystkie prośby spełnione</b><span class="hint">liczba dyżurów i dni „Chcę”</span>';
     const dd = (d) => `${d}.${String(m + 1).padStart(2, '0')}`;
     $('#want-gaps ul').innerHTML = !n ? '' : [...byPerson].map(([pid, g]) => `<li><b>${esc(nameOf[pid])}</b><span class="chips">` +
@@ -256,7 +249,6 @@ $('#generate').onclick = async () => {
   if (job.controller.signal.aborted) return;
   $('#generation-status').textContent = `Gotowe. Nieobsadzone: ${variants[0].score.unfilled}. Odchylenie od próśb: ${variants[0].score.wants}.`;
   const prev = Object.fromEntries(keys.map((k) => [k, state.schedule[k]]));
-  gapsMonth = `${job.y}-${job.m}`;
   const apply = (i) => update(() => Object.assign(state.schedule, variants[i].schedule));
   apply(0);
   $('#panel-variants').hidden = variants.length < 2;
@@ -455,7 +447,7 @@ $('main').onclick = (e) => {
   if (e.target.dataset.go) showTab(e.target.dataset.go);
   if (delRule) update(() => { state.rules = state.rules.filter((r) => r.id !== delRule); });
   // imię = tryb dostępności w kalendarzu; „Ustawienia” = okno osoby (po zamknięciu wraca poprzedni tryb, chyba że „Dostępność →”)
-  if (who) { view.who = view.who === who ? null : who; view.bad = false; back = e.target.closest('#summary') ? 'calendar' : 'people'; if (view.who) showTab('calendar'); render(); }
+  if (who) { view.who = view.who === who ? null : who; view.bad = false; back = 'people'; if (view.who) showTab('calendar'); render(); }
   if (edit) { prevWho = view.who; view.who = edit; view.bad = false; view.personTab = 'settings'; $('#person').returnValue = ''; $('#person-body').dataset.key = ''; $('#person').showModal(); render(); }
   if (delPerson && confirm(`Usunąć ${state.people.find((p) => p.id === delPerson).name}? Przeszłe dyżury zostaną w grafiku, przyszłe zostaną zwolnione.`)) update(() => {
     state.people.find((p) => p.id === delPerson).gone = true;
