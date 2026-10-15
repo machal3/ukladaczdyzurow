@@ -1,6 +1,5 @@
 -- Uruchom w Supabase: SQL Editor → wklej → Run (można puścić ponownie).
 -- Dostęp: PIN wpisywany w aplikacji, sprawdzany tutaj (tabele są niewidoczne z zewnątrz, tylko przez funkcje poniżej).
--- Zmiana PIN-u: update public.access set pin = '0000';
 
 create table if not exists public.dyzury (
   id int primary key default 1 check (id = 1), -- jeden wspólny grafik
@@ -13,35 +12,59 @@ drop function if exists public.is_editor();
 drop table if exists public.editors;
 
 create table if not exists public.access (pin text primary key);
-insert into public.access (pin) select '1122' where not exists (select 1 from public.access);
+delete from public.access where pin = '1122'; -- dawny domyślny PIN był jawny w repo
+-- Brak domyślnego PIN-u: po pierwszym uruchomieniu ustaw własny (min. 4 znaki):
+--   insert into public.access values ('4821');
+-- Zmiana PIN-u: update public.access set pin = '4821';
+alter table public.access drop constraint if exists pin_dlugi;
+alter table public.access add constraint pin_dlugi check (length(pin) >= 4);
+
+-- nieudane próby (do limitu)
+create table if not exists public.pin_fails (at timestamptz not null default now());
 
 alter table public.dyzury enable row level security; -- bez polityk: bezpośrednio niedostępne
 alter table public.access enable row level security;
-revoke all on public.dyzury, public.access from anon, authenticated;
+alter table public.pin_fails enable row level security;
+revoke all on public.dyzury, public.access, public.pin_fails from anon, authenticated;
 
--- ponytail: 4 cyfry da się zgadnąć; pg_sleep tylko spowalnia — dłuższy PIN albo limit prób w tabeli, jeśli to za mało
-create or replace function public.check_pin(p text) returns void
+-- Błędy są zwracane jako { error }, a nie przez raise — raise cofnąłby zapis nieudanej próby.
+drop function if exists public.load_state(text);
+drop function if exists public.save_state(text, jsonb);
+drop function if exists public.check_pin(text);
+
+-- Limit: 20 nieudanych prób na 15 minut dla wszystkich naraz; sprawdzanie po kolei (blokada), więc równoległe próby nie omijają limitu.
+-- 4 cyfry przy tym limicie: zgadnięcie średnio ~2,5 doby ciągłych prób.
+-- ponytail: limit wspólny — atakujący może na 15 min zablokować też prawowitych użytkowników; limit per IP, gdyby to się zdarzało
+create function public.check_pin(p text) returns text
 language plpgsql security definer set search_path = '' as $$
 begin
-  if not exists (select 1 from public.access where pin = p) then
-    perform pg_sleep(2);
-    raise exception 'Zły PIN';
+  perform pg_advisory_xact_lock(hashtext('check_pin'));
+  if (select count(*) from public.pin_fails where at > now() - interval '15 minutes') >= 20 then
+    return 'Za dużo nieudanych prób. Spróbuj za 15 minut.';
   end if;
+  if exists (select 1 from public.access where pin = p) then return null; end if;
+  delete from public.pin_fails where at < now() - interval '1 day';
+  insert into public.pin_fails default values;
+  perform pg_sleep(1);
+  return 'Zły PIN';
 end $$;
 
-create or replace function public.load_state(p text) returns jsonb
+create function public.load_state(p text) returns jsonb
 language plpgsql security definer set search_path = '' as $$
+declare err text := public.check_pin(p);
 begin
-  perform public.check_pin(p);
-  return (select data from public.dyzury where id = 1);
+  if err is not null then return jsonb_build_object('error', err); end if;
+  return jsonb_build_object('data', (select data from public.dyzury where id = 1));
 end $$;
 
-create or replace function public.save_state(p text, d jsonb) returns void
+create function public.save_state(p text, d jsonb) returns jsonb
 language plpgsql security definer set search_path = '' as $$
+declare err text := public.check_pin(p);
 begin
-  perform public.check_pin(p);
+  if err is not null then return jsonb_build_object('error', err); end if;
   insert into public.dyzury (id, data) values (1, d)
   on conflict (id) do update set data = excluded.data, updated_at = now();
+  return '{}';
 end $$;
 
 revoke execute on function public.check_pin(text), public.load_state(text), public.save_state(text, jsonb) from public;
