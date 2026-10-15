@@ -303,6 +303,7 @@ function checkSettings(people, limits, wants) {
 }
 
 const CAT = { '*': 'łącznie', we: 'Pt/So/Nd', d4: 'ten sam Pt', d5: 'ten sam So', d6: 'ten sam Nd' };
+const PHRASE = { '*': 'łącznie', we: 'w Pt/So/Nd', d4: 'w piątki', d5: 'w soboty', d6: 'w niedziele' }; // w zdaniu; miejsce → „na OITN”
 const DOW = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So', 'Nd'];
 
 // Czy osoba sama, bez innych, zmieści swoje minima: dostępność, ręczne wpisy, dzień po dniu, wolne po weekendowym OITN, limity.
@@ -362,9 +363,11 @@ function conflicts(model, y, m, shifts, people, locked, avail, limits, asDay = {
     for (const it of items) { const rest = core.filter((x) => x !== it); if (fits(rest) === false) core = rest; }
     const days = [...new Set(model.slots.filter((s) => availOf(avail, p.id, s.key) > 0 && (!isLocked(s) || isLocked(s) === p.id)).map((s) => s.d))];
     const dayName = (d) => { const w = limitDay(asDay, y, m, d); return w === weekday(y, m, d) ? (w >= 4 ? ` ${DOW[w]}` : '') : ` jak ${DOW[w]}`; };
-    out.push(`${p.name}: ${core.map(([t, k, n]) => `${t} ${label(k)} = ${n}`).join(', ')} — tego nie da się spełnić` +
-      (days.length <= 12 ? ` przy dostępnych dniach: ${days.map((d) => d + dayName(d)).join(', ')}` : '') +
-      ' (nikt nie dyżuruje dzień po dniu ani 2 dni po weekendowym OITN).');
+    const list = (t) => core.filter((x) => x[0] === t).map(([, k, n]) => `${n} ${PHRASE[k] ?? `na ${label(k)}`}`).join(', ');
+    const few = days.length <= 12; // przy ograniczonej dostępności liczą się też dni i odpoczynek
+    out.push(`${p.name}: minimum ${list('Min.')}${list('Limit') ? `, a limit ${list('Limit')}` : ''} — to się wyklucza` +
+      (few ? ` przy dostępnych dniach: ${days.map((d) => d + dayName(d)).join(', ')} (bez dyżuru dzień po dniu ani 2 dni po weekendowym OITN)` : '') +
+      `. Zmień jedno z tych pól${few ? ' albo dostępność' : ''} w Osoby → ${p.name} → Ustawienia (puste pole Limit = wartość domyślna, szara).`);
   }
   for (const k of new Set(model.slots.flatMap((s) => s.cats))) {
     const free = model.slots.filter((s) => s.cats.includes(k) && !isLocked(s)).length;

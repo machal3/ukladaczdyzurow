@@ -477,7 +477,13 @@ test('sprzeczność jednej osoby: wyjaśnienie wskazuje kolidujące ustawienia i
   const limits = { a: { we: 0, min: { '*': 4 } } };
   for (const generate of [generateMonth, generateVariants])
     assert.throws(() => generate(2026, 9, sh, people, {}, avail, limits, [], {}, {}, { asDay: { '2026-10-07': 6 } }),
-      /a: Limit Pt\/So\/Nd = 0, Min\. łącznie = 4 .*dniach: 5, 7 jak Nd, 10 So, 12/);
+      /a: minimum 4 łącznie, a limit 0 w Pt\/So\/Nd — to się wyklucza przy dostępnych dniach: 5, 7 jak Nd, 10 So, 12 .*albo dostępność w Osoby → a/);
+});
+
+test('sprzeczność bez ograniczonej dostępności: minima Pt + So + Nd ponad limit Pt/So/Nd, bez listy dni', () => {
+  const limits = { a: { we: 2, min: { d4: 1, d5: 1, d6: 1 } } };
+  assert.throws(() => generateVariants(2026, 9, [{ id: 's', name: 'S', days: all }], people, {}, {}, limits),
+    (e) => /a: minimum 1 w piątki, 1 w soboty, 1 w niedziele, a limit 2 w Pt\/So\/Nd — to się wyklucza\. Zmień jedno z tych pól w Osoby/.test(e.message) && !/dniach|OITN/.test(e.message));
 });
 
 test('sprzeczność sum: minima na miejscu przekraczają liczbę dyżurów', () => {
