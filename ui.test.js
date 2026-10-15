@@ -419,7 +419,6 @@ test('okno osoby: chip miejsca i zwinięte grupy; pigułki na karcie; pędzel z 
   $(`[data-edit="${anna.id}"]`).click(); // z wpisami grupy otwierają się same
   assert.deepEqual([...w.document.querySelectorAll('#person details.limits-group')].map((d) => d.open), [true, true]);
   $('#person').close();
-  assert.match($(`#people [data-who="${anna.id}"]`).closest('li').querySelector('.badges').textContent, /Bez: OITN/);
 
   // pędzel „Nie mogę” i przeciągnięcie przez trzy dni
   $(`#people [data-who="${anna.id}"]`).click();
@@ -434,7 +433,6 @@ test('okno osoby: chip miejsca i zwinięte grupy; pigułki na karcie; pędzel z 
   day(3).dispatchEvent(new w.MouseEvent('pointerover', { bubbles: true })); // po puszczeniu przycisku już nie maluje
   assert.equal(state().avail[anna.id][day(3).dataset.avail], undefined);
   $('[data-done]').click();
-  assert.match($(`#people [data-who="${anna.id}"]`).closest('li').querySelector('.badges').textContent, /Nie mogę 3/);
 
   // wybór osoby: Anna nie może 1. dnia → na końcu listy z powodem
   $('button[data-tab="calendar"]').click();

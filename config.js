@@ -3,4 +3,4 @@
 export const SUPABASE_URL = 'https://ibbewgaawhhmiaakgrre.supabase.co';
 export const SUPABASE_KEY = 'sb_publishable_p8lBdJHXB2wK83TpH7sbKA_O1Kb7s2D';
 // Adres aplikacji „Zapisy na dyżury” (osoby same wpisują dostępność i prośby). Puste = bez Zapisów w interfejsie.
-export const ZAPISY_URL = '';
+export const ZAPISY_URL = 'https://ukladaczdyzurowzapisy.vercel.app';
