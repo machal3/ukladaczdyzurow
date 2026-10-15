@@ -1,5 +1,5 @@
 // Jeden worker na próbę; anulowanie naprawdę przerywa obliczenia i zwalnia pamięć.
-export function runScheduler(args, { signal, onProgress = () => {}, timeoutMs = 12000, WorkerClass = globalThis.Worker } = {}) {
+export function runScheduler(args, { signal, onProgress = () => {}, timeoutMs = 30000, WorkerClass = globalThis.Worker } = {}) {
   return new Promise((resolve, reject) => {
     let worker, timer;
     let settled = false;

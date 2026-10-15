@@ -302,6 +302,201 @@ function checkSettings(people, limits, wants) {
   }
 }
 
+const CAT = { '*': 'łącznie', we: 'Pt/So/Nd', d4: 'ten sam Pt', d5: 'ten sam So', d6: 'ten sam Nd' };
+const DOW = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So', 'Nd'];
+
+// Czy osoba sama, bez innych, zmieści swoje minima: dostępność, ręczne wpisy, dzień po dniu, wolne po weekendowym OITN, limity.
+// lim/min = { kategoria: n }. Zwraca true / false (dowód) / null (przekroczony budżet — nie wiadomo).
+function personFits(model, avail, locked, pid, lim, min) {
+  const D = Math.max(0, ...model.slots.map((s) => s.d));
+  const opts = Array.from({ length: D + 2 }, () => []), forced = [];
+  for (const s of model.slots) {
+    const who = locked[s.key]?.[s.sid];
+    if (who === pid) forced[s.d] = s;
+    else if (!who && availOf(avail, pid, s.key) > 0) opts[s.d].push(s);
+  }
+  for (let d = 1; d <= D; d++) if (forced[d]) opts[d] = [forced[d]];
+  const keys = [...new Set([...Object.keys(lim), ...Object.keys(min)])];
+  const cap = keys.map((k) => lim[k] ?? min[k]);
+  const daysWith = keys.map((k) => opts.map((o) => o.some((s) => s.cats.includes(k))));
+  const memo = new Set();
+  let nodes = 0;
+  const rec = (d, blocked, blockedNext, cnt) => {
+    if (d > D) return keys.every((k, i) => cnt[i] >= (min[k] ?? 0));
+    const id = `${d}|${+blocked}${+blockedNext}|${cnt}`;
+    if (memo.has(id)) return false;
+    if (++nodes > 200000) throw 'budget';
+    // górne oszacowanie: ile jeszcze dni bez dnia po dniu zostało na każde minimum
+    for (let i = 0; i < keys.length; i++) {
+      let need = (min[keys[i]] ?? 0) - cnt[i];
+      for (let e = blocked ? d + 1 : d; need > 0 && e <= D; e++) if (daysWith[i][e]) { need--; e++; }
+      if (need > 0) { memo.add(id); return false; }
+    }
+    if (!blocked) for (const s of opts[d]) {
+      const next = cnt.map((n, i) => (s.cats.includes(keys[i]) ? Math.min(n + 1, cap[i]) : n));
+      if (keys.some((k, i) => s.cats.includes(k) && cnt[i] + 1 > (lim[k] ?? Infinity))) continue;
+      if (rec(d + 1, true, !!s.beforeRest, next)) return true;
+    }
+    if (!forced[d] && rec(d + 1, blockedNext, false, cnt)) return true;
+    memo.add(id);
+    return false;
+  };
+  try { return rec(1, false, false, keys.map(() => 0)); } catch (e) { if (e === 'budget') return null; throw e; }
+}
+
+// Dowody sprzeczności (bez szukania całego grafiku): każda osoba z osobna i sumy minimów na każdą kategorię.
+// Zwraca listę zdań po polsku; pusta = nie znaleziono sprzeczności (co nie dowodzi, że grafik istnieje).
+function conflicts(model, y, m, shifts, people, locked, avail, limits, asDay = {}) {
+  const out = [];
+  const label = (k) => CAT[k] ?? shifts.find((s) => s.id === k)?.name ?? k;
+  const isLocked = (s) => locked[s.key]?.[s.sid];
+  for (const p of people) {
+    const l = limits[p.id] || {};
+    const items = [...Object.entries(l).filter(([k, n]) => k !== 'min' && Number.isFinite(n)).map(([k, n]) => ['Limit', k, n]),
+      ...Object.entries(l.min || {}).filter(([, n]) => n > 0).map(([k, n]) => ['Min.', k, n])];
+    const fits = (list) => personFits(model, avail, locked, p.id,
+      Object.fromEntries(list.filter((x) => x[0] === 'Limit').map((x) => [x[1], x[2]])),
+      Object.fromEntries(list.filter((x) => x[0] === 'Min.').map((x) => [x[1], x[2]])));
+    if (fits(items) !== false) continue;
+    let core = items; // najmniejszy zestaw ustawień, który nadal się wyklucza
+    for (const it of items) { const rest = core.filter((x) => x !== it); if (fits(rest) === false) core = rest; }
+    const days = [...new Set(model.slots.filter((s) => availOf(avail, p.id, s.key) > 0 && (!isLocked(s) || isLocked(s) === p.id)).map((s) => s.d))];
+    const dayName = (d) => { const w = limitDay(asDay, y, m, d); return w === weekday(y, m, d) ? (w >= 4 ? ` ${DOW[w]}` : '') : ` jak ${DOW[w]}`; };
+    out.push(`${p.name}: ${core.map(([t, k, n]) => `${t} ${label(k)} = ${n}`).join(', ')} — tego nie da się spełnić` +
+      (days.length <= 12 ? ` przy dostępnych dniach: ${days.map((d) => d + dayName(d)).join(', ')}` : '') +
+      ' (nikt nie dyżuruje dzień po dniu ani 2 dni po weekendowym OITN).');
+  }
+  for (const k of new Set(model.slots.flatMap((s) => s.cats))) {
+    const free = model.slots.filter((s) => s.cats.includes(k) && !isLocked(s)).length;
+    const own = (pid) => model.slots.filter((s) => s.cats.includes(k) && isLocked(s) === pid).length;
+    const need = people.reduce((n, p) => n + Math.max(0, (limits[p.id]?.min?.[k] ?? 0) - own(p.id)), 0);
+    if (need > free) out.push(`Minima „${label(k)}” wszystkich osób razem: ${need}, a wolnych dyżurów w tej kategorii jest tylko ${free}.`);
+  }
+  const res = people.filter(isResident);
+  const resDays = new Set(model.slots.map((s) => s.d)).size - new Set(model.slots.filter((s) => res.some((p) => isLocked(s) === p.id)).map((s) => s.d)).size;
+  const resNeed = res.reduce((n, p) => n + Math.max(0, (limits[p.id]?.min?.['*'] ?? 0) - model.slots.filter((s) => isLocked(s) === p.id).length), 0);
+  if (resNeed > resDays) out.push(`Minima rezydentów razem: ${resNeed}, a dni (maks. jeden rezydent dziennie) zostało ${resDays}.`);
+  return out;
+}
+
+// Wyżarzanie całego miesiąca naraz: kara za każde złamanie twardej zasady (×3) i każde puste miejsce (×1).
+// Zwraca grafik bez łamania zasad (model.valid) z najmniejszą liczbą pustych miejsc albo null.
+// shortcut: koszt osoby/dnia przeliczany z tablic przy każdym ruchu (O(dni)); wystarcza do kilkunastu miejsc × 31 dni, większe → liczenie przyrostowe.
+function anneal(model, people, locked, limits, rules, { deadline, now = () => performance.now(), rand = Math.random, start = {} }) {
+  const { slots } = model;
+  const D = Math.max(0, ...slots.map((s) => s.d)), W = D + 3;
+  const N = people.length, ix = Object.fromEntries(people.map((p, i) => [p.id, i]));
+  const cats = [...new Set(slots.flatMap((s) => s.cats))], C = cats.length;
+  const lim = people.flatMap((p) => cats.map((c) => limits[p.id]?.[c] ?? Infinity));
+  const min = people.flatMap((p) => cats.map((c) => limits[p.id]?.min?.[c] ?? 0));
+  const pres = people.map((p) => p.prestige ?? 2), res = people.map(isResident);
+  const sc = slots.map((s) => s.cats.map((c) => cats.indexOf(c)));
+  const cand = slots.map((s) => s.candidates.map((pid) => ix[pid]).filter((i) => i !== undefined));
+  const ok = slots.map((s, i) => { const a = new Uint8Array(N); for (const p of cand[i]) a[p] = 1; return a; });
+  const cap = new Int8Array(W), daySlots = Array.from({ length: W }, () => []);
+  slots.forEach((s, i) => { cap[s.d]++; daySlots[s.d].push(i); });
+  const w = new Int8Array(N * W), oi = new Int8Array(N * W), cnt = new Int16Array(N * C);
+  const dRes = new Int8Array(W), dPres = new Int16Array(W), fill = new Int8Array(W);
+  const a = new Int16Array(slots.length).fill(-1);
+  const put = (i, p, sign) => {
+    const s = slots[i];
+    if (p === -2) { dPres[s.d] += 2 * sign; fill[s.d] += sign; return; } // ręczny wpis usuniętej osoby
+    if (p < 0) return;
+    w[p * W + s.d] += sign; if (s.beforeRest) oi[p * W + s.d] += sign;
+    for (const c of sc[i]) cnt[p * C + c] += sign;
+    dRes[s.d] += res[p] * sign; dPres[s.d] += pres[p] * sign; fill[s.d] += sign;
+  };
+  const pc = (p) => {
+    if (p < 0) return 0;
+    let v = 0;
+    for (let d = 1, o = p * W; d <= D; d++) {
+      const x = w[o + d];
+      if (x > 1) v += x - 1;
+      if (x && w[o + d + 1]) v++;
+      if (oi[o + d] && w[o + d + 2]) v++;
+    }
+    for (let c = 0, o = p * C; c < C; c++) { const n = cnt[o + c]; if (n > lim[o + c]) v += n - lim[o + c]; else if (n < min[o + c]) v += min[o + c] - n; }
+    return 3 * v;
+  };
+  const dc = (d) => {
+    let v = Math.max(0, dRes[d] - 1);
+    if (fill[d] === cap[d] && cap[d] * 2 >= MIN_PRESTIGE && dPres[d] < MIN_PRESTIGE) v += MIN_PRESTIGE - dPres[d];
+    if (rules.length) {
+      const day = {};
+      for (const i of daySlots[d]) if (a[i] >= 0) day[slots[i].sid] = people[a[i]].id;
+      for (const [sid, pid] of Object.entries(day)) v += breaksRule(rules, day, pid, sid);
+    }
+    return 3 * v + cap[d] - fill[d];
+  };
+  const movable = [];
+  slots.forEach((s, i) => {
+    const who = locked[s.key]?.[s.sid];
+    if (who) a[i] = ix[who] ?? -2;
+    else { movable.push(i); const p = ix[start[s.key]?.[s.sid]]; if (p !== undefined && ok[i][p]) a[i] = p; }
+    put(i, a[i], 1);
+  });
+  if (!movable.length) return null;
+  let cost = 0;
+  for (let p = 0; p < N; p++) cost += pc(p);
+  for (let d = 1; d <= D; d++) cost += dc(d);
+  const floor = movable.filter((i) => !cand[i].length).length; // tych miejsc nikt nie może wziąć
+  let best = cost, bestA = a.slice();
+  const pick = (n) => Math.floor(rand() * n);
+  for (let it = 0, T = 2; best > floor; it++) {
+    if ((it & 1023) === 0) { if (now() >= deadline) break; }
+    T = it % 30000 === 0 ? 2 : T * 0.9998; // cykle schładzania z ponownym podgrzaniem
+    const i = movable[pick(movable.length)], di = slots[i].d, q = a[i];
+    let j = -1, p;
+    if (rand() < 0.3) { // zamiana z innym miejscem
+      j = movable[pick(movable.length)];
+      p = a[j];
+      if (j === i || p === q || (p >= 0 && !ok[i][p]) || (q >= 0 && !ok[j][q])) continue;
+    } else {
+      const k = pick(cand[i].length + 1);
+      p = k < cand[i].length ? cand[i][k] : -1;
+      if (p === q) continue;
+    }
+    const dj = j < 0 ? di : slots[j].d;
+    const before = pc(q) + pc(p) + dc(di) + (dj !== di ? dc(dj) : 0);
+    put(i, q, -1); put(i, p, 1); a[i] = p;
+    if (j >= 0) { put(j, p, -1); put(j, q, 1); a[j] = q; }
+    const delta = pc(q) + pc(p) + dc(di) + (dj !== di ? dc(dj) : 0) - before;
+    if (delta <= 0 || rand() < Math.exp(-delta / T)) {
+      cost += delta;
+      if (cost < best) { best = cost; bestA = a.slice(); }
+    } else {
+      put(i, p, -1); put(i, q, 1); a[i] = q;
+      if (j >= 0) { put(j, q, -1); put(j, p, 1); a[j] = p; }
+    }
+  }
+  const schedule = Object.fromEntries([...new Set(slots.map((s) => s.key))].map((key) => [key, { ...locked[key] }]));
+  for (const i of movable) if (bestA[i] >= 0) schedule[slots[i].key][slots[i].sid] = people[bestA[i]].id;
+  return model.valid(schedule) ? schedule : null;
+}
+
+// Sprzeczności → błąd z wyjaśnieniem; inaczej wyżarzanie, a gdy i ono nie znajdzie — próby bez minimów pojedynczych osób, żeby wskazać, gdzie szukać.
+function solveOrExplain(y, m, shifts, people, locked, avail, limits, rules, asDay, model, seed, { deadline, now = () => performance.now(), rand = Math.random, progress = () => {} }) {
+  const found = conflicts(model, y, m, shifts, people, locked, avail, limits, asDay);
+  if (found.length) throw new Error(`Nie znaleziono grafiku — ustawienia są sprzeczne:\n• ${found.join('\n• ')}`);
+  progress('Szukam grafiku spełniającego wszystkie minima…');
+  const start = now();
+  const solved = anneal(model, people, locked, limits, rules, { deadline: start + (deadline - start) * 0.7, now, rand, start: seed });
+  if (solved) return solved;
+  progress('Nie wychodzi — sprawdzam, czyje minima blokują grafik…');
+  const blockers = [];
+  const withMins = people.filter((p) => Object.values(limits[p.id]?.min || {}).some((n) => n > 0));
+  for (const [i, p] of withMins.entries()) {
+    const left = deadline - now();
+    if (left <= 0) break;
+    const relaxed = { ...limits, [p.id]: { ...limits[p.id], min: {} } };
+    if (anneal(constraints(y, m, shifts, people, avail, relaxed, rules, asDay), people, locked, relaxed, rules,
+      { deadline: now() + left / (withMins.length - i), now, rand, start: seed })) blockers.push(p.name);
+  }
+  throw new Error('Nie znaleziono grafiku spełniającego wszystkie limity dolne i górne. Nie wykryłem prostej sprzeczności (każda osoba z osobna i sumy minimów są w porządku), ' +
+    (blockers.length ? `ale grafik daje się ułożyć po zdjęciu minimów jednej z osób: ${blockers.join(', ')}. Tam szukaj konfliktu (np. te same wolne dni co inni, rezydenci, punkty prestiżu).`
+      : 'a zdjęcie minimów pojedynczej osoby nie wystarcza. Zmniejsz kilka minimów albo ponów próbę.'));
+}
+
 // Cofanie decyzji, najpierw miejsca z najmniejszą liczbą kandydatów.
 // Ograniczony budżet: nieudane wyszukiwanie nie oznacza dowodu niewykonalności.
 function searchMonth(model, people, locked, limits, wants, seed, allowEmpty, { budget = 12000, deadline = performance.now() + 1800, now = () => performance.now() } = {}) {
@@ -354,9 +549,7 @@ export function generateMonth(y, m, shifts, people, locked = {}, avail = {}, lim
   if (!model.valid(locked, false)) throw new Error('Ręczne wpisy łamią twarde zasady lub limity. Popraw je przed układaniem.');
   const seed = greedyMonth(y, m, shifts, people, locked, avail, limits, rules, bad, wants, options);
   if (model.valid(seed)) return seed;
-  const solved = searchMonth(model, people, locked, limits, wants, seed, false) || searchMonth(model, people, locked, limits, wants, seed, true);
-  if (!solved) throw new Error('Nie znaleziono grafiku spełniającego wszystkie limity dolne i górne. Sprawdź dostępność, minima i ręczne wpisy lub ponów próbę.');
-  return solved;
+  return solveOrExplain(y, m, shifts, people, locked, avail, limits, rules, options.asDay, model, seed, { deadline: performance.now() + 3000, rand: options.rand });
 }
 
 // Twarde warunki są filtrem, następnie obsada i dokładność próśb.
@@ -365,7 +558,7 @@ export function generateVariants(y, m, shifts, people, locked = {}, avail = {}, 
   { order = PRIORITY_ORDER, asDay = {}, tries = 200, keep = 3, rand = Math.random, timeBudgetMs = 4500,
     onProgress = () => {}, now = () => performance.now() } = {}) {
   const started = now();
-  const duration = Number.isFinite(timeBudgetMs) ? Math.max(20, Math.min(10000, timeBudgetMs)) : 4500;
+  const duration = Number.isFinite(timeBudgetMs) ? Math.max(20, Math.min(20000, timeBudgetMs)) : 4500;
   const deadline = started + duration;
   const progress = (message) => onProgress({ message });
   progress('Tworzę propozycje grafiku…');
@@ -391,10 +584,9 @@ export function generateVariants(y, m, shifts, people, locked = {}, avail = {}, 
   }
   const cmp = (a, b) => { const ka = key(a.score), kb = key(b.score); return ka.reduce((r, v, i) => r || v - kb[i], 0); };
   progress('Sprawdzam limity i szukam obsady trudnych terminów…');
-  if (!seen.size || [...seen.values()].every((v) => v.score.unfilled))
-    add(searchMonth(model, people, locked, limits, wants, seed, false, { deadline: started + duration * 0.55, now }));
-  if (!seen.size) add(searchMonth(model, people, locked, limits, wants, seed, true, { deadline: started + duration * 0.8, now }));
-  if (!seen.size) throw new Error('Nie znaleziono grafiku spełniającego wszystkie limity dolne i górne. Sprawdź dostępność, minima i ręczne wpisy lub ponów próbę.');
+  if (!seen.size) add(solveOrExplain(y, m, shifts, people, locked, avail, limits, rules, asDay, model, seed, { deadline: started + duration * 0.8, now, rand, progress }));
+  else if ([...seen.values()].every((v) => v.score.unfilled))
+    add(anneal(model, people, locked, limits, rules, { deadline: started + duration * 0.55, now, rand, start: seed }));
   // Naprawa całego miesiąca: zmiana osoby oraz zamiana dwóch przydziałów,
   // także między miejscami i dniami. Każdy ruch zachowuje wszystkie twarde zasady.
   let best = [...seen.values()].sort(cmp)[0];

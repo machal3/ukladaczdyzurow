@@ -469,3 +469,37 @@ test('dzień liczony jak inny dzień tygodnia: limity Nd obowiązują w środę 
   assert.equal(scoreMonth(2026, 9, two, shifts, people).weDow, 0);
   assert.equal(scoreMonth(2026, 9, two, shifts, people, {}, {}, {}, {}, asDay).weDow, 1);
 });
+
+test('sprzeczność jednej osoby: wyjaśnienie wskazuje kolidujące ustawienia i dostępne dni', () => {
+  const sh = [{ id: 's', name: 'S', days: all }];
+  const free = [5, 7, 10, 12]; // Pn, Śr, So, Pn
+  const avail = { a: Object.fromEntries(Array.from({ length: 31 }, (_, i) => [dateKey(2026, 9, i + 1), free.includes(i + 1) ? 2 : 0])) };
+  const limits = { a: { we: 0, min: { '*': 4 } } };
+  for (const generate of [generateMonth, generateVariants])
+    assert.throws(() => generate(2026, 9, sh, people, {}, avail, limits, [], {}, {}, { asDay: { '2026-10-07': 6 } }),
+      /a: Limit Pt\/So\/Nd = 0, Min\. łącznie = 4 .*dniach: 5, 7 jak Nd, 10 So, 12/);
+});
+
+test('sprzeczność sum: minima na miejscu przekraczają liczbę dyżurów', () => {
+  const sh = [{ id: 'o', name: 'OITN', days: [0] }]; // październik 2026: 4 poniedziałki
+  assert.throws(() => generateVariants(2026, 9, sh, people, {}, {}, { a: { min: { o: 2 } }, b: { min: { o: 2 } }, c: { min: { o: 1 } } }),
+    /Minima „OITN” wszystkich osób razem: 5, a wolnych dyżurów w tej kategorii jest tylko 4/);
+});
+
+test('konflikt między osobami: wskazuje, czyje minima blokują grafik', () => {
+  const sh = [{ id: 's', name: 'S', days: [0] }];
+  const only = Object.fromEntries(Array.from({ length: 31 }, (_, i) => [dateKey(2026, 9, i + 1), [5, 12].includes(i + 1) ? 2 : 0]));
+  assert.throws(() => generateVariants(2026, 9, sh, people.slice(0, 2), {}, { a: only, b: only }, { a: { min: { '*': 2 } }, b: { min: { '*': 2 } } }, [], {}, {}, { timeBudgetMs: 300 }),
+    /po zdjęciu minimów jednej z osób: a, b/);
+});
+
+test('ciasne minima (suma = liczba miejsc) układa wyżarzanie, gdy zachłanny nie daje rady', () => {
+  const ppl = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].map((id, i) => ({ id, name: id, prestige: 1 + (i % 2) }));
+  let r = 7;
+  const rnd = () => (r = (r * 16807) % 2147483647) / 2147483647;
+  const avail = Object.fromEntries(ppl.map((p) => [p.id, Object.fromEntries(Array.from({ length: 31 }, (_, i) => [dateKey(2026, 9, i + 1), rnd() < 0.3 ? 0 : 2]))]));
+  const limits = Object.fromEntries(ppl.map((p, i) => [p.id, { '*': i < 6 ? 8 : 7, min: { '*': i < 6 ? 8 : 7 } }]));
+  const [best] = generateVariants(2026, 9, shifts, ppl, {}, avail, limits, [], {}, {}, { timeBudgetMs: 4000, rand: rnd });
+  assert.equal(best.score.min, 0);
+  assert.equal(best.score.unfilled, 0);
+});
