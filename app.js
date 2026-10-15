@@ -193,10 +193,14 @@ function render() {
     const byPerson = new Map(Object.keys(wish).map((pid) => [pid, []]));
     for (const g of gaps) byPerson.set(g.pid, [...(byPerson.get(g.pid) ?? []), g]);
     const n = byPerson.size, osob = n === 1 ? 'osoba' : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? 'osoby' : 'osób';
-    $('#want-gaps summary').textContent = n ? `Niespełnione prośby: ${n} ${osob} — pokaż` : 'Wszystkie prośby spełnione (liczba dyżurów i dni „Chcę”).';
-    $('#want-gaps ul').innerHTML = [...byPerson].map(([pid, g]) => `<li><b>${esc(nameOf[pid])}</b>: ` +
-      [...g.map((x) => `${label(x.k)} ${x.got} zamiast ${x.want}`),
-        ...(wish[pid] ? [`„Chcę” bez dyżuru: ${wish[pid].map((d) => `${d}.${String(m + 1).padStart(2, '0')}`).join(', ')}`] : [])].join(', ') + '</li>').join('');
+    $('#want-gaps').classList.toggle('all-ok', !n);
+    $('#want-gaps summary').innerHTML = n ? `<span class="count">${n}</span><b>${osob} z niespełnionymi prośbami</b><span class="hint">liczba dyżurów i dni „Chcę”</span>`
+      : '<span class="count">✓</span><b>Wszystkie prośby spełnione</b><span class="hint">liczba dyżurów i dni „Chcę”</span>';
+    const dd = (d) => `${d}.${String(m + 1).padStart(2, '0')}`;
+    $('#want-gaps ul').innerHTML = !n ? '' : [...byPerson].map(([pid, g]) => `<li><b>${esc(nameOf[pid])}</b><span class="chips">` +
+      g.map((x) => `<span class="${x.got < x.want ? 'lvl-0' : 'lvl-1'}" title="${esc(label(x.k))}: dostał(a) ${x.got}, prosił(a) o ${x.want}">${esc(label(x.k))} <b>${x.got}</b> / ${x.want} ${x.got < x.want ? '↓' : '↑'}</span>`).join('') +
+      (wish[pid] ? `<span class="lvl-3" title="Dni „Chcę”, w które ta osoba nie ma dyżuru">„Chcę”: ${wish[pid].map(dd).join(', ')}</span>` : '') + '</span></li>').join('') +
+      '<li class="legend"><span class="lvl-0">↓ za mało</span><span class="lvl-1">↑ za dużo</span><span class="lvl-3">„Chcę” bez dyżuru</span><span>liczby: dostał / prosił</span></li>';
   }
   $('#bad-mode').setAttribute('aria-pressed', view.bad);
 }
