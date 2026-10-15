@@ -81,6 +81,7 @@ h1 { font: var(--type-display); letter-spacing: -.025em; text-wrap: balance; }
 #generate:enabled:hover { background: var(--md-sys-color-primary-container); }
 #status { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin: 0 0 20px; padding: 14px 20px; border-radius: 20px; background: var(--md-sys-color-surface-container); color: var(--muted); font-size: 13px; }
 #status:empty { display: none; }
+#status.pinned { position: sticky; top: var(--head, 112px); z-index: 8; box-shadow: 0 0 0 8px var(--page); }
 #generation-status { margin: 0 0 16px; color: var(--muted); font-size: 14px; }
 #generation-status:empty { display: none; }
 #want-gaps { margin: 0 0 20px; padding: 16px; background: var(--md-sys-color-surface-container); border-radius: var(--shape-card); }
@@ -150,13 +151,14 @@ main > :is(section, article), .board { animation: appear 350ms var(--motion); }
 .slot.unfilled { background: transparent; }
 .cell:is(.burden-1, .burden-2, .burden-3) .slot:not(.clash) { background: var(--md-sys-color-surface-container); }
 .slot.unfilled .slot-name { color: var(--muted); font-weight: 400; }
-/* kropka przed imieniem = dostępność osoby tego dnia, kolory jak pigułki poziomów (Muszę/Chcę = akcent mocny/słaby) */
-.pref { display: inline-block; width: 7px; height: 7px; margin: 0 6px 1px 0; border-radius: 50%; vertical-align: middle; }
-.pref-0 { background: var(--warn); }
-.pref-1 { background: light-dark(#c77700, #ffb951); }
-.pref-2 { background: color-mix(in srgb, var(--muted) 45%, transparent); }
-.pref-3 { background: color-mix(in srgb, var(--strong) 50%, transparent); }
-.pref-4 { background: var(--strong); }
+/* kropka przed imieniem = dostępność osoby tego dnia; różni się kolorem i wypełnieniem (czytelne też bez kolorów):
+   Mogę = pusty pierścień, Chcę = gruby pierścień, Muszę = pełna, W ostateczności = do połowy, Nie mogę = przekreślony pierścień */
+.avail-dot { --c: var(--strong); display: inline-block; box-sizing: border-box; width: 10px; height: 10px; margin: 0 6px 2px 0; border: 1.5px solid var(--c); border-radius: 50%; vertical-align: middle; }
+.avail-dot-0 { --c: var(--warn); background: linear-gradient(-45deg, transparent 40%, var(--c) 40% 60%, transparent 60%); }
+.avail-dot-1 { --c: light-dark(#b86e00, #ffb951); background: linear-gradient(to top, var(--c) 50%, transparent 50%); }
+.avail-dot-2 { --c: color-mix(in srgb, var(--muted) 60%, transparent); }
+.avail-dot-3 { border-width: 3px; } /* ramka w środku rozmiaru (border-box) — koło tej samej wielkości */
+.avail-dot-4 { background: var(--c); }
 .slot.unfilled .slot-name::before { content: '+ '; color: var(--strong); }
 .slot.unfilled input::placeholder { color: var(--muted); }
 .slot.manual::after { position: absolute; right: 10px; top: 15px; }
@@ -298,6 +300,7 @@ dialog menu { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8p
 #person[open] { display: flex; flex-direction: column; overflow: hidden; padding: 0; height: min(760px, calc(100dvh - 48px)); -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 #person form { flex: 1; min-height: 0; gap: 0; }
 #person input { -webkit-user-select: text; user-select: text; }
+#person[open] { width: min(620px, calc(100vw - 32px)); }
 #person-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 4px 28px; }
 #person :is(input:not([role=switch]), select):focus-visible, #person .filled-select:focus-within select { outline: 2px solid var(--strong); outline-offset: -2px; } /* obrys wewnątrz pola, bez poświaty */
 .person-head { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; padding: 24px 28px 16px; }
@@ -306,8 +309,11 @@ dialog menu { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8p
 button.outlined { display: inline-flex; align-items: center; gap: 8px; padding: 10px 24px 10px 16px; background: transparent; color: var(--md-sys-color-primary); border: 1px solid var(--md-sys-color-outline); } /* MD3 outlined button z ikoną */
 button.outlined svg { width: 18px; height: 18px; }
 #person menu { padding: 16px 28px 24px; border-top: 1px solid var(--md-sys-color-outline-variant); }
-.person-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 24px; align-items: start; margin-bottom: 16px; }
+.person-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; margin-bottom: 16px; }
 .person-grid section { background: var(--md-sys-color-surface-container-low); border-radius: 20px; padding: 20px; min-width: 0; }
+.card-head { margin-bottom: 8px; }
+.card-head h4 { margin: 0; }
+.card-head p { margin: 2px 0 0; font-size: 12px; color: var(--muted); }
 .field { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; font-size: 13px; }
 .field small { display: block; font-size: 11px; color: var(--muted); }
 .filled-select { position: relative; display: flex !important; flex-direction: column; align-items: stretch; gap: 4px; padding: 8px 0; }
@@ -316,25 +322,35 @@ button.outlined svg { width: 18px; height: 18px; }
 .filled-select select { width: 100%; padding-top: 30px; padding-bottom: 8px; }
 .filled-select:has(small) select { padding-top: 46px; }
 .rule-form .filled-select select { padding: 14px 16px; }
+/* stałe kolumny liczb: Min. / Limit / Prośba wyrównane we wszystkich tabelach okna i nagłówek nad polem */
 .counts { width: 100%; border-collapse: separate; border-spacing: 0 6px; font-size: 13px; }
 .counts :is(th, td) { padding: 4px; text-align: right; font-weight: 400; }
+#person .counts { table-layout: fixed; }
+#person .counts :is(th, td) { text-align: center; }
+#person .counts tr > :not(:first-child) { width: 76px; }
 .counts th[scope=row], .counts .sub th { padding-left: 0; text-align: left; }
 .counts thead { font-size: 11px; color: var(--muted); }
-.counts .sub th { padding-top: 16px; color: var(--muted); }
-.counts input[type=number] { width: 60px; min-height: 44px; padding: 8px; text-align: center; }
-.person-grid .hint { margin-top: 16px; }
+#person .counts thead th { font-size: 12px; font-weight: 600; color: var(--text); }
+#person .counts thead small { display: block; font-size: 10px; font-weight: 400; color: var(--muted); }
+#person .counts th[scope=row], #person .counts .sub th { text-align: left; }
+#person .counts th[scope=row] { font-weight: 500; overflow-wrap: anywhere; }
+.counts .sub th { padding-top: 16px; color: var(--muted); font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: .04em; }
+#person .counts input[type=number] { width: 100%; max-width: 64px; min-height: 44px; padding: 8px; text-align: center; }
+.person-grid .hint { margin: 16px 0 0; font-size: 12px; line-height: 1.5; }
 /* Okno osoby: chipy miejsc (wykluczone = przekreślone) i zwijane grupy rzadszych limitów */
-.place-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0 12px; font-size: 13px; }
-.place-chips > span { margin-right: 4px; color: var(--muted); }
-.place-chips .chip { min-height: 32px; }
+.place-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; font-size: 13px; }
+.place-chips .chip { min-height: 36px; }
 .place-chips .chip[aria-pressed=false] span { text-decoration: line-through; }
 .limits-group { margin-top: 8px; border-radius: 16px; background: var(--md-sys-color-surface-container); }
+.limits-group summary > span:first-child { display: flex; flex-direction: column; }
+.limits-group summary small { font-size: 11px; font-weight: 400; color: var(--muted); }
 .limits-group summary { display: flex; align-items: center; gap: 8px; min-height: 48px; padding: 8px 12px 8px 16px; border-radius: 16px; list-style: none; cursor: pointer; font-size: 13px; font-weight: 500; }
 .limits-group summary::-webkit-details-marker { display: none; }
-.limits-group summary .hint { margin-left: auto; text-align: right; }
+.limits-group summary .chev { margin-left: auto; }
 @media (hover: hover) { .limits-group summary:hover { background: color-mix(in srgb, var(--text) 6%, transparent); } }
 .limits-group summary:focus-visible { outline: 3px solid var(--strong); outline-offset: 2px; }
-.limits-group .counts { padding: 0 12px 8px 16px; }
+.limits-group .counts { padding: 0 0 8px 16px; } /* bez prawego wcięcia: kolumny w jednej linii z tabelą nad grupami */
+.limits-group .counts thead { display: none; } /* nagłówek kolumn jest w tabeli nad grupami */
 .file { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; font-size: 14px; padding: 20px; background: var(--md-sys-color-surface-container-low); border-radius: 20px; }
 .file input { max-width: 100%; }
 ::file-selector-button { border: 0; border-radius: 999px; padding: 10px 18px; margin-right: 12px; background: var(--accent-soft); color: var(--md-sys-color-on-primary-container); cursor: pointer; }
@@ -553,9 +569,9 @@ body:has(.login) { padding: 24px; min-height: 100dvh; display: grid; place-items
   .person-head { padding: max(12px, env(safe-area-inset-top)) 16px 12px; }
   #person-body { padding-inline: 16px; }
   #person menu { padding: 12px 16px max(12px, env(safe-area-inset-bottom)); }
-  .person-grid { grid-template-columns: 1fr; gap: 16px; }
   .person-grid section { padding: 16px; }
-  .counts input[type=number] { font-size: 16px; width: 52px; padding-inline: 4px; }
+  .counts input[type=number] { font-size: 16px; padding-inline: 4px; }
+  #person .counts tr > :not(:first-child) { width: 60px; }
   .map { grid-template-columns: 1fr; }
   .map select { margin-bottom: 8px; }
   .help { padding: 24px 16px; overflow-wrap: anywhere; }

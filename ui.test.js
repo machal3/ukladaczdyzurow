@@ -157,7 +157,7 @@ test('wpis ręczny z klawiatury pozostaje po generowaniu miesiąca', async (t) =
   assert.equal(state().schedule[key][shift], person);
   // kropka przed imieniem = dostępność tego dnia (tu wszyscy domyślnie „Mogę”)
   const filled = [...w.document.querySelectorAll('#calendar .slot:not(.unfilled)')];
-  assert.ok(filled.length && filled.every((slot) => slot.querySelector('.slot-name .pref.pref-2') && / — Mogę/.test(slot.title)));
+  assert.ok(filled.length && filled.every((slot) => slot.querySelector('.slot-name .avail-dot.avail-dot-2') && / — Mogę/.test(slot.title)));
 });
 
 test('dostępność i import tabeli działają po zmianie struktury formularzy', async (t) => {
@@ -295,7 +295,6 @@ test('okno osoby: chip miejsca i zwinięte grupy; pigułki na karcie; pędzel z 
   $('#person').close();
   $(`[data-edit="${anna.id}"]`).click(); // z wpisami grupy otwierają się same
   assert.deepEqual([...w.document.querySelectorAll('#person details.limits-group')].map((d) => d.open), [true, true]);
-  assert.match($('[data-group-status="we"]').textContent, /własne/);
   $('#person').close();
   assert.match($(`#people [data-who="${anna.id}"]`).closest('li').querySelector('.badges').textContent, /Bez: OITN/);
 

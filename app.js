@@ -110,7 +110,7 @@ function render() {
       const pref = pid ? ` — ${LEVELS[availOf(state.avail, pid, key)]}` : ''; // dostępność osoby tego dnia: kropka przed imieniem
       return `<label class="slot ${pid ? '' : 'unfilled'} ${manual} ${clash}" title="${esc(s.name)}${pid ? ` — ${esc(nameOf[pid])}${pref}` : ' — wybierz osobę'}${manual && ' — wpisany ręcznie'}${why}">
         <span class="slot-label">${esc(s.name)}</span>
-        <span class="slot-name" aria-hidden="true">${pid ? `<i class="pref pref-${availOf(state.avail, pid, key)}"></i>${esc(nameOf[pid])}` : 'Wybierz osobę'}</span>
+        <span class="slot-name" aria-hidden="true">${pid ? `<i class="avail-dot avail-dot-${availOf(state.avail, pid, key)}"></i>${esc(nameOf[pid])}` : 'Wybierz osobę'}</span>
         <input data-key="${key}" data-shift="${s.id}" value="${pid ? esc(nameOf[pid]) : ''}" placeholder="—" autocomplete="off" role="combobox" aria-controls="picker" aria-label="${esc(s.name)}, ${d} ${monthName}${pref}">
       </label>`;
     }).join('');
@@ -157,30 +157,33 @@ function render() {
   if (who && $('#person').open && $('#person-body').dataset.key !== view.who) {
     $('#person-body').dataset.key = view.who;
     $('#person-title').textContent = who.name;
-    // ustawienia: po lewej osoba, po prawej jedna tabela — limit i prośba w jednym wierszu
+    // ustawienia: trzy karty jedna pod drugą — osoba, miejsca, tabela (min., limit i prośba w jednym wierszu)
     const num = (kind, key, ph, label) => `<input type="number" min="0" step="1" placeholder="${ph}" data-${kind}="${key}" value="${{ limit: state.limits, min: state.mins, want: state.wants }[kind][who.id]?.[key] ?? ''}" aria-label="${label}">`;
     const row = (name, key, ph, label) => `<tr><th scope="row">${name}</th><td>${num('min', key, '—', `Minimum: ${label}`)}</td>` +
       `<td>${num('limit', key, ph, `Limit: ${label}`)}</td><td>${num('want', key, '—', `Prośba: ${label}`)}</td></tr>`;
     const field = (name, hint, control) => `<label class="field"><span>${name}${hint ? `<small>${hint}</small>` : ''}</span>${control}</label>`;
-    const head = '<thead><tr><td></td><th scope="col">Min.</th><th scope="col">Limit</th><th scope="col">Prośba</th></tr></thead>';
+    const head = '<thead><tr><td></td><th scope="col">Min.<small>najmniej</small></th><th scope="col">Limit<small>najwyżej</small></th><th scope="col">Prośba<small>docelowo</small></th></tr></thead>';
     const custom = (keys) => keys.some((k) => [state.limits, state.mins, state.wants].some((o) => o[who.id]?.[k] != null));
     // rzadziej używane wiersze zwinięte; rozwinięte od razu, gdy osoba ma tam cokolwiek wpisane
-    const group = (name, id, open, rows) => `<details class="limits-group" ${open ? 'open' : ''}><summary><span>${name}</span><span class="hint" data-group-status="${id}"></span>${CHEV}</summary>` +
+    const group = (name, open, rows) => `<details class="limits-group" ${open ? 'open' : ''}><summary><span>${name}</span>${CHEV}</summary>` +
       `<table class="counts">${head}<tbody>${rows}</tbody></table></details>`;
-    $('#person-body').innerHTML = `<div class="person-grid"><section><h4>Osoba</h4>` +
-      field('Funkcja', '', `<select data-prestige>${ROLES.map((r, i) => `<option value="${i}" ${i === roleOf(who) ? 'selected' : ''}>${r}</option>`).join('')}</select>`) +
-      field('Ostatnio gówniane', 'dyżury spoza grafiku, 0–3', `<select data-past>${BAD.map((_, i) => `<option value="${i}" ${i === (who.past ?? 0) ? 'selected' : ''}>${i}</option>`).join('')}</select>`) +
-      field('Kanapka PN1 So + Pn', 'zaznaczone = woli ten układ', `<input type="checkbox" role="switch" data-pn1sandwich ${who.pn1Sandwich === false ? '' : 'checked'}>`) +
-      `</section><section><h4>Limity i prośby</h4><table class="counts">${head}<tbody>` +
-      row('Łącznie', '*', '∞', 'łącznie') + row('Pt/So/Nd', 'we', WEEKEND_LIMIT, 'Pt/So/Nd') + '</tbody></table>' +
-      `<div class="place-chips" role="group" aria-label="Dyżuruje na"><span>Dyżuruje na:</span>${state.shifts.map((s) =>
-        `<button type="button" class="chip" data-place="${s.id}" aria-pressed="true" title="Kliknij, by wykluczyć lub dopuścić ${esc(s.name)} (Limit 0)">${CHECK}<span>${esc(s.name)}</span></button>`).join('')}</div>` +
-      group(`Miejsca dyżurów (${esc(state.shifts.map((s) => s.name).join(', '))})`, 'places', custom(state.shifts.map((s) => s.id)),
-        state.shifts.map((s) => row(esc(s.name), s.id, '∞', esc(s.name))).join('')) +
-      group('Szczegóły weekendów (So + Nd, osobno Pt / So / Nd)', 'we', custom(['d56', 'd4', 'd5', 'd6']),
-        row('So + Nd', 'd56', '∞', 'soboty i niedziele łącznie') + `<tr class="sub"><th colspan="4" scope="rowgroup">Ten sam dzień weekendu</th></tr>` +
-        ['Pt', 'So', 'Nd'].map((n, i) => row(n, `d${i + 4}`, '∞', `ten sam dzień ${n}`)).join('')) +
-      `<p class="hint">Min. i Limit to twarde granice — także 0. Puste pole = wartość domyślna (szara, ∞ = bez limitu). Prośba to docelowa liczba: algorytm ogranicza zarówno niedobór, jak i nadmiar. Domyślny 1 w ten sam dzień weekendu jest preferencją. Jeśli nie znajdzie grafiku zgodnego z limitami, zachowa poprzedni.</p></section></div>`;
+    const card = (title, sub, body) => `<section><header class="card-head"><h4>${title}</h4>${sub ? `<p>${sub}</p>` : ''}</header>${body}</section>`;
+    $('#person-body').innerHTML = '<div class="person-grid">' +
+      card('Osoba', '', field('Funkcja', '', `<select data-prestige>${ROLES.map((r, i) => `<option value="${i}" ${i === roleOf(who) ? 'selected' : ''}>${r}</option>`).join('')}</select>`) +
+        field('Ostatnio gówniane', 'dyżury spoza grafiku, 0–3', `<select data-past>${BAD.map((_, i) => `<option value="${i}" ${i === (who.past ?? 0) ? 'selected' : ''}>${i}</option>`).join('')}</select>`) +
+        field('Kanapka PN1 So + Pn', 'włączone = woli ten układ', `<input type="checkbox" role="switch" data-pn1sandwich ${who.pn1Sandwich === false ? '' : 'checked'}>`)) +
+      card('Dyżuruje na', 'Kliknij miejsce, by je wykluczyć (Limit 0) lub znów dopuścić.',
+        `<div class="place-chips" role="group" aria-label="Dyżuruje na">${state.shifts.map((s) =>
+          `<button type="button" class="chip" data-place="${s.id}" aria-pressed="true" title="Kliknij, by wykluczyć lub dopuścić ${esc(s.name)} (Limit 0)">${CHECK}<span>${esc(s.name)}</span></button>`).join('')}</div>`) +
+      card('Limity i prośby', 'Liczba dyżurów w miesiącu — obowiązuje w każdym miesiącu.',
+        `<table class="counts">${head}<tbody>${row('Łącznie', '*', '∞', 'łącznie') + row('Pt/So/Nd', 'we', WEEKEND_LIMIT, 'Pt/So/Nd')}</tbody></table>` +
+        group(`Na miejscach <small>${esc(state.shifts.map((s) => s.name).join(', '))}</small>`, custom(state.shifts.map((s) => s.id)),
+          state.shifts.map((s) => row(esc(s.name), s.id, '∞', esc(s.name))).join('')) +
+        group('Weekendy w szczegółach <small>So + Nd, osobno Pt / So / Nd</small>', custom(['d56', 'd4', 'd5', 'd6']),
+          row('So + Nd', 'd56', '∞', 'soboty i niedziele łącznie') + `<tr class="sub"><th colspan="4" scope="rowgroup">Ten sam dzień weekendu</th></tr>` +
+          ['Pt', 'So', 'Nd'].map((n, i) => row(n, `d${i + 4}`, '∞', `ten sam dzień ${n}`)).join('')) +
+        '<p class="hint">Min. i Limit to twarde granice — także 0. Puste pole = wartość domyślna (szara, ∞ = bez limitu). Prośba to docelowa liczba: algorytm ogranicza zarówno niedobór, jak i nadmiar. Domyślny 1 w ten sam dzień weekendu jest preferencją. Jeśli nie znajdzie grafiku zgodnego z limitami, zachowa poprzedni.</p>') +
+      '</div>';
   }
   if (who && $('#person').open) personStatus(who.id);
   const shiftName = Object.fromEntries(state.shifts.map((s) => [s.id, s.name]));
@@ -208,6 +211,7 @@ function render() {
     empty ? `<span>Obsadzone <b class="ok">${slots - empty} z ${slots}</b></span><span class="progress" role="progressbar" aria-label="Obsadzone dyżury" aria-valuenow="${Math.round((slots - empty) / slots * 100)}"><i style="width:${(slots - empty) / slots * 100}%"></i></span>` +
       `<span>wolne: <b>${empty}</b></span><button class="ghost" data-jump>Pokaż pierwszy wolny →</button>` : '';
   $('#status').classList.toggle('info', !!view.who || view.bad || empty === slots);
+  $('#status').classList.toggle('pinned', !!view.who || !!view.bad); // pasek pędzla przypięty pod nagłówkiem
   $('#calendar').classList.toggle('painting', !!view.who || view.bad); // bez zaznaczania tekstu przy przeciąganiu
   // Uwagi do oglądanego miesiąca: niespełnione prośby, dni „Chcę” bez dyżuru, dyżury „W ostateczności”, kanapki —
   // liczone na bieżąco, więc zmiana wariantu lub ręczna poprawka od razu się tu odbija
@@ -241,13 +245,9 @@ function render() {
 
 function update(fn) { stopGeneration(); fn(); save(); render(); }
 
-// Okno osoby: chipy miejsc (dozwolone = bez Limitu 0) i opisy zwiniętych grup — odświeżane przy każdej zmianie, bez przebudowy pól
+// Okno osoby: chipy miejsc (dozwolone = bez Limitu 0) — odświeżane przy każdej zmianie, bez przebudowy pól
 function personStatus(pid) {
-  const custom = (keys) => keys.filter((k) => [state.limits, state.mins, state.wants].some((o) => o[pid]?.[k] != null)).length;
   for (const b of document.querySelectorAll('#person [data-place]')) b.setAttribute('aria-pressed', state.limits[pid]?.[b.dataset.place] !== 0);
-  const places = custom(state.shifts.map((s) => s.id)), we = custom(['d56', 'd4', 'd5', 'd6']);
-  const text = { places: places ? `własne ustawienia: ${places} z ${state.shifts.length}` : 'domyślne', we: we ? `własne ustawienia: ${we} z 4` : 'domyślne' };
-  for (const el of document.querySelectorAll('#person [data-group-status]')) el.textContent = text[el.dataset.groupStatus];
 }
 
 $('#prev').onclick = () => { $('#panel-variants').hidden = true; view = { ...view, ...(view.m ? { m: view.m - 1 } : { y: view.y - 1, m: 11 }) }; render(); };
@@ -330,7 +330,8 @@ function showTab(tab) {
   if (tab === 'stats') renderStats(); // budowana tylko, gdy widoczna
   scrollTo({ top: scrolls[tab] ?? 0, behavior: 'instant' }); // instant: html ma scroll-behavior: smooth
 }
-$('.tabs').onclick = $('.app-header').onclick = (e) => { const t = e.target.closest('[data-tab]'); if (t) showTab(t.dataset.tab); };
+new ResizeObserver(([e]) => document.documentElement.style.setProperty('--head', e.target.offsetHeight + 'px')).observe($('.app-header'));
+$('.tabs').onclick = $('.app-header').onclick =(e) => { const t = e.target.closest('[data-tab]'); if (t) showTab(t.dataset.tab); };
 
 // „Gotowe” kończy dostępność/gównianość i wraca na kartę, z której je włączono
 $('#status').onclick = (e) => {
