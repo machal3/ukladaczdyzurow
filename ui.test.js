@@ -168,6 +168,7 @@ test('dodawanie osoby i switch w oknie ustawień zachowują zapis i zdarzenia', 
   $('#person').close();
   $(`[data-limits="${person.id}"]`).click();
   assert.equal($('[data-pn1sandwich]'), null);
+  assert.equal($(`#people .icon[data-who="${person.id}"]`).getAttribute('aria-pressed'), 'false', 'okno osoby to nie tryb dostępności');
   const limit = $('[data-limit="*"]');
   limit.value = '4';
   limit.dispatchEvent(new w.Event('change', { bubbles: true }));
