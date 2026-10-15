@@ -509,3 +509,11 @@ test('ciasne minima (suma = liczba miejsc) układa wyżarzanie, gdy zachłanny n
   assert.equal(best.score.min, 0);
   assert.equal(best.score.unfilled, 0);
 });
+
+test('scoreMonth.gaps: lista niespełnionych próśb (osoba, kategoria, prośba, wynik)', () => {
+  const sh = [{ id: 's', name: 'S', days: all }];
+  const schedule = { '2026-10-02': { s: 'a' }, '2026-10-05': { s: 'a' }, '2026-10-07': { s: 'b' } }; // 2.10 = Pt
+  const { gaps, wants } = scoreMonth(2026, 9, schedule, sh, people, {}, {}, { a: { '*': 3, d4: 1 }, b: { '*': 1 } });
+  assert.deepEqual(gaps, [{ pid: 'a', k: '*', want: 3, got: 2 }]);
+  assert.equal(wants, 1);
+});

@@ -228,8 +228,11 @@ export function scoreMonth(y, m, schedule, shifts, people, avail = {}, bad = {},
       perShift[`${pid}:${s.id}`] = (perShift[`${pid}:${s.id}`] || 0) + 1;
     }
   }
-  for (const [pid, w] of Object.entries(wants)) for (const [sid, n] of Object.entries(w))
-    if (pid in count) sc.wants += Math.abs(n - (perShift[`${pid}:${sid}`] || 0));
+  sc.gaps = []; // [{ pid, k, want, got }] — prośby niespełnione co do liczby, do pokazania po ułożeniu
+  for (const [pid, w] of Object.entries(wants)) for (const [k, n] of Object.entries(w)) {
+    const got = perShift[`${pid}:${k}`] || 0;
+    if (pid in count && n !== got) { sc.wants += Math.abs(n - got); sc.gaps.push({ pid, k, want: n, got }); }
+  }
   for (const [pid, l] of Object.entries(limits)) for (const [k, n] of Object.entries(l?.min ?? {}))
     if (pid in count) sc.min += Math.max(0, n - (perShift[`${pid}:${k}`] || 0));
   for (const pid in count) { sc.even += count[pid] ** 2; sc.bad += burden[pid] ** 2; }

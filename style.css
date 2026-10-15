@@ -82,7 +82,9 @@ h1 { font: var(--type-display); letter-spacing: -.025em; text-wrap: balance; }
 #status:empty { display: none; }
 #generation-status { margin: 0 0 16px; color: var(--muted); font-size: 14px; }
 #generation-status:empty { display: none; }
-#status:not(.info) b:not(.ok) { color: var(--warn); }
+#want-gaps { margin: -8px 0 16px; font-size: 14px; }
+#want-gaps summary { cursor: pointer; color: var(--muted); }
+#want-gaps ul { margin: 8px 0 0; padding-left: 20px; }#status:not(.info) b:not(.ok) { color: var(--warn); }
 #status :is([data-done], [data-jump]) { margin-left: auto; }
 .cycle { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: 12px; }
 .cycle span[class] { padding: 5px 12px; border-radius: 999px; }

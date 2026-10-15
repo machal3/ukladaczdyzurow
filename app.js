@@ -43,6 +43,8 @@ let view = { y: now.getFullYear(), m: now.getMonth(), who: null, bad: false, per
 let prevWho = null; // tryb sprzed otwarcia okna osoby
 let back = 'settings'; // karta, na którą wraca „Gotowe” — ta, z której włączono tryb
 let generation = null;
+let gapsMonth = null; // 'y-m' ostatnio ułożonego miesiąca — tam pokazujemy niespełnione prośby
+const WANT_LABEL = { '*': 'łącznie', we: 'Pt/So/Nd', d4: 'piątki', d5: 'soboty', d6: 'niedziele' }; // reszta = nazwa miejsca
 const stopGeneration = () => {
   if (!generation) return;
   generation.controller.abort();
@@ -182,6 +184,18 @@ function render() {
     empty ? `<span>Obsadzone <b class="ok">${slots - empty} z ${slots}</b></span><span class="progress" role="progressbar" aria-label="Obsadzone dyżury" aria-valuenow="${Math.round((slots - empty) / slots * 100)}"><i style="width:${(slots - empty) / slots * 100}%"></i></span>` +
       `<span>wolne: <b>${empty}</b></span><button class="ghost" data-jump>Pokaż pierwszy wolny →</button>` : '';
   $('#status').classList.toggle('info', !!view.who || view.bad || empty === slots);
+  // Po ułożeniu: które prośby nie wyszły — liczone na bieżąco, więc zmiana wariantu lub ręczna poprawka od razu się tu odbija
+  $('#want-gaps').hidden = gapsMonth !== `${y}-${m}`;
+  if (gapsMonth === `${y}-${m}`) {
+    const gaps = scoreMonth(y, m, state.schedule, state.shifts, team(), {}, {}, state.wants, {}, state.asDay).gaps;
+    const label = (k) => WANT_LABEL[k] ?? shiftName[k] ?? k;
+    const byPerson = new Map();
+    for (const g of gaps) byPerson.set(g.pid, [...(byPerson.get(g.pid) ?? []), g]);
+    const n = byPerson.size, osob = n === 1 ? 'osoba' : n % 10 >= 2 && n % 10 <= 4 && (n % 100 < 12 || n % 100 > 14) ? 'osoby' : 'osób';
+    $('#want-gaps summary').textContent = n ? `Niespełnione prośby: ${n} ${osob} — pokaż` : 'Wszystkie prośby o liczbę dyżurów spełnione.';
+    $('#want-gaps ul').innerHTML = [...byPerson].map(([pid, g]) => `<li><b>${esc(nameOf[pid])}</b>: ` +
+      g.map((x) => `${label(x.k)} ${x.got} zamiast ${x.want}`).join(', ') + '</li>').join('');
+  }
   $('#bad-mode').setAttribute('aria-pressed', view.bad);
 }
 
@@ -237,6 +251,7 @@ $('#generate').onclick = async () => {
   if (job.controller.signal.aborted) return;
   $('#generation-status').textContent = `Gotowe. Nieobsadzone: ${variants[0].score.unfilled}. Odchylenie od próśb: ${variants[0].score.wants}.`;
   const prev = Object.fromEntries(keys.map((k) => [k, state.schedule[k]]));
+  gapsMonth = `${job.y}-${job.m}`;
   const apply = (i) => update(() => Object.assign(state.schedule, variants[i].schedule));
   apply(0);
   $('#panel-variants').hidden = variants.length < 2;
