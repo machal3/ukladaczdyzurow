@@ -5,6 +5,7 @@ import { cloudLoad, cloudSave, cloudLogout } from './cloud.js';
 const DAYS = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So', 'Nd'];
 const STORE = 'dyzury-v1';
 const GEAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5H3"/><path d="M12 19H3"/><path d="M14 3v4"/><path d="M16 17v4"/><path d="M21 12h-9"/><path d="M21 19h-5"/><path d="M21 5h-7"/><path d="M8 10v4"/><path d="M8 12H3"/></svg>'; // Lucide „sliders-horizontal” = ustawienia osoby
+const CAL = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 2v3"/><path d="M16 2v3"/><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></svg>'; // jak „Dostępność” w oknie osoby
 const WEEKEND_LIMIT = 2; // domyślny limit dyżurów Pt/So/Nd w miesiącu, gdy osoba nie ustawiła własnego
 
 const cloud = await cloudLoad(); // null = tryb lokalny (tylko localStorage)
@@ -128,7 +129,7 @@ function render() {
       <span class="avatar ${p.prestige ? '' : 'rez'}" aria-hidden="true">${esc(p.name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase())}</span>
       <span class="id"><button class="who ${p.id === view.who ? 'on' : ''}" data-who="${p.id}" aria-pressed="${p.id === view.who}" title="Dostępność w grafiku">${esc(p.name)}</button><span class="sub">${ROLES[roleOf(p)]}</span></span>
       <button class="x" data-del-person="${p.id}" aria-label="Usuń ${esc(p.name)}">×</button>
-      <span class="foot"><span class="count"><b>${count[p.id]}</b>${dyzury(count[p.id]).replace(/^\d+ /, '')}<br>w tym miesiącu</span>
+      <span class="foot"><button class="edit" data-who="${p.id}" aria-pressed="${p.id === view.who}" aria-label="Dostępność: ${esc(p.name)}" title="Dostępność w grafiku">${CAL}<span>Dostępność</span></button>
       <button class="edit" data-edit="${p.id}" aria-label="Ustawienia i historia: ${esc(p.name)}" title="Ustawienia i historia">${GEAR}<span>Ustawienia</span></button></span></li>`).join('') ||
     (team().length ? '<li class="no-match"><b>Nikt nie pasuje</b><span>Zmień wyszukiwanie lub filtry.</span><button type="button" class="outline" data-clear-filters>Wyczyść filtry</button></li>' : '');
   $('#people-count').textContent = filtered ? `Pokazano ${shown.length} z ${team().length}` : '';

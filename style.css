@@ -206,8 +206,7 @@ main > :is(section, article), .board { animation: appear 350ms var(--motion); }
 #people .x { grid-area: x; }
 /* Stopka karty: licznik i „Ustawienia” w jednym wierszu, wyśrodkowane w pionie. */
 #people .foot { grid-area: foot; display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 12px 8px 0 0; padding-top: 12px; border-top: 1px solid var(--md-sys-color-outline-variant); }
-#people .count { flex: none; white-space: nowrap; font-size: 12px; line-height: 16px; color: var(--muted); }
-#people .count b { float: left; margin-right: 8px; font: 500 28px/32px var(--headline); color: var(--text); font-variant-numeric: tabular-nums; }
+#people .edit[aria-pressed="true"] { background: var(--strong); color: var(--on-strong); }
 /* MD3: pasek wyszukiwania i menu sortowania (pigułki 56px), pod nimi filter chips; brak dopasowań = pusty stan. */
 .people-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 24px; }
 .search-bar, .sort-menu { position: relative; display: flex; align-items: center; min-height: 56px; border-radius: var(--shape-full); background: var(--md-sys-color-surface-container-high); color: var(--muted); transition: background-color 180ms var(--motion); }
