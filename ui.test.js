@@ -155,6 +155,9 @@ test('wpis ręczny z klawiatury pozostaje po generowaniu miesiąca', async (t) =
   await generated();
   assert.equal(state().manual[key][shift], person);
   assert.equal(state().schedule[key][shift], person);
+  // kropka przed imieniem = dostępność tego dnia (tu wszyscy domyślnie „Mogę”)
+  const filled = [...w.document.querySelectorAll('#calendar .slot:not(.unfilled)')];
+  assert.ok(filled.length && filled.every((slot) => slot.querySelector('.slot-name .pref.pref-2') && / — Mogę/.test(slot.title)));
 });
 
 test('dostępność i import tabeli działają po zmianie struktury formularzy', async (t) => {
@@ -239,7 +242,7 @@ test('okno osoby: Min., Limit i Prośba zapisują się w każdym wierszu i dzia�
   assert.deepEqual(state().schedule, previous);
 });
 
-test('statystyki: ręczny wpis od razu w zestawieniu, rozwinięta osoba zostaje otwarta, historia w osobnym oknie', async (t) => {
+test('statystyki: ręczny wpis od razu w zestawieniu, szczegóły osoby w oknie, które zostaje otwarte, historia w osobnym oknie', async (t) => {
   const { w, $, tick, state } = await setup(t);
   const input = $('#calendar input');
   input.focus();
@@ -249,20 +252,74 @@ test('statystyki: ręczny wpis od razu w zestawieniu, rozwinięta osoba zostaje 
   const anna = state().people.find((p) => p.name === 'Anna Kowalska').id;
   $('button[data-tab="stats"]').click();
   await tick();
-  const row = () => $(`#stats details[data-pid="${anna}"]`);
+  const row = () => $(`#stats [data-stat="${anna}"]`);
   assert.match(row().querySelector('.cell-n .big').textContent, /^1/);
   assert.match($('#stats .kpi').textContent, /1 \/ \d+/);
-  row().open = true;
-  row().dispatchEvent(new w.Event('toggle'));
-  row().querySelector('[data-edit]').click();
+  row().click();
+  assert.equal($('#pstat').open, true);
+  assert.equal($('#pstat-title').textContent, 'Anna Kowalska');
+  assert.match($('#pstat-body').textContent, /Dlaczego tak/);
+  $('#pstat [data-edit]').click();
   assert.equal($('#person').open, true);
   assert.equal($('#person [data-ptab]'), null);
   assert.ok($('#person [data-limit="*"]'));
   $('#person').close();
   await tick();
-  assert.equal(row().open, true, 'po przerysowaniu osoba zostaje rozwinięta');
-  assert.equal(row().querySelector('.slog'), null, 'historia nie w rozwinięciu');
-  row().querySelector('[data-log]').click();
+  assert.equal($('#pstat').open, true, 'po przerysowaniu okno osoby zostaje otwarte');
+  assert.equal($('#pstat-title').textContent, 'Anna Kowalska');
+  $('#pstat [data-log]').click();
   assert.equal($('#log').open, true);
   assert.match($('#log-body').textContent, /ręczny/);
+});
+
+test('okno osoby: chip miejsca i zwinięte grupy; pigułki na karcie; pędzel z przeciąganiem; podpowiedzi w wyborze osoby', async (t) => {
+  const { w, $, state } = await setup(t);
+  const anna = state().people.find((p) => p.name === 'Anna Kowalska'), oitn = state().shifts.find((s) => s.name === 'OITN').id;
+  const set = (kind, key, value) => {
+    const input = $(`[data-${kind}="${key}"]`);
+    input.value = value;
+    input.dispatchEvent(new w.Event('change', { bubbles: true }));
+  };
+  $(`[data-edit="${anna.id}"]`).click();
+  assert.deepEqual([...w.document.querySelectorAll('#person details.limits-group')].map((d) => d.open), [false, false]);
+  const chip = () => $(`#person [data-place="${oitn}"]`);
+  chip().click();
+  assert.equal(state().limits[anna.id][oitn], 0);
+  assert.equal($(`[data-limit="${oitn}"]`).value, '0');
+  assert.equal(chip().getAttribute('aria-pressed'), 'false');
+  chip().click();
+  assert.equal(state().limits[anna.id][oitn], undefined);
+  assert.equal($(`[data-limit="${oitn}"]`).value, '');
+  chip().click();
+  set('min', 'd5', '1');
+  $('#person').close();
+  $(`[data-edit="${anna.id}"]`).click(); // z wpisami grupy otwierają się same
+  assert.deepEqual([...w.document.querySelectorAll('#person details.limits-group')].map((d) => d.open), [true, true]);
+  assert.match($('[data-group-status="we"]').textContent, /własne/);
+  $('#person').close();
+  assert.match($(`#people [data-who="${anna.id}"]`).closest('li').querySelector('.badges').textContent, /Bez: OITN/);
+
+  // pędzel „Nie mogę” i przeciągnięcie przez trzy dni
+  $(`#people [data-who="${anna.id}"]`).click();
+  $('[data-brush="avail"][data-lvl="0"]').click();
+  const day = (i) => w.document.querySelectorAll('[data-avail]')[i];
+  const keys = [0, 1, 2].map((i) => day(i).dataset.avail);
+  day(0).dispatchEvent(new w.MouseEvent('pointerdown', { bubbles: true, button: 0 }));
+  day(1).dispatchEvent(new w.MouseEvent('pointerover', { bubbles: true }));
+  day(2).dispatchEvent(new w.MouseEvent('pointerover', { bubbles: true }));
+  w.dispatchEvent(new w.MouseEvent('pointerup'));
+  assert.deepEqual(keys.map((k) => state().avail[anna.id][k]), [0, 0, 0]);
+  day(3).dispatchEvent(new w.MouseEvent('pointerover', { bubbles: true })); // po puszczeniu przycisku już nie maluje
+  assert.equal(state().avail[anna.id][day(3).dataset.avail], undefined);
+  $('[data-done]').click();
+  assert.match($(`#people [data-who="${anna.id}"]`).closest('li').querySelector('.badges').textContent, /Nie mogę 3/);
+
+  // wybór osoby: Anna nie może 1. dnia → na końcu listy z powodem
+  $('button[data-tab="calendar"]').click();
+  const input = w.document.querySelector(`#calendar input[data-key="${keys[0]}"]`);
+  input.focus();
+  const items = [...w.document.querySelectorAll('#picker li')];
+  assert.equal(items[0].textContent, '—');
+  assert.match(items.at(-1).textContent, /Anna Kowalska.*Nie mogę/);
+  assert.ok(items.at(-1).classList.contains('clash'));
 });

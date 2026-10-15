@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { generateMonth, generateVariants, scoreMonth, dateKey, history, badOf, parseTable, matchPerson, personLog, listPeople, missedWishes, lastResortDays, monthStats } from './scheduler.js';
+import { generateMonth, generateVariants, scoreMonth, dateKey, history, badOf, parseTable, matchPerson, personLog, listPeople, missedWishes, lastResortDays, sandwichDays, monthStats } from './scheduler.js';
 
 const people = ['a', 'b', 'c', 'd'].map((id) => ({ id, name: id }));
 const all = [0, 1, 2, 3, 4, 5, 6];
@@ -604,4 +604,74 @@ test('monthStats: obsada, liczniki osoby, dostępność, ręczne i kanapki', () 
   assert.equal(a.manual, 1);
   assert.equal(a.sandwich, 1); // 1 i 3 — co drugi dzień, sobota nie jest „Chcę”
   assert.equal(st.people.c.total, 0);
+});
+
+test('przełom miesięcy: dzień 0 blokuje 1., weekendowy OITN z końca poprzedniego miesiąca daje wolne, następny miesiąc blokuje ostatni dzień', () => {
+  // czerwiec 2026: 1.06 = poniedziałek, więc 30.05 = So (d = −1), 31.05 = Nd (d = 0)
+  const sh = [{ id: 'o', name: 'OITN', days: all }, { id: 'p', name: 'PN1', days: all }];
+  const ppl = ['a', 'b', 'c', 'd', 'e', 'f'].map((id) => ({ id, name: id }));
+  const locked = { [dateKey(2026, 5, -1)]: { o: 'a' }, [dateKey(2026, 5, 0)]: { o: 'b' }, [dateKey(2026, 6, 1)]: { o: 'c' } };
+  assert.deepEqual(Object.keys(locked), ['2026-05-30', '2026-05-31', '2026-07-01']);
+  const on = (s, d, pid) => Object.values(s[dateKey(2026, 5, d)] || {}).includes(pid);
+  for (const { schedule } of [{ schedule: generateMonth(2026, 5, sh, ppl, locked) }, ...generateVariants(2026, 5, sh, ppl, locked, {}, {}, [], {}, {}, { tries: 10, timeBudgetMs: 300 })]) {
+    assert.ok(!on(schedule, 1, 'b'), 'dzień po dniu przez przełom miesięcy');
+    assert.ok(!on(schedule, 1, 'a'), 'po OITN w sobotę wolny poniedziałek');
+    assert.ok(!on(schedule, 2, 'b'), 'po OITN w niedzielę wolny wtorek');
+    assert.ok(!on(schedule, 30, 'c'), 'dzień przed dyżurem 1. dnia następnego miesiąca');
+    assert.ok(!('2026-05-31' in schedule) && !('2026-07-01' in schedule), 'wynik tylko z dniami miesiąca');
+  }
+  // dni sąsiednich miesięcy nie liczą się do limitów ani minimów
+  const lim = { b: { '*': 1, min: { '*': 1 } } };
+  const [best] = generateVariants(2026, 5, sh, ppl, locked, {}, lim, [], {}, {}, { tries: 5, timeBudgetMs: 200 });
+  assert.equal(Object.values(best.schedule).filter((day) => Object.values(day).includes('b')).length, 1);
+  assert.equal(best.score.min, 0);
+  // ręczny wpis 1. dnia kolidujący z dyżurem 0. dnia → jasny komunikat
+  assert.throws(() => generateMonth(2026, 5, sh, ppl, { ...locked, '2026-06-01': { p: 'b' } }), /sąsiedniego miesiąca/);
+});
+
+test('kanapka liczy się też przez przełom miesięcy (dyżur 30.05 i 1.06), bez wliczania 30.05 do licznika miesiąca', () => {
+  const sh = [{ id: 's', name: 'S', days: all }];
+  const sc = scoreMonth(2026, 5, { '2026-05-30': { s: 'a' }, '2026-06-01': { s: 'a' } }, sh, people);
+  assert.equal(sc.sandwich, 1);
+  assert.equal(sc.even, 1); // tylko jeden dyżur w czerwcu
+  const pn = [{ id: 'p', name: 'PN1', days: all }]; // PN1 w sobotę + poniedziałek = preferowana kanapka
+  assert.equal(scoreMonth(2026, 5, { '2026-05-30': { p: 'a' }, '2026-06-01': { p: 'a' } }, pn, people).sandwich, 0);
+});
+
+test('warianty przy trudnych minimach, limitach i prośbach: wszystko obsadzone, minima spełnione, kilka różnych wariantów, nie gorzej niż zachłanny', () => {
+  let r = 29;
+  const rnd = () => (r = (r * 16807) % 2147483647) / 2147483647;
+  const sh = [{ id: 'o', name: 'OITN', days: all }, { id: 'p1', name: 'PN1', days: all }, { id: 'p2', name: 'PN2', days: all }];
+  const ppl = Array.from({ length: 16 }, (_, i) => ({ id: `x${i}`, name: `x${i}`, prestige: i < 3 ? 0 : 1 + (i % 2), boss: i === 5 || i === 8 }));
+  const avail = {}, limits = {}, wants = {};
+  for (const [i, p] of ppl.entries()) {
+    avail[p.id] = {};
+    for (let d = 1; d <= 31; d++) { const x = rnd(); if (x < 0.25) avail[p.id][dateKey(2026, 9, d)] = x < 0.12 ? 0 : x < 0.2 ? 3 : 1; }
+    limits[p.id] = { we: 3, ...(i % 4 === 0 ? { o: 0 } : {}), min: i % 3 === 0 ? { '*': 6, ...(i % 4 ? { o: 2 } : {}) } : {} };
+    if (i % 2) wants[p.id] = { '*': 6, ...(i % 3 === 1 ? { o: 3 } : {}) };
+  }
+  const v = generateVariants(2026, 9, sh, ppl, {}, avail, limits, [], {}, wants, { timeBudgetMs: 3000, rand: rnd });
+  const greedy = scoreMonth(2026, 9, generateMonth(2026, 9, sh, ppl, {}, avail, limits, [], {}, wants), sh, ppl, avail, {}, wants, limits);
+  assert.equal(v[0].score.unfilled, 0);
+  assert.equal(v[0].score.min, 0);
+  assert.ok(v[0].score.wants <= greedy.wants);
+  assert.ok(v[0].score.lastResort <= greedy.lastResort);
+  assert.ok(v.length >= 2, 'użytkownik ma realny wybór wariantów');
+  assert.equal(new Set(v.map((x) => JSON.stringify(x.schedule))).size, v.length);
+  for (const x of v) assert.deepEqual([x.score.unfilled, x.score.min, x.score.wants], [0, 0, v[0].score.wants]);
+});
+
+test('sandwichDays: pary dni kanapek jak w scoreMonth (PN1 So + Pn i „Chcę” się nie liczą, przełom miesięcy tak)', () => {
+  const sh = [{ id: 's', name: 'S', days: all }, { id: 'p', name: 'PN1', days: all }];
+  const schedule = { '2026-05-30': { s: 'a' }, '2026-06-01': { s: 'a' }, '2026-06-06': { p: 'b' }, '2026-06-08': { s: 'b' },
+    '2026-06-10': { s: 'c' }, '2026-06-12': { s: 'c' }, '2026-06-20': { s: 'd' }, '2026-06-22': { s: 'd' } };
+  const avail = { c: { '2026-06-12': 3 } };
+  assert.deepEqual(sandwichDays(2026, 5, schedule, sh, people, avail), { a: [['2026-05-30', '2026-06-01']], d: [['2026-06-20', '2026-06-22']] });
+  assert.equal(scoreMonth(2026, 5, schedule, sh, people, avail).sandwich, 2);
+});
+
+test('warianty różnią się składem dni, nie tylko rozstawieniem tych samych osób na miejscach', () => {
+  const crew = (s) => Object.keys(s).sort().map((k) => Object.values(s[k]).sort().join(',')).join('|');
+  for (const v of [generateVariants(2026, 9, shifts, people), generateVariants(2026, 9, shifts, people, {}, {}, {}, [], {}, { a: { s1: 5 } }, { timeBudgetMs: 1000 })])
+    assert.equal(new Set(v.map((x) => crew(x.schedule))).size, v.length);
 });

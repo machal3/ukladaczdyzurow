@@ -28,7 +28,9 @@ Ta sama instrukcja jest w aplikacji, w zakładce **Instrukcja**.
 1. **Osoby** — przy każdej osobie ⚙ otwiera jej ustawienia: funkcję
    (Rezydent / Starszy asystent), limity i prośby.
 2. **Dostępność** — kliknij imię osoby, a kalendarz przełączy się w tryb jej dostępności. Klikanie w dzień zmienia
-   poziom: **Mogę → Chcę → Nie mogę → W ostateczności → Mogę**. Na koniec **Gotowe**.
+   poziom: **Mogę → Chcę → Muszę → Nie mogę → W ostateczności → Mogę**. Szybciej: wybierz poziom w pasku nad
+   kalendarzem (np. **Nie mogę**) — klik wpisuje go od razu, a przeciągnięcie myszą po dniach (np. cały urlop) wpisuje
+   go we wszystkie mijane dni; **Po kolei** wraca do zmiany po kliknięciu. Tak samo przy ocenie gównianości. Na koniec **Gotowe**.
 3. **Układanie** — dodaj wszystkich dyżurujących (**Nowa osoba**), ustaw kolejność priorytetów, dodaj warunki („gdy X dyżuruje z Y, to X jest na…”) i oceń,
    które dni są ciężkie (**Oceń dni w kalendarzu →**).
 4. **Grafik** — przejdź do miesiąca i kliknij **Ułóż miesiąc**. Jeśli jest kilka równie dobrych grafików, nad
@@ -37,7 +39,7 @@ Ta sama instrukcja jest w aplikacji, w zakładce **Instrukcja**.
 5. Popraw ręcznie, co chcesz: kliknij pole dyżuru i wybierz osobę (albo „—”, by zwolnić). Ręczne wpisy
    zostają przy każdym kolejnym **Ułóż miesiąc**.
 6. **Statystyki** — kto ile dyżurów dostał w oglądanym miesiącu i dlaczego: obsada, Pt/So/Nd, gównianość,
-   dostępność w dni dyżurów, limity i prośby. Rozwiń osobę, by zobaczyć powody i historię jej dyżurów z 4 miesięcy.
+   dostępność w dni dyżurów, limity i prośby. Kliknij osobę, by otworzyć okno z powodami, limitami i historią jej dyżurów z 4 miesięcy.
 
 Legenda w kalendarzu:
 
@@ -224,7 +226,8 @@ gotowy grafik dostaje ocenę (mniej = lepiej):
 
 Grafiki spełniające twarde warunki są porównywane: najpierw liczba nieobsadzonych, potem odchylenia od próśb,
 następnie ważona, przeskalowana suma pozostałych preferencji. Zwycięzca trafia do kalendarza. Jeśli
-inne grafiki mają taką samą ocenę końcową, pojawia się panel **Warianty grafiku**
+inne grafiki mają taką samą ocenę końcową (a gdy remisu nie ma — prawie taką samą: ta sama obsada i prośby,
+reszta oceny do 10% gorsza), pojawia się panel **Warianty grafiku**
 (maks. 3), z podsumowaniem: nieobsadzone, „W ostateczności”, kanapki, odchylenia od próśb i różnica liczby dyżurów
 (najwięcej − najmniej). Wybór między nimi jest już kwestią gustu.
 
@@ -233,7 +236,8 @@ inne grafiki mają taką samą ocenę końcową, pojawia się panel **Warianty g
 ## 7. Ręczne wpisy, import, usuwanie osób
 
 - **Wpis ręczny** — kliknij pole dyżuru, wpisz kilka liter (bez polskich znaków też działa) i wybierz osobę;
-  „—” zwalnia miejsce. Wpis ręczny oznaczony jest kropką i **nie jest sprawdzany** twardymi zasadami — jeśli coś
+  „—” zwalnia miejsce. Lista podpowiada: na górze osoby bez kolizji (najpierw „Muszę” i „Chcę”), na dole osoby
+  z kolizją i jej powodem — nadal do wybrania. Wpis ręczny oznaczony jest kropką i **nie jest sprawdzany** twardymi zasadami — jeśli coś
   łamie („Nie mogę”, warunek), pojawia się falista linia. Algorytm go nie ruszy, ale uwzględni go przy
   pozostałych dniach.
 - **Wyczyść** — usuwa cały grafik oglądanego miesiąca, łącznie z wpisami ręcznymi.
@@ -260,8 +264,9 @@ inne grafiki mają taką samą ocenę końcową, pojawia się panel **Warianty g
 - Wyszukiwanie i poprawianie grafiku mają ograniczony budżet czasu i nie gwarantują globalnego optimum.
   Brak wyniku nie jest dowodem niewykonalności. Można sprawdzić ustawienia lub ponowić próbę;
   algorytm nigdy automatycznie nie rozluźnia limitów.
-- Zasady „nie dzień po dniu”, „bez kanapek” i „wolne po weekendowym OITN” **nie patrzą przez przełom miesięcy** —
-  dyżur 31. dnia nie blokuje 1. dnia następnego miesiąca. Sprawdź początek miesiąca ręcznie.
+- Przełom miesięcy: „nie dzień po dniu”, „bez kanapek” i „wolne po weekendowym OITN” uwzględniają 2 ostatnie dni
+  poprzedniego i 2 pierwsze dni następnego miesiąca, jeśli są już w grafiku (nie liczą się do limitów, minimów
+  ani próśb tego miesiąca).
 - Zasada wolnego po OITN działa tylko dla miejsca o nazwie dokładnie **OITN**.
 - Wpisy ręczne nie są blokowane — tylko oznaczane, gdy łamią „Nie mogę” lub warunek.
 

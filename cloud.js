@@ -11,8 +11,8 @@ async function rpc(fn, body) {
   const r = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
     method: 'POST', headers: { apikey: SUPABASE_KEY, 'Content-Type': 'application/json' }, body: JSON.stringify(body),
   });
-  const out = await r.json().catch(() => null); // save_state nic nie zwraca
-  if (!r.ok) throw new Error(out?.message || r.statusText);
+  const out = await r.json().catch(() => null);
+  if (!r.ok || out?.error) throw new Error(out?.error || out?.message || r.statusText); // { error }: zły PIN albo limit prób
   return out;
 }
 
@@ -23,13 +23,13 @@ export async function cloudLoad() {
   let p = localStorage.getItem(PIN), msg = '';
   for (;;) {
     if (p) try {
-      const data = await rpc('load_state', { p });
+      const { data } = await rpc('load_state', { p });
       localStorage.setItem(PIN, pin = p);
       document.body.innerHTML = page;
       return { data };
     } catch (e) {
       if (e.message === 'Zły PIN') { localStorage.removeItem(PIN); msg = 'Zły PIN.'; }
-      else msg = `Błąd połączenia: ${e.message}`;
+      else msg = e.message.startsWith('Za dużo') ? e.message : `Błąd połączenia: ${e.message}`;
     }
     p = await ask(msg);
   }
@@ -50,10 +50,19 @@ function ask(msg) {
 
 // ponytail: cały stan nadpisywany przy każdej zmianie (ostatni zapis wygrywa), cudze zmiany widać po odświeżeniu;
 // realtime / zapis per pole, gdy kilka osób będzie edytować naraz.
+// Szybkie serie zmian (np. malowanie dni przeciągnięciem) idą jednym zapisem: wysyłany jest tylko ostatni stan po 400 ms ciszy.
+let timer = null, latest = null;
 export function cloudSave(json) {
   if (!pin) return;
-  pending++;
-  queue = queue.then(() => rpc('save_state', { p: pin, d: JSON.parse(json) }))
+  latest = json;
+  if (!timer) pending++; // od pierwszej zmiany — beforeunload ostrzega też przed jeszcze niewysłaną
+  clearTimeout(timer);
+  timer = setTimeout(send, 400);
+}
+function send() {
+  timer = null;
+  const d = JSON.parse(latest);
+  queue = queue.then(() => rpc('save_state', { p: pin, d }))
     .catch((e) => alert(`Nie zapisano w chmurze: ${e.message}`)).finally(() => pending--);
 }
 addEventListener('beforeunload', (e) => { if (pending) e.preventDefault(); }); // niezapisane zmiany → przeglądarka pyta

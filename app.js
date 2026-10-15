@@ -1,4 +1,4 @@
-import { dateKey, daysInMonth, weekday, limitDay, shiftsForDay, scoreMonth, PRIORITIES, PRIORITY_ORDER, availOf, breaksRule, LEVELS, ROLES, roleOf, badOf, BAD, history, parseTable, matchPerson, personLog, PAST_WEIGHT, listPeople, missedWishes, lastResortDays, monthStats } from './scheduler.js';
+import { dateKey, daysInMonth, weekday, limitDay, shiftsForDay, scoreMonth, PRIORITIES, PRIORITY_ORDER, availOf, breaksRule, LEVELS, ROLES, roleOf, badOf, BAD, history, parseTable, matchPerson, personLog, PAST_WEIGHT, listPeople, missedWishes, lastResortDays, sandwichDays, monthStats } from './scheduler.js';
 import { runScheduler } from './scheduler-client.js';
 import { cloudLoad, cloudSave, cloudLogout } from './cloud.js';
 import { pdf, docx } from './export.js';
@@ -8,6 +8,8 @@ const STORE = 'dyzury-v1';
 const GEAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5H3"/><path d="M12 19H3"/><path d="M14 3v4"/><path d="M16 17v4"/><path d="M21 12h-9"/><path d="M21 19h-5"/><path d="M21 5h-7"/><path d="M8 10v4"/><path d="M8 12H3"/></svg>'; // Lucide „sliders-horizontal” = ustawienia osoby
 const CAL = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 2v3"/><path d="M16 2v3"/><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></svg>'; // jak „Dostępność” w oknie osoby
 const HIST = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>'; // Lucide „history” = historia dyżurów
+const CHECK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>'; // jak w chipach filtrów
+const CHEV = '<svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
 const WEEKEND_LIMIT = 2; // domyślny limit dyżurów Pt/So/Nd w miesiącu, gdy osoba nie ustawiła własnego
 
 const cloud = await cloudLoad(); // null = tryb lokalny (tylko localStorage)
@@ -47,6 +49,7 @@ let view = { y: next.getFullYear(), m: next.getMonth(), who: null, bad: false, q
 let prevWho = null; // tryb sprzed otwarcia okna osoby
 let back = 'settings'; // karta, na którą wraca „Gotowe” — ta, z której włączono tryb
 let generation = null;
+let brush = { avail: null, bad: null }; // pędzel w pasku #status (null = po kolei), patrz $('#calendar').onclick
 const WANT_LABEL = { '*': 'łącznie', we: 'Pt/So/Nd', d56: 'So + Nd', d4: 'piątki', d5: 'soboty', d6: 'niedziele' }; // reszta = nazwa miejsca
 const stopGeneration = () => {
   if (!generation) return;
@@ -68,7 +71,7 @@ const dyzury = (n) => `${n} ${n === 1 ? 'dyżur' : n % 10 >= 2 && n % 10 <= 4 &&
 const team = () => state.people.filter((p) => !p.gone); // aktywne osoby
 const sameName = (a, b) => a.localeCompare(b, 'pl', { sensitivity: 'base' }) === 0;
 const initials = (name) => name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
-const statsOpen = new Set(); // rozwinięte osoby w zakładce Statystyki
+let statsWho = null, statDetail = {}; // osoba w oknie #pstat i treść okien z ostatniego renderStats
 const pick = (obj, keys) => Object.fromEntries(keys.filter((k) => obj[k]).map((k) => [k, obj[k]]));
 
 function render() {
@@ -104,10 +107,11 @@ function render() {
         state.limits[pid]?.[`d${as}`] === 0 ? ' — ta osoba nie dyżuruje w ten dzień tygodnia' :
         breaksRule(state.rules, day, pid, s.id) ? ' — łamie warunek' : '';
       const clash = why && 'clash';
-      return `<label class="slot ${pid ? '' : 'unfilled'} ${manual} ${clash}" title="${esc(s.name)}${pid ? ` — ${esc(nameOf[pid])}` : ' — wybierz osobę'}${manual && ' — wpisany ręcznie'}${why}">
+      const pref = pid ? ` — ${LEVELS[availOf(state.avail, pid, key)]}` : ''; // dostępność osoby tego dnia: kropka przed imieniem
+      return `<label class="slot ${pid ? '' : 'unfilled'} ${manual} ${clash}" title="${esc(s.name)}${pid ? ` — ${esc(nameOf[pid])}${pref}` : ' — wybierz osobę'}${manual && ' — wpisany ręcznie'}${why}">
         <span class="slot-label">${esc(s.name)}</span>
-        <span class="slot-name" aria-hidden="true">${pid ? esc(nameOf[pid]) : 'Wybierz osobę'}</span>
-        <input data-key="${key}" data-shift="${s.id}" value="${pid ? esc(nameOf[pid]) : ''}" placeholder="—" autocomplete="off" role="combobox" aria-controls="picker" aria-label="${esc(s.name)}, ${d} ${monthName}">
+        <span class="slot-name" aria-hidden="true">${pid ? `<i class="pref pref-${availOf(state.avail, pid, key)}"></i>${esc(nameOf[pid])}` : 'Wybierz osobę'}</span>
+        <input data-key="${key}" data-shift="${s.id}" value="${pid ? esc(nameOf[pid]) : ''}" placeholder="—" autocomplete="off" role="combobox" aria-controls="picker" aria-label="${esc(s.name)}, ${d} ${monthName}${pref}">
       </label>`;
     }).join('');
     html += `<div class="cell burden-${b} ${key === todayKey ? 'today' : ''}">
@@ -126,9 +130,20 @@ function render() {
   const count = Object.fromEntries(team().map((p) => [p.id, 0]));
   for (const k of monthKeys()) for (const pid of Object.values(state.schedule[k] || {})) if (pid in count) count[pid]++;
   const shown = listPeople(team(), count, view), filtered = view.q.trim() || view.role || view.none;
+  // Pigułki pod funkcją: własne limity, prośby, wykluczone miejsca i dni „Nie mogę” / „Chcę” / „Muszę” w oglądanym miesiącu
+  const badges = (p) => {
+    const l = state.limits[p.id] ?? {}, mn = state.mins[p.id] ?? {}, w = state.wants[p.id] ?? {}, a = state.avail[p.id] ?? {};
+    const off = state.shifts.filter((s) => l[s.id] === 0);
+    const other = [...Object.keys(l).filter((k) => !off.some((s) => s.id === k)), ...Object.keys(mn), ...Object.keys(w)].filter((k) => k !== '*').length;
+    const days = (lvl) => monthKeys().filter((k) => a[k] === lvl).length;
+    return [['lvl-2', l['*'] != null && `Limit ${l['*']}`], ['lvl-2', mn['*'] != null && `Min. ${mn['*']}`], ['lvl-3', w['*'] != null && `Prośba ${w['*']}`],
+      ['lvl-1', off.length && `Bez: ${off.map((s) => s.name).join(', ')}`], ['lvl-2', other && 'Inne limity'],
+      ['lvl-0', days(0) && `Nie mogę ${days(0)}`], ['lvl-3', days(3) && `Chcę ${days(3)}`], ['lvl-4', days(4) && `Muszę ${days(4)}`]]
+      .filter(([, t]) => t).map(([c, t]) => `<span class="pill ${c}">${esc(t)}</span>`).join('');
+  };
   $('#people').innerHTML = shown.map((p) => `<li class="${p.id === view.who ? 'on' : ''}">
       <span class="avatar ${p.prestige ? '' : 'rez'}" aria-hidden="true">${esc(initials(p.name))}</span>
-      <span class="id"><button class="who ${p.id === view.who ? 'on' : ''}" data-who="${p.id}" aria-pressed="${p.id === view.who}" title="Dostępność w grafiku">${esc(p.name)}</button><span class="sub">${ROLES[roleOf(p)]}</span></span>
+      <span class="id"><button class="who ${p.id === view.who ? 'on' : ''}" data-who="${p.id}" aria-pressed="${p.id === view.who}" title="Dostępność w grafiku">${esc(p.name)}</button><span class="sub">${ROLES[roleOf(p)]}</span><span class="badges">${badges(p)}</span></span>
       <button class="x" data-del-person="${p.id}" aria-label="Usuń ${esc(p.name)}">×</button>
       <span class="foot"><button class="edit" data-who="${p.id}" aria-pressed="${p.id === view.who}" aria-label="Dostępność: ${esc(p.name)}" title="Dostępność w grafiku">${CAL}<span>Dostępność</span></button>
       <button class="edit" data-edit="${p.id}" aria-label="Ustawienia: ${esc(p.name)}" title="Funkcja, limity i prośby">${GEAR}<span>Ustawienia</span></button></span></li>`).join('') ||
@@ -147,17 +162,27 @@ function render() {
     const row = (name, key, ph, label) => `<tr><th scope="row">${name}</th><td>${num('min', key, '—', `Minimum: ${label}`)}</td>` +
       `<td>${num('limit', key, ph, `Limit: ${label}`)}</td><td>${num('want', key, '—', `Prośba: ${label}`)}</td></tr>`;
     const field = (name, hint, control) => `<label class="field"><span>${name}${hint ? `<small>${hint}</small>` : ''}</span>${control}</label>`;
+    const head = '<thead><tr><td></td><th scope="col">Min.</th><th scope="col">Limit</th><th scope="col">Prośba</th></tr></thead>';
+    const custom = (keys) => keys.some((k) => [state.limits, state.mins, state.wants].some((o) => o[who.id]?.[k] != null));
+    // rzadziej używane wiersze zwinięte; rozwinięte od razu, gdy osoba ma tam cokolwiek wpisane
+    const group = (name, id, open, rows) => `<details class="limits-group" ${open ? 'open' : ''}><summary><span>${name}</span><span class="hint" data-group-status="${id}"></span>${CHEV}</summary>` +
+      `<table class="counts">${head}<tbody>${rows}</tbody></table></details>`;
     $('#person-body').innerHTML = `<div class="person-grid"><section><h4>Osoba</h4>` +
       field('Funkcja', '', `<select data-prestige>${ROLES.map((r, i) => `<option value="${i}" ${i === roleOf(who) ? 'selected' : ''}>${r}</option>`).join('')}</select>`) +
       field('Ostatnio gówniane', 'dyżury spoza grafiku, 0–3', `<select data-past>${BAD.map((_, i) => `<option value="${i}" ${i === (who.past ?? 0) ? 'selected' : ''}>${i}</option>`).join('')}</select>`) +
       field('Kanapka PN1 So + Pn', 'zaznaczone = woli ten układ', `<input type="checkbox" role="switch" data-pn1sandwich ${who.pn1Sandwich === false ? '' : 'checked'}>`) +
-      `</section><section><h4>Limity i prośby</h4><table class="counts"><thead><tr><td></td><th scope="col">Min.</th><th scope="col">Limit</th><th scope="col">Prośba</th></tr></thead><tbody>` +
-      row('Łącznie', '*', '∞', 'łącznie') + row('Pt/So/Nd', 'we', WEEKEND_LIMIT, 'Pt/So/Nd') + row('So + Nd', 'd56', '∞', 'soboty i niedziele łącznie') +
-      state.shifts.map((s) => row(esc(s.name), s.id, '∞', esc(s.name))).join('') +
-      `<tr class="sub"><th colspan="4" scope="rowgroup">Ten sam dzień weekendu</th></tr>` +
-      ['Pt', 'So', 'Nd'].map((n, i) => row(n, `d${i + 4}`, '∞', `ten sam dzień ${n}`)).join('') +
-      `</tbody></table><p class="hint">Min. i Limit to twarde granice — także 0. Puste pole = wartość domyślna (szara, ∞ = bez limitu). Prośba to docelowa liczba: algorytm ogranicza zarówno niedobór, jak i nadmiar. Domyślny 1 w ten sam dzień weekendu jest preferencją. Jeśli nie znajdzie grafiku zgodnego z limitami, zachowa poprzedni.</p></section></div>`;
+      `</section><section><h4>Limity i prośby</h4><table class="counts">${head}<tbody>` +
+      row('Łącznie', '*', '∞', 'łącznie') + row('Pt/So/Nd', 'we', WEEKEND_LIMIT, 'Pt/So/Nd') + '</tbody></table>' +
+      `<div class="place-chips" role="group" aria-label="Dyżuruje na"><span>Dyżuruje na:</span>${state.shifts.map((s) =>
+        `<button type="button" class="chip" data-place="${s.id}" aria-pressed="true" title="Kliknij, by wykluczyć lub dopuścić ${esc(s.name)} (Limit 0)">${CHECK}<span>${esc(s.name)}</span></button>`).join('')}</div>` +
+      group(`Miejsca dyżurów (${esc(state.shifts.map((s) => s.name).join(', '))})`, 'places', custom(state.shifts.map((s) => s.id)),
+        state.shifts.map((s) => row(esc(s.name), s.id, '∞', esc(s.name))).join('')) +
+      group('Szczegóły weekendów (So + Nd, osobno Pt / So / Nd)', 'we', custom(['d56', 'd4', 'd5', 'd6']),
+        row('So + Nd', 'd56', '∞', 'soboty i niedziele łącznie') + `<tr class="sub"><th colspan="4" scope="rowgroup">Ten sam dzień weekendu</th></tr>` +
+        ['Pt', 'So', 'Nd'].map((n, i) => row(n, `d${i + 4}`, '∞', `ten sam dzień ${n}`)).join('')) +
+      `<p class="hint">Min. i Limit to twarde granice — także 0. Puste pole = wartość domyślna (szara, ∞ = bez limitu). Prośba to docelowa liczba: algorytm ogranicza zarówno niedobór, jak i nadmiar. Domyślny 1 w ten sam dzień weekendu jest preferencją. Jeśli nie znajdzie grafiku zgodnego z limitami, zachowa poprzedni.</p></section></div>`;
   }
+  if (who && $('#person').open) personStatus(who.id);
   const shiftName = Object.fromEntries(state.shifts.map((s) => [s.id, s.name]));
   $('#rules').innerHTML = state.rules.map((r) => `<li>
       <span>Gdy <b>${esc(nameOf[r.who])}</b> dyżuruje z <b>${esc(nameOf[r.with])}</b>, jest w: ${esc(r.places.map((id) => shiftName[id]).filter(Boolean).join(', ') || '—')}</span>
@@ -171,41 +196,59 @@ function render() {
   $('#priority').innerHTML = state.priority.map((k, i) => `<li><span><em class="rank">${i + 1}</em>${PRIORITIES[k]}</span>
       <button class="x" data-up="${i}" ${i ? '' : 'disabled'} aria-label="Wyżej: ${PRIORITIES[k]}">↑</button>
       <button class="x" data-up="${i + 1}" ${i < state.priority.length - 1 ? '' : 'disabled'} aria-label="Niżej: ${PRIORITIES[k]}">↓</button></li>`).join('');
-  const chips = (names, cls) => `<span class="cycle">${names.map((n, i) => `<span class="${cls[i]}">${n}</span>`).join('<span aria-hidden="true">→</span>')}</span>`;
+  // pędzel: „Po kolei” = każdy klik daje następny poziom (strzałki), poziom = klik i przeciąganie wpisują właśnie jego
+  const chips = (mode, levels, names, cls) => `<span class="cycle" role="group" aria-label="Pędzel">` +
+    `<button type="button" class="brush" data-brush="${mode}" data-lvl="" aria-pressed="${brush[mode] === null}" title="Każdy klik w dzień: następny poziom">Po kolei</button>` +
+    levels.map((lvl, i) => `<button type="button" class="brush ${cls[i]}" data-brush="${mode}" data-lvl="${lvl}" aria-pressed="${brush[mode] === lvl}" title="Klik i przeciąganie po dniach wpisuje: ${names[i]}">${names[i]}</button>`).join('<span aria-hidden="true">→</span>') + '</span>';
   const done = '<button data-done>Gotowe</button>';
-  $('#status').innerHTML = view.bad ? `<span><b>Gównianość dni</b> — klikaj dni, by zmienić:</span>${chips(BAD, ['lvl-2', 'lvl-1', 'lvl-0', 'bad-3'])}<span>Pod spodem: limity i prośby liczone jak inny dzień tygodnia (np. święto jak Nd).</span>${done}` :
-    view.who ? `<span><b>Dostępność: ${esc(nameOf[view.who])}</b> — klikaj dni, by zmienić:</span>${chips([2, 3, 4, 0, 1].map((i) => LEVELS[i]), ['lvl-2', 'lvl-3', 'lvl-4', 'lvl-0', 'lvl-1'])}${done}` :
+  const how = 'klikaj dni albo wybierz poziom i przeciągnij myszą po dniach:';
+  $('#status').innerHTML = view.bad ? `<span><b>Gównianość dni</b> — ${how}</span>${chips('bad', [0, 1, 2, 3], BAD, ['lvl-2', 'lvl-1', 'lvl-0', 'bad-3'])}<span>Pod spodem: limity i prośby liczone jak inny dzień tygodnia (np. święto jak Nd).</span>${done}` :
+    view.who ? `<span><b>Dostępność: ${esc(nameOf[view.who])}</b> — ${how}</span>${chips('avail', [2, 3, 4, 0, 1], [2, 3, 4, 0, 1].map((i) => LEVELS[i]), ['lvl-2', 'lvl-3', 'lvl-4', 'lvl-0', 'lvl-1'])}${done}` :
     empty === slots && slots ? '<span>Pusty grafik — <b>Ułóż miesiąc</b> wypełni go automatycznie; każde pole możesz też wpisać ręcznie.</span>' :
     empty ? `<span>Obsadzone <b class="ok">${slots - empty} z ${slots}</b></span><span class="progress" role="progressbar" aria-label="Obsadzone dyżury" aria-valuenow="${Math.round((slots - empty) / slots * 100)}"><i style="width:${(slots - empty) / slots * 100}%"></i></span>` +
       `<span>wolne: <b>${empty}</b></span><button class="ghost" data-jump>Pokaż pierwszy wolny →</button>` : '';
   $('#status').classList.toggle('info', !!view.who || view.bad || empty === slots);
-  // Uwagi do oglądanego miesiąca: niespełnione prośby, dni „Chcę” bez dyżuru, dyżury „W ostateczności” —
+  $('#calendar').classList.toggle('painting', !!view.who || view.bad); // bez zaznaczania tekstu przy przeciąganiu
+  // Uwagi do oglądanego miesiąca: niespełnione prośby, dni „Chcę” bez dyżuru, dyżury „W ostateczności”, kanapki —
   // liczone na bieżąco, więc zmiana wariantu lub ręczna poprawka od razu się tu odbija
   {
     const gaps = scoreMonth(y, m, state.schedule, state.shifts, team(), {}, {}, state.wants, {}, state.asDay).gaps;
     const label = (k) => WANT_LABEL[k] ?? shiftName[k] ?? k;
     const wish = missedWishes(y, m, state.schedule, team(), state.avail);
     const last = lastResortDays(y, m, state.schedule, team(), state.avail);
-    const who = team().filter((p) => wish[p.id] || last[p.id] || gaps.some((g) => g.pid === p.id));
+    const sw = sandwichDays(y, m, state.schedule, state.shifts, team(), state.avail);
+    const who = team().filter((p) => wish[p.id] || last[p.id] || sw[p.id] || gaps.some((g) => g.pid === p.id));
     const n = who.length;
     $('#want-gaps').classList.toggle('all-ok', !n);
     // przy klikaniu dostępności osoby uwagi tylko przeszkadzają; w pustym miesiącu nie ma jeszcze czego oceniać
     $('#want-gaps').hidden = !!view.who || empty === slots;
-    $('#want-gaps .head').innerHTML = `<span class="count">${n || '✓'}</span><b>Uwagi</b><span class="hint">${n ? 'prośby, dni „Chcę” i „W ostateczności”' : 'wszystko się zgadza'}</span>`;
+    $('#want-gaps .head').innerHTML = `<span class="count">${n || '✓'}</span><b>Uwagi</b><span class="hint">${n ? 'prośby, dni „Chcę”, „W ostateczności” i kanapki' : 'wszystko się zgadza'}</span>`;
     const days = (ds) => ds?.map((d) => `${d}.${String(m + 1).padStart(2, '0')}`).join(', ');
     const nums = (pid, f) => gaps.filter((g) => g.pid === pid && f(g)).map((g) => `${esc(label(g.k))}: <b>${g.got}</b> zamiast ${g.want}`).join('<br>');
+    const dm = (key) => `${+key.slice(8)}.${key.slice(5, 7)}`;
+    const pairs = (ps) => ps?.map(([a, b]) => `${dm(a)} i ${dm(b)}`).join(', ');
     const row = (cls, tag, text) => text ? `<p><span class="${cls}">${tag}</span><span>${text}</span></p>` : '';
     $('#want-gaps ul').innerHTML = who.map((p) => `<li><b>${esc(p.name)}</b>` +
       row('few', 'Za mało', nums(p.id, (g) => g.got < g.want)) +
       row('over', 'Za dużo', nums(p.id, (g) => g.got > g.want)) +
       row('lvl-3', '„Chcę” bez dyżuru', days(wish[p.id])) +
-      row('lvl-1', '„W ostateczności”', days(last[p.id])) + '</li>').join('');
+      row('lvl-1', '„W ostateczności”', days(last[p.id])) +
+      row('lvl-2', 'Kanapki', pairs(sw[p.id])) + '</li>').join('');
   }
   $('#bad-mode').setAttribute('aria-pressed', view.bad);
   if (document.body.dataset.tab === 'stats') renderStats();
 }
 
 function update(fn) { stopGeneration(); fn(); save(); render(); }
+
+// Okno osoby: chipy miejsc (dozwolone = bez Limitu 0) i opisy zwiniętych grup — odświeżane przy każdej zmianie, bez przebudowy pól
+function personStatus(pid) {
+  const custom = (keys) => keys.filter((k) => [state.limits, state.mins, state.wants].some((o) => o[pid]?.[k] != null)).length;
+  for (const b of document.querySelectorAll('#person [data-place]')) b.setAttribute('aria-pressed', state.limits[pid]?.[b.dataset.place] !== 0);
+  const places = custom(state.shifts.map((s) => s.id)), we = custom(['d56', 'd4', 'd5', 'd6']);
+  const text = { places: places ? `własne ustawienia: ${places} z ${state.shifts.length}` : 'domyślne', we: we ? `własne ustawienia: ${we} z 4` : 'domyślne' };
+  for (const el of document.querySelectorAll('#person [data-group-status]')) el.textContent = text[el.dataset.groupStatus];
+}
 
 $('#prev').onclick = () => { $('#panel-variants').hidden = true; view = { ...view, ...(view.m ? { m: view.m - 1 } : { y: view.y - 1, m: 11 }) }; render(); };
 // „Dzisiaj” wraca do bieżącego miesiąca; na telefonie (kalendarz = lista dni) też przewija do dzisiejszego dnia
@@ -235,6 +278,9 @@ $('#generate').onclick = async () => {
   const today = dateKey(now.getFullYear(), now.getMonth(), now.getDate());
   for (const k of keys) if (k < today) for (const [sid, pid] of Object.entries(state.schedule[k] || {}))
     if (gone.has(pid)) (locked[k] = { ...locked[k] })[sid] = pid;
+  // 2 ostatnie dni poprzedniego i 2 pierwsze następnego miesiąca: blokują dzień po dniu i odpoczynek po OITN na przełomie, nie liczą się do limitów
+  for (const k of [dateKey(view.y, view.m, -1), dateKey(view.y, view.m, 0), dateKey(view.y, view.m + 1, 1), dateKey(view.y, view.m + 1, 2)])
+    if (state.schedule[k]) locked[k] = state.schedule[k];
   let variants;
   try {
     variants = await runScheduler([job.y, job.m, state.shifts, people, locked, state.avail,
@@ -288,7 +334,8 @@ $('.tabs').onclick = $('.app-header').onclick = (e) => { const t = e.target.clos
 
 // „Gotowe” kończy dostępność/gównianość i wraca na kartę, z której je włączono
 $('#status').onclick = (e) => {
-  if ('done' in e.target.dataset) { view.who = null; view.bad = false; showTab(back); render(); }
+  if ('done' in e.target.dataset) { view.who = null; view.bad = false; brush = { avail: null, bad: null }; showTab(back); render(); }
+  if (e.target.dataset.brush) { brush[e.target.dataset.brush] = e.target.dataset.lvl === '' ? null : +e.target.dataset.lvl; render(); }
   if ('jump' in e.target.dataset) { // pierwszy nieobsadzony dyżur: przewiń i ustaw kursor
     const input = $('#calendar .slot.unfilled input');
     input?.scrollIntoView({ block: 'center', behavior: 'smooth' });
@@ -299,22 +346,40 @@ $('#bad-mode').onclick = () => { view.bad = !view.bad; view.who = null; back = '
 
 // Klik w dzień w trybie dostępności: Mogę → Chcę → Muszę → Nie mogę → W ostateczności → Mogę
 // W trybie gównianości: 0 → 1 → 2 → 3 → 0 (wartość równa domyślnej nie jest zapisywana)
-$('#calendar').onclick = (e) => {
-  const d = +e.target.dataset.bad;
-  if (d) return update(() => {
-    const key = dateKey(view.y, view.m, d);
-    const next = (badOf(state.bad, view.y, view.m, d) + 1) % BAD.length;
+// Z wybranym pędzlem klik wpisuje jego poziom; przeciągnięcie myszą wpisuje poziom pierwszego dnia we wszystkie mijane dni.
+const dayButton = (t) => t.closest?.('[data-bad], [data-avail]');
+const nextLevel = (el) => el.dataset.bad ? brush.bad ?? (badOf(state.bad, view.y, view.m, +el.dataset.bad) + 1) % BAD.length
+  : brush.avail ?? (availOf(state.avail, view.who, el.dataset.avail) + 1) % LEVELS.length;
+const paintDay = (el, lvl) => update(() => {
+  if (el.dataset.bad) {
+    const d = +el.dataset.bad, key = dateKey(view.y, view.m, d);
     delete state.bad[key];
-    if (next !== badOf(state.bad, view.y, view.m, d)) state.bad[key] = next;
-  });
-  const key = e.target.dataset.avail;
-  if (!key) return;
-  update(() => {
+    if (lvl !== badOf(state.bad, view.y, view.m, d)) state.bad[key] = lvl;
+  } else {
     const a = (state.avail[view.who] ??= {});
-    const next = (availOf(state.avail, view.who, key) + 1) % LEVELS.length;
-    if (next === 2) delete a[key]; else a[key] = next;
-  });
+    if (lvl === 2) delete a[el.dataset.avail]; else a[el.dataset.avail] = lvl;
+  }
+});
+let paint = null, skipClick = false; // paint = { lvl, last: dzień } podczas przeciągania; klik po nim już nic nie zmienia
+$('#calendar').onclick = (e) => {
+  const el = dayButton(e.target);
+  if (el && !skipClick) paintDay(el, nextLevel(el));
 };
+// ponytail: malowanie tylko myszą/piórem — palcem przeciąganie przewija stronę; dotyk = pojedyncze stuknięcia (z pędzlem)
+$('#calendar').addEventListener('pointerdown', (e) => {
+  const el = dayButton(e.target);
+  if (!el || e.pointerType === 'touch' || e.button !== 0) return;
+  paint = { lvl: nextLevel(el), last: el.dataset.bad ?? el.dataset.avail };
+  skipClick = true;
+  paintDay(el, paint.lvl);
+});
+$('#calendar').addEventListener('pointerover', (e) => {
+  const el = paint && dayButton(e.target);
+  if (!el || (el.dataset.bad ?? el.dataset.avail) === paint.last) return;
+  paint.last = el.dataset.bad ?? el.dataset.avail;
+  paintDay(el, paint.lvl);
+});
+for (const type of ['pointerup', 'pointercancel']) addEventListener(type, () => { paint = null; setTimeout(() => { skipClick = false; }); });
 
 // Tryb oceny dni: „Limity jak …” — dzień liczony do limitów i próśb jak inny dzień tygodnia (prawdziwy = bez wpisu)
 $('#calendar').addEventListener('change', (e) => {
@@ -379,11 +444,28 @@ document.body.append(picker);
 const fold = (t) => t.toLowerCase().normalize('NFD').replace(/\p{M}/gu, '').replace(/ł/g, 'l');
 let field = null, hits = [], active = 0;
 
+// Dostępność osoby p w dzień key i kolizja z twardą zasadą na miejscu shift (why = '' gdy brak) — podpowiedź w #picker
+function slotInfo(p, key, shift) {
+  const [y, mo, d] = key.split('-').map(Number), m = mo - 1;
+  const lvl = availOf(state.avail, p.id, key), oitn = state.shifts.find((s) => s.name === 'OITN')?.id;
+  const on = (k, except) => Object.entries(state.schedule[k] || {}).some(([sid, pid]) => pid === p.id && sid !== except);
+  const why = lvl === 0 ? 'Nie mogę' : state.limits[p.id]?.[shift] === 0 ? 'nie na tym miejscu' :
+    state.limits[p.id]?.[`d${limitDay(state.asDay, y, m, d)}`] === 0 ? 'nie w ten dzień tygodnia' :
+    on(key, shift) ? 'już ma dyżur tego dnia' : on(dateKey(y, m, d - 1)) ? 'dyżur dzień wcześniej' : on(dateKey(y, m, d + 1)) ? 'dyżur dzień później' :
+    weekday(y, m, d - 2) >= 5 && state.schedule[dateKey(y, m, d - 2)]?.[oitn] === p.id ? 'odpoczynek po OITN' :
+    shift === oitn && weekday(y, m, d) >= 5 && on(dateKey(y, m, d + 2)) ? 'dyżur 2 dni po OITN' : '';
+  return { lvl, why };
+}
+
 function showPicker() {
-  const q = fold(field.value.trim());
-  hits = [{ id: '', name: '—' }, ...team()].filter((p) => !q || (p.id && fold(p.name).includes(q)));
+  const q = fold(field.value.trim()), { key, shift } = field.dataset;
+  // najpierw bez kolizji (Muszę, Chcę, Mogę, W ostateczności), osoby z kolizją na końcu — nadal do wybrania ręcznie
+  const info = Object.fromEntries(team().map((p) => [p.id, slotInfo(p, key, shift)]));
+  const rank = (p) => (info[p.id].why ? 10 : 0) + 4 - info[p.id].lvl;
+  hits = [{ id: '', name: '—' }, ...team().sort((a, b) => rank(a) - rank(b))].filter((p) => !q || (p.id && fold(p.name).includes(q)));
   active = q ? 0 : Math.max(0, hits.findIndex((p) => p.name === field.dataset.was));
-  picker.innerHTML = hits.map((p, i) => `<li role="option" data-i="${i}" ${i === active ? 'aria-selected="true"' : ''}>${esc(p.name)}</li>`).join('') ||
+  const tag = (p) => { const x = info[p.id]; return !x ? '' : x.why ? `<small class="pill lvl-0">${x.why}</small>` : x.lvl !== 2 ? `<small class="pill lvl-${x.lvl}">${LEVELS[x.lvl]}</small>` : ''; };
+  picker.innerHTML = hits.map((p, i) => `<li role="option" data-i="${i}" class="${info[p.id]?.why ? 'clash' : ''}" ${i === active ? 'aria-selected="true"' : ''}><span>${esc(p.name)}</span>${tag(p)}</li>`).join('') ||
     '<li class="none">Brak takiej osoby</li>';
   const r = field.closest('.slot').getBoundingClientRect();
   Object.assign(picker.style, { left: `${r.left + scrollX}px`, top: `${r.bottom + scrollY + 2}px`, minWidth: `${r.width}px` });
@@ -432,7 +514,7 @@ $('#calendar').addEventListener('focusout', (e) => {
   field = null;
 });
 picker.onmousedown = (e) => e.preventDefault(); // pole zachowuje fokus do czasu wyboru
-picker.onclick = (e) => { const i = e.target.dataset.i; if (i && field) choose(hits[i]); };
+picker.onclick = (e) => { const i = e.target.closest('[data-i]')?.dataset.i; if (i && field) choose(hits[i]); };
 
 $('#add-person').onsubmit = (e) => {
   e.preventDefault();
@@ -455,7 +537,8 @@ $('#add-rule').onsubmit = (e) => {
 };
 
 $('main').onclick = (e) => {
-  const { delPerson, delRule, who, edit, up, filter, log } = e.target.dataset;
+  const { delPerson, delRule, who, edit, up, filter, log, stat } = e.target.dataset;
+  if (stat) { statsWho = stat; showStat(); $('#pstat').showModal(); }
   if (log) { // historia osoby w osobnym oknie, żeby nie rozpychała Statystyk
     const p = state.people.find((x) => x.id === log);
     $('#log-title').textContent = p.name;
@@ -485,7 +568,8 @@ $('main').onclick = (e) => {
   });
 };
 
-$('#stats').addEventListener('toggle', (e) => { const id = e.target.dataset?.pid; if (id) statsOpen[e.target.open ? 'add' : 'delete'](id); }, true);
+// przyciski w oknie osoby ze Statystyk działają jak te na stronie; „Dostępność” przełącza na kalendarz, więc zamyka okno
+$('#pstat').addEventListener('click', (e) => { if (e.target.dataset.who) $('#pstat').close(); $('main').onclick(e); });
 
 $('#people-q').oninput = (e) => { view.q = e.target.value; render(); };
 $('#people-sort').onchange = (e) => { view.sort = e.target.value; render(); };
@@ -493,6 +577,12 @@ $('#people-sort').onchange = (e) => { view.sort = e.target.value; render(); };
 $('#person').onclose = () => { if ($('#person').returnValue !== 'avail') view.who = prevWho; render(); };
 $('#person').onclick = (e) => {
   if (e.target.dataset.go) showTab(e.target.dataset.go);
+  const place = e.target.closest('[data-place]')?.dataset.place; // chip miejsca: wyklucz (Limit 0) ↔ dopuść (puste pole)
+  if (place) update(() => {
+    const l = (state.limits[view.who] ??= {});
+    if (l[place] === 0) delete l[place]; else l[place] = 0;
+    $(`#person [data-limit="${place}"]`).value = l[place] ?? '';
+  });
 };
 // Enter w polu liczby zatwierdza wartość zamiast zamykać okno (formularz method="dialog")
 $('#person').onkeydown = (e) => { if (e.key === 'Enter' && e.target.type === 'number') { e.preventDefault(); e.target.blur(); } };
@@ -573,7 +663,7 @@ function renderStats() {
   const tile = (label, value, sub, cls = '') => `<div class="kpi ${cls}"><span class="kpi-label">${label}</span><b class="kpi-value">${value}</b><span class="kpi-sub">${sub}</span></div>`;
 
   let html = `<div class="panel stats-top"><h3>Statystyki — ${monthName}</h3>
-    <p class="lead">Kto ile dyżurów dostał i dlaczego. Rozwiń osobę, by zobaczyć powody i limity; „Historia” pokazuje jej dyżury z 4 miesięcy.</p><div class="kpis">` +
+    <p class="lead">Kto ile dyżurów dostał i dlaczego. Kliknij osobę, by zobaczyć powody i limity; „Historia” pokazuje jej dyżury z 4 miesięcy.</p><div class="kpis">` +
     tile('Obsadzone', `${st.filled}<small> / ${st.slots}</small>`, `${bar(st.slots && st.filled / st.slots, st.filled < st.slots ? 'warn' : '')}${pct}% · wolne ${st.slots - st.filled}`, st.filled < st.slots ? 'warn' : '') +
     tile('Dyżury na osobę', `${Math.min(...totals)}–${Math.max(...totals)}`, `średnio ${num(avg)}`) +
     tile('Odchylenie od próśb', wantDev, wantDev ? 'suma niedoborów i nadmiarów' : 'prośby spełnione', wantDev ? 'maybe' : '') +
@@ -586,7 +676,7 @@ function renderStats() {
     }).join('') + '</ul></div>';
 
   const rows = [...ppl].sort((a, b) => st.people[b.id].total - st.people[a.id].total || a.name.localeCompare(b.name, 'pl'));
-  html += `<div class="panel stats-people"><h3>Osoby <small>od najwięcej dyżurów · kliknij, by rozwinąć</small></h3>
+  html += `<div class="panel stats-people"><h3>Osoby <small>od najwięcej dyżurów · kliknij, by zobaczyć szczegóły</small></h3>
     <p class="stats-legend"><span><i class="sw start"></i>gównianość sprzed miesiąca</span><span><i class="sw"></i>w tym miesiącu</span>` +
     `<span><span class="pill lvl-3">Chcę</span><span class="pill lvl-2">Mogę</span><span class="pill lvl-1">Ost.</span> dostępność w dni dyżurów</span></p>
     <div class="srow shead" aria-hidden="true"><span>Osoba</span><span>Dyżury</span><span>Pt/So/Nd</span><span>Gównianość</span><span>Dostępność</span></div>` +
@@ -622,21 +712,30 @@ function renderStats() {
         return `<tr><th scope="row">${label}</th><td><b>${got}</b></td><td>${min[k] ?? '—'}</td><td class="${k === 'we' && lim.we == null ? 'hint' : ''}">${l ?? '∞'}</td><td>${want[k] ?? '—'}</td><td>${msg && `<span class="pill ${cls}">${msg}</span>`}</td></tr>`;
       }).join('');
       const maxDow = Math.max(1, ...x.dow);
-      return `<details class="srow-wrap" data-pid="${p.id}" ${statsOpen.has(p.id) ? 'open' : ''}><summary class="srow">
+      statDetail[p.id] = { name: p.name, sub: `${ROLES[roleOf(p)]} · ${dyzury(x.total)} · ${places}`,
+        body: `<section><h4>Dlaczego tak</h4><ul class="why">${why.map(([t, w]) => `<li class="${t}">${w}</li>`).join('')}</ul></section>
+          <section><h4>Limity i prośby <small>ten miesiąc</small></h4><div class="table-scroll"><table class="counts lims"><thead><tr><td></td><th scope="col">Dostał</th><th scope="col">Min.</th><th scope="col">Limit</th><th scope="col">Prośba</th><td></td></tr></thead><tbody>${limRows}</tbody></table></div></section>
+          <section><h4>Dni tygodnia</h4><div class="dows">${DAYS.map((d, i) => `<span style="--k:${x.dow[i] / maxDow}" class="${x.dow[i] ? '' : 'zero'}"><small>${d}</small><b>${x.dow[i]}</b></span>`).join('')}</div></section>`,
+        actions: `<button type="button" class="outlined" data-log="${p.id}">${HIST}Historia</button><button type="button" class="outlined" data-who="${p.id}">${CAL}Dostępność</button><button type="button" class="outlined" data-edit="${p.id}">${GEAR}Ustawienia</button><button>Zamknij</button>` };
+      return `<button type="button" class="srow" data-stat="${p.id}" aria-haspopup="dialog">
         <span class="who-cell"><span class="avatar ${p.prestige ? '' : 'rez'}" aria-hidden="true">${esc(initials(p.name))}</span><span><b>${esc(p.name)}</b><small>${ROLES[roleOf(p)]}</small></span></span>
         <span class="cell-n"><span class="big">${x.total}<small> dyż.</small></span>${bar(x.total / maxN)}<small>${places}</small></span>
         <span class="cell-we ${(x.n.we || 0) >= weLim ? 'full' : ''}"><span class="big">${x.n.we || 0}<small> / ${weLim} Pt/So/Nd</small></span><small>Pt ${x.n.d4 || 0} · So ${x.n.d5 || 0} · Nd ${x.n.d6 || 0}</small></span>
         <span class="cell-bad"><span class="big">${num(s0 + x.bad)}<small> pkt</small></span><span class="meter two" aria-hidden="true"><i class="start" style="width:${s0 / maxBad * 100}%"></i><i style="width:${x.bad / maxBad * 100}%"></i></span><small>${num(s0)} wcześniej + ${x.bad} teraz</small></span>
         <span class="cell-lvl">${pills}</span>
-        <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
-      </summary><div class="sbody">
-        <section><h4>Dlaczego tak</h4><ul class="why">${why.map(([t, w]) => `<li class="${t}">${w}</li>`).join('')}</ul></section>
-        <section><h4>Limity i prośby <small>ten miesiąc</small></h4><div class="table-scroll"><table class="counts lims"><thead><tr><td></td><th scope="col">Dostał</th><th scope="col">Min.</th><th scope="col">Limit</th><th scope="col">Prośba</th><td></td></tr></thead><tbody>${limRows}</tbody></table></div>
-          <h4>Dni tygodnia</h4><div class="dows">${DAYS.map((d, i) => `<span style="--k:${x.dow[i] / maxDow}" class="${x.dow[i] ? '' : 'zero'}"><small>${d}</small><b>${x.dow[i]}</b></span>`).join('')}</div>
-          <div class="sactions"><button type="button" class="edit" data-edit="${p.id}" aria-label="Ustawienia: ${esc(p.name)}">${GEAR}<span>Ustawienia</span></button><button type="button" class="edit" data-who="${p.id}" aria-label="Dostępność: ${esc(p.name)}">${CAL}<span>Dostępność</span></button><button type="button" class="edit" data-log="${p.id}" aria-label="Historia dyżurów: ${esc(p.name)}">${HIST}<span>Historia</span></button></div></section>
-      </div></details>`;
+        <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg></button>`;
     }).join('') + '</div>';
   $('#stats').innerHTML = html;
+  if ($('#pstat').open) showStat(); // okno osoby odświeża się razem ze statystykami (np. po zmianie ustawień)
+}
+
+function showStat() {
+  const d = statDetail[statsWho];
+  if (!d) return $('#pstat').close();
+  $('#pstat-title').textContent = d.name;
+  $('#pstat-sub').textContent = d.sub;
+  $('#pstat-body').innerHTML = d.body;
+  $('#pstat-actions').innerHTML = d.actions;
 }
 
 // Import grafiku z tabeli: plik .docx albo wklejony tekst → podgląd i łączenie osób → zapis jako ręczne dyżury.

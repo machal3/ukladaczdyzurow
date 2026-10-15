@@ -48,7 +48,7 @@
 
   <main id="main" tabindex="-1">
     <section id="panel-variants" class="panel" hidden aria-labelledby="variants-title">
-      <h3 id="variants-title">Warianty grafiku <small>równie dobre przy tej kolejności priorytetów · zaznacz, by zobaczyć w kalendarzu</small></h3>
+      <h3 id="variants-title">Warianty grafiku <small>najlepsze przy tej kolejności priorytetów · zaznacz, by zobaczyć w kalendarzu</small></h3>
       <div id="variants-list" class="variants"></div>
       <menu><button class="ghost" id="variants-undo">Przywróć poprzedni grafik</button><button id="variants-ok">Zostaw zaznaczony</button></menu>
     </section>
@@ -60,7 +60,7 @@
     <section id="people-tab" class="people-tab" aria-label="Osoby">
       <div class="panel" id="panel-people">
         <h3>Osoby</h3>
-        <p class="lead">Kliknij imię, by zaznaczyć dostępność w kalendarzu. „Ustawienia” — funkcja, limity i prośby. Liczby dyżurów i historia są w zakładce Statystyki.</p>
+        <p class="lead">Kliknij imię, by zaznaczyć dostępność w kalendarzu. „Ustawienia” — funkcja, limity i prośby; pigułki pod imieniem pokazują własne ustawienia i dni „Nie mogę” / „Chcę” / „Muszę” w oglądanym miesiącu. Liczby dyżurów i historia są w zakładce Statystyki.</p>
         <div class="people-tools" role="search">
           <label class="search-bar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg><input id="people-q" type="search" placeholder="Szukaj osoby" aria-label="Szukaj osoby" autocomplete="off" spellcheck="false"></label>
           <label class="sort-menu"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m21 16-4 4-4-4"/><path d="M17 20V4"/><path d="m3 8 4-4 4 4"/><path d="M7 4v16"/></svg><select id="people-sort" aria-label="Sortuj osoby">
@@ -126,12 +126,12 @@
       <section id="h-start">
         <h3>1. Szybki start</h3>
         <ol>
-          <li><b>Osoby</b> — „Ustawienia” przy osobie otwierają jej ustawienia: funkcję (Rezydent / Starszy asystent), limity i prośby.</li>
-          <li><b>Dostępność</b> — kliknij imię osoby, a kalendarz przełączy się w tryb jej dostępności. Klikanie w dzień zmienia poziom: <b>Mogę → Chcę → Nie mogę → W ostateczności → Mogę</b>. Na koniec <b>Gotowe</b>.</li>
+          <li><b>Osoby</b> — „Ustawienia” przy osobie otwierają jej ustawienia: funkcję (Rezydent / Starszy asystent), limity i prośby. Na wierzchu są <b>Łącznie</b> i <b>Pt/So/Nd</b> oraz przełączniki <b>Dyżuruje na</b> (kliknięcie wyklucza miejsce = Limit 0); limity na miejscach i szczegóły weekendów są w zwijanych grupach, które otwierają się same, gdy coś w nich wpisano.</li>
+          <li><b>Dostępność</b> — kliknij imię osoby, a kalendarz przełączy się w tryb jej dostępności. Klikanie w dzień zmienia poziom: <b>Mogę → Chcę → Muszę → Nie mogę → W ostateczności → Mogę</b>. Szybciej: wybierz poziom w pasku nad kalendarzem (np. <b>Nie mogę</b>) — klik wpisuje go od razu, a przeciągnięcie myszą po kolejnych dniach (np. cały urlop) wpisuje go we wszystkie mijane dni. <b>Po kolei</b> wraca do zmiany po kliknięciu. Tak samo działa ocena gównianości dni. Na koniec <b>Gotowe</b>.</li>
           <li><b>Układanie</b> — dodaj wszystkich dyżurujących (<b>Nowa osoba</b>), ustaw kolejność priorytetów, dodaj warunki i oceń, które dni są ciężkie (<b>Oceń dni w kalendarzu →</b>).</li>
           <li><b>Grafik</b> — kliknij <b>Ułóż miesiąc</b>. Jeśli jest kilka równie dobrych grafików, nad kalendarzem pojawi się panel wariantów: zaznacz wariant, by go obejrzeć, i kliknij <b>Zostaw zaznaczony</b> (albo <b>Przywróć poprzedni grafik</b>).</li>
           <li>Popraw ręcznie, co chcesz: kliknij pole dyżuru i wybierz osobę (albo „—”, by zwolnić). Ręczne wpisy zostają przy każdym kolejnym układaniu.</li>
-          <li><b>Statystyki</b> — kto ile dyżurów dostał w oglądanym miesiącu i dlaczego: obsada, Pt/So/Nd, gównianość, dostępność w dni dyżurów, limity i prośby. Rozwiń osobę, by zobaczyć powody; przycisk „Historia” otwiera jej dyżury z 4 miesięcy w osobnym oknie.</li>
+          <li><b>Statystyki</b> — kto ile dyżurów dostał w oglądanym miesiącu i dlaczego: obsada, Pt/So/Nd, gównianość, dostępność w dni dyżurów, limity i prośby. Kliknij osobę, by otworzyć okno z powodami i limitami; przycisk „Historia” otwiera jej dyżury z 4 miesięcy w osobnym oknie.</li>
         </ol>
         <table>
           <tr><th>Oznaczenie w kalendarzu</th><th>Znaczenie</th></tr>
@@ -248,13 +248,13 @@
           <tr><td><b>Gówniane dni</b></td><td>suma kwadratów obciążenia osób (kwadrat mocno karze nierówny podział)</td></tr>
           <tr><td><b>Równa liczba</b></td><td>suma kwadratów liczby dyżurów osób</td></tr>
         </table>
-        <p>Przyjmowane są tylko grafiki zgodne ze wszystkimi limitami. Porównanie: najpierw puste miejsca, następnie odchylenia od próśb, potem ważona ocena pozostałych preferencji. Najlepszy trafia do kalendarza. Przy remisie pojawia się panel <b>Warianty grafiku</b> (maks. 3).</p>
+        <p>Przyjmowane są tylko grafiki zgodne ze wszystkimi limitami. Porównanie: najpierw puste miejsca, następnie odchylenia od próśb, potem ważona ocena pozostałych preferencji. Najlepszy trafia do kalendarza. Poprawiane są do 3 najlepszych, wyraźnie różnych grafików naraz. Przy remisie pojawia się panel <b>Warianty grafiku</b> (maks. 3); gdy remisu nie ma, panel pokazuje prawie równie dobre warianty (ta sama obsada i prośby, reszta oceny do 10% gorsza).</p>
       </section>
 
       <section id="h-manual">
         <h3>7. Ręczne wpisy, import, usuwanie osób</h3>
         <ul>
-          <li><b>Wpis ręczny</b> — kliknij pole, wpisz kilka liter i wybierz osobę; „—” zwalnia miejsce. Wpis ręczny <b>nie jest sprawdzany</b> twardymi zasadami — łamanie „Nie mogę” lub warunku zaznacza falista linia. Algorytm go nie ruszy, ale uwzględni przy pozostałych dniach.</li>
+          <li><b>Wpis ręczny</b> — kliknij pole, wpisz kilka liter i wybierz osobę; „—” zwalnia miejsce. Lista podpowiada: na górze osoby bez kolizji (najpierw „Muszę” i „Chcę”), na dole osoby z kolizją i jej powodem („Nie mogę”, dyżur dzień wcześniej/później, odpoczynek po OITN, wykluczone miejsce) — nadal do wybrania. Wpis ręczny <b>nie jest sprawdzany</b> twardymi zasadami — łamanie „Nie mogę” lub warunku zaznacza falista linia. Algorytm go nie ruszy, ale uwzględni przy pozostałych dniach.</li>
           <li><b>Wyczyść</b> — usuwa grafik oglądanego miesiąca, łącznie z wpisami ręcznymi.</li>
           <li><b>Importuj</b> — wczytuje grafik z tabeli (Word <code>.docx</code> albo tabela skopiowana z Worda/Excela): nagłówek z nazwami miejsc, numer dnia w pierwszej kolumnie. Imiona łączone są z osobami (pełne imię i nazwisko, „M. Kowalska” albo samo nazwisko); nieznane można dodać albo pominąć. Połączenia są zapamiętywane. Zaimportowane dyżury stają się wpisami ręcznymi.</li>
           <li><b>Usunięcie osoby</b> — przeszłe dyżury zostają (i liczą się w historii), przyszłe są zwalniane; znikają jej dostępność, limity, prośby i warunki. Dodanie osoby o tym samym imieniu przywraca ją z historią.</li>
@@ -273,7 +273,7 @@
         <h3>9. Znane ograniczenia</h3>
         <ul>
           <li>Wyszukiwanie ma ograniczony czas i nie gwarantuje najlepszego możliwego grafiku. Komunikat o braku wyniku nie dowodzi, że rozwiązanie nie istnieje. Możesz sprawdzić ustawienia albo ponowić próbę. Limity nie są automatycznie rozluźniane.</li>
-          <li>„Nie dzień po dniu”, „bez kanapek” i „wolne po weekendowym OITN” <b>nie patrzą przez przełom miesięcy</b> — dyżur 31. nie blokuje 1. dnia następnego miesiąca. Sprawdź początek miesiąca ręcznie.</li>
+          <li>Przełom miesięcy: „nie dzień po dniu”, „bez kanapek” i „wolne po weekendowym OITN” uwzględniają 2 ostatnie dni poprzedniego i 2 pierwsze dni następnego miesiąca, jeśli są już w grafiku (nie liczą się do limitów, minimów ani próśb tego miesiąca). Gdy następny miesiąc ułożysz wcześniej, jego początek też blokuje koniec tego.</li>
           <li>Wolne po OITN działa tylko dla miejsca o nazwie dokładnie <b>OITN</b>.</li>
           <li>Wpisy ręczne nie są blokowane — tylko oznaczane, gdy łamią „Nie mogę” lub warunek.</li>
         </ul>
@@ -288,6 +288,15 @@
       <button class="ghost person-close" aria-label="Zamknij" title="Zamknij"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button></header>
       <div id="person-body"></div>
       <menu><button class="outlined" data-go="calendar" value="avail"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 2v3"/><path d="M16 2v3"/><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></svg>Dostępność</button><button>Zapisz</button></menu>
+    </form>
+  </dialog>
+
+  <dialog id="pstat" aria-labelledby="pstat-title">
+    <form method="dialog">
+      <header class="person-head"><h3 tabindex="-1" autofocus><span id="pstat-title"></span><small id="pstat-sub"></small></h3>
+      <button class="ghost person-close" aria-label="Zamknij" title="Zamknij"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button></header>
+      <div id="pstat-body"></div>
+      <menu id="pstat-actions"></menu>
     </form>
   </dialog>
 
