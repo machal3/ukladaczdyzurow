@@ -114,6 +114,28 @@ test('układanie w tle: nawigacja działa, anulowanie i edycja chronią przed sp
   assert.deepEqual(state().schedule, original);
 });
 
+test('„Gotowe” publikuje miesiąc i blokuje układanie; „Cofnij gotowość” to odwraca', async (t) => {
+  const { w, $, state } = await setup(t);
+  w.confirm = () => true;
+  const k = () => Object.keys(state().gotowe ?? {});
+  $('#publish').click();
+  assert.equal(k().length, 1);
+  assert.equal($('#generate').disabled, true);
+  assert.equal($('#publish').textContent, 'Cofnij gotowość');
+  $('#generate').click();
+  assert.equal($('#cancel-generate').hidden, true, 'gotowy miesiąc się nie układa');
+  $('#next').click();
+  assert.equal($('#generate').disabled, false, 'inny miesiąc nie jest gotowy');
+  $('#prev').click();
+  w.confirm = () => false;
+  $('#publish').click();
+  assert.equal(k().length, 1, 'bez potwierdzenia nic się nie zmienia');
+  w.confirm = () => true;
+  $('#publish').click();
+  assert.deepEqual(k(), []);
+  assert.equal($('#generate').disabled, false);
+});
+
 test('wybór koloru motywu zapisuje się i wraca po odświeżeniu', async (t) => {
   const { w, $ } = await setup(t);
   $('[data-color-theme-pick="niebieski"]').click();

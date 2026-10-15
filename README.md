@@ -37,6 +37,8 @@ Ta sama instrukcja jest w aplikacji, w zakładce **Instrukcja**.
 4. **Grafik** — przejdź do miesiąca i kliknij **Ułóż miesiąc**. Jeśli jest kilka równie dobrych grafików, nad
    kalendarzem pojawi się panel wariantów — zaznacz wariant, by go obejrzeć, i kliknij **Zostaw zaznaczony**
    (albo **Przywróć poprzedni grafik**).
+   Gdy grafik jest ostateczny, kliknij **Gotowe** — osoby zobaczą go w Zapisach, a **Ułóż miesiąc** zostanie
+   zablokowany (`state.gotowe['YYYY-MM']`). **Cofnij gotowość** to odwraca.
 5. Popraw ręcznie, co chcesz: kliknij pole dyżuru i wybierz osobę (albo „—”, by zwolnić). Ręczne wpisy
    zostają przy każdym kolejnym **Ułóż miesiąc**.
 6. **Statystyki** — kto ile dyżurów dostał w oglądanym miesiącu i dlaczego: obsada, Pt/So/Nd, gównianość,
@@ -273,8 +275,8 @@ swoją dostępność i prośby, 6-cyfrowym PIN-em. Działa tylko w trybie chmury
 - **Co osoba widzi** — swoje imię, nazwy miejsc, swoją dostępność (Mogę / Chcę / Muszę / Nie mogę /
   W ostateczności), swoje prośby i komentarze. **Nie widzi** limitów, minimów, cudzej dostępności, warunków ani
   gównianości dni.
-- **Grafik** — Zapisy pokazują wszystkim aktualny grafik od poprzedniego miesiąca (tylko imiona na miejscach), na
-  bieżąco, także w trakcie poprawiania.
+- **Grafik** — Zapisy pokazują wszystkim tylko miesiące oznaczone jako **Gotowe** (od poprzedniego miesiąca, same
+  imiona na miejscach). Nieułożonego grafiku osoby nie widzą.
 - **Komentarze** — osoba może dopisać komentarz do swoich dyżurów w danym miesiącu (do 500 znaków). Widać go w
   **ustawieniach osoby** (zakładka Osoby, karta „Komentarze z Zapisów”) i w jej oknie w **Statystykach**.
 - **Termin zapisów** — osoby zmieniają dostępność na dany miesiąc do 20. dnia poprzedniego miesiąca włącznie;

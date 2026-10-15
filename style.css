@@ -79,6 +79,7 @@ h1 { font: var(--type-display); letter-spacing: -.025em; text-wrap: balance; }
 .actions .ghost svg { width: 18px; height: 18px; }
 #generate { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 56px; padding: 16px 20px; border-radius: 16px; margin-left: 12px; background: var(--accent-soft); color: var(--md-sys-color-on-primary-container); }
 #generate:enabled:hover { background: var(--md-sys-color-primary-container); }
+#publish[aria-pressed=true] { background: var(--strong); color: var(--on-strong); }
 #status { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin: 0 0 20px; padding: 14px 20px; border-radius: 20px; background: var(--md-sys-color-surface-container); color: var(--muted); font-size: 13px; }
 #status:empty { display: none; }
 #status.pinned { position: sticky; top: 112px; /* = wysokość .app-header */ z-index: 8; box-shadow: 0 0 0 8px var(--page); }

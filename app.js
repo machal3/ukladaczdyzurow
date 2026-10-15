@@ -31,6 +31,7 @@ function migrate() {
   state.limits ??= {}; // { personId: { shiftId: maks. dyżurów w miesiącu, '*': maks. łącznie, we: maks. Pt/So/Nd, d56: maks. So + Nd łącznie } } — brak = bez limitu (we: WEEKEND_LIMIT)
   state.mins ??= {}; // { personId: { shiftId / d4-d6 / d56 / we / '*': minimum dyżurów w miesiącu } } — idzie do generateMonth jako limits[pid].min
   state.wants ??= {}; // { personId: { shiftId / d4-d6 / d56 / we / '*': ile dyżurów chce w miesiącu } } — prośby, miękkie (patrz generateMonth)
+  state.gotowe ??= {}; // { 'YYYY-MM': true } — grafik gotowy: widzą go osoby w Zapisach, „Ułóż miesiąc” zablokowany
   state.uwagi ??= {}; // { personId: { 'YYYY-MM': komentarz osoby z Zapisów (zwykły tekst, ≤ 500 znaków) } }
   state.bad ??= {}; // { 'YYYY-MM-DD': gównianość 0-3 } — patrz BAD/badOf; osoba: person.past 0-3
   state.asDay ??= {}; // { 'YYYY-MM-DD': 0-6 } — dzień liczony do limitów i próśb jak inny dzień tygodnia (patrz limitDay)
@@ -62,10 +63,22 @@ const stopGeneration = () => {
   if (!generation) return;
   generation.controller.abort();
   generation = null;
-  $('#generate').disabled = false;
+  syncReady();
   $('#cancel-generate').hidden = true;
   $('#generation-status').textContent = 'Układanie anulowane. Grafik pozostaje bez zmian.';
 };
+
+// „Gotowe” publikuje oglądany miesiąc (Zapisy pokazują osobom tylko gotowe miesiące) i blokuje „Ułóż miesiąc”.
+// ponytail: ręczne poprawki gotowego miesiąca dalej działają i osoby widzą je od razu
+const monthKeyOf = () => dateKey(view.y, view.m, 1).slice(0, 7);
+function syncReady() {
+  const ready = !!state.gotowe[monthKeyOf()];
+  $('#generate').disabled = !!generation || ready;
+  $('#generate').title = ready ? 'Grafik jest gotowy — najpierw „Cofnij gotowość”' : 'Ułóż automatycznie cały miesiąc (ręczne dyżury zostają)';
+  $('#publish').disabled = !!generation;
+  $('#publish').setAttribute('aria-pressed', ready);
+  $('#publish span').textContent = ready ? 'Cofnij gotowość' : 'Gotowe';
+}
 
 function uid() { return Math.random().toString(36).slice(2, 10); }
 function person(name) { return { id: uid(), name, prestige: 1 }; }
@@ -87,6 +100,7 @@ function render() {
   const monthName = new Date(y, m).toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' });
   $('#month-label').textContent = monthName;
   $('#today').classList.toggle('here', y === now.getFullYear() && m === now.getMonth());
+  syncReady();
 
   const todayKey = dateKey(now.getFullYear(), now.getMonth(), now.getDate());
   const nameOf = Object.fromEntries(state.people.map((p) => [p.id, p.name]));
@@ -333,15 +347,21 @@ $('#today').onclick = () => {
 $('#next').onclick = () => { $('#panel-variants').hidden = true; view = { ...view, ...(view.m < 11 ? { m: view.m + 1 } : { y: view.y + 1, m: 0 }) }; render(); };
 
 $('#cancel-generate').onclick = stopGeneration;
+$('#publish').onclick = () => {
+  const k = monthKeyOf(), name = $('#month-label').textContent;
+  if (state.gotowe[k] ? !confirm(`Cofnąć gotowość grafiku na ${name}? Osoby przestaną go widzieć w Zapisach, a „Ułóż miesiąc” znów zadziała.`)
+    : !confirm(`Grafik na ${name} gotowy? Osoby zobaczą go w Zapisach, a „Ułóż miesiąc” zostanie zablokowany do cofnięcia gotowości.`)) return;
+  update(() => { if (state.gotowe[k]) delete state.gotowe[k]; else state.gotowe[k] = true; });
+};
 $('#generate').onclick = async () => {
-  if (generation) return;
+  if (generation || state.gotowe[monthKeyOf()]) return;
   view.who = null;
   view.bad = false;
   $('#panel-variants').hidden = true;
   render();
   const job = { controller: new AbortController(), y: view.y, m: view.m };
   generation = job;
-  $('#generate').disabled = true;
+  syncReady();
   $('#cancel-generate').hidden = false;
   $('#generation-status').textContent = 'Układam grafik… Możesz nadal korzystać ze strony.';
   const keys = monthKeys();
@@ -370,7 +390,7 @@ $('#generate').onclick = async () => {
   } finally {
     if (generation === job) {
       generation = null;
-      $('#generate').disabled = false;
+      syncReady();
       $('#cancel-generate').hidden = true;
     }
   }
