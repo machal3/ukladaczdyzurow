@@ -171,6 +171,7 @@ function render() {
       card('Dyżuruje na', 'Kliknij miejsce, by je wykluczyć (Limit 0) lub znów dopuścić.',
         `<div class="place-chips" role="group" aria-label="Dyżuruje na">${state.shifts.map((s) =>
           `<button type="button" class="chip" data-place="${s.id}" aria-pressed="true" title="Kliknij, by wykluczyć lub dopuścić ${esc(s.name)} (Limit 0)">${CHECK}<span>${esc(s.name)}</span></button>`).join('')}</div>`) +
+      (komentarze(who.id) ? card('Komentarze z Zapisów', 'Osoba dopisała je do swoich dyżurów w danym miesiącu.', komentarze(who.id)) : '') +
       (zapisy ? card('Konto w Zapisach', 'Osoba sama wpisuje dostępność i prośby w aplikacji Zapisy na dyżury.', '<div id="konto"></div>') : '') +
       card('Limity i prośby', 'Liczba dyżurów w miesiącu — obowiązuje w każdym miesiącu.',
         `<table class="counts">${head}<tbody>${row('Łącznie', '*', '∞', 'łącznie') + row('Pt/So/Nd', 'we', WEEKEND_LIMIT, 'Pt/So/Nd')}</tbody></table>` +
@@ -219,21 +220,21 @@ function render() {
     const wish = missedWishes(y, m, state.schedule, team(), state.avail);
     const last = lastResortDays(y, m, state.schedule, team(), state.avail);
     const sw = sandwichDays(y, m, state.schedule, state.shifts, team(), state.avail);
-    // w pustym miesiącu nie ma jeszcze czego oceniać — wtedy tylko komentarze osób z Zapisów
+    // w pustym miesiącu nie ma jeszcze czego oceniać; komentarze osób są w oknie osoby i w Statystykach
     const blank = empty === slots;
-    const who = team().filter((p) => uwaga(p.id) || !blank && (wish[p.id] || last[p.id] || sw[p.id] || gaps.some((g) => g.pid === p.id)));
+    const who = team().filter((p) => !blank && (wish[p.id] || last[p.id] || sw[p.id] || gaps.some((g) => g.pid === p.id)));
     const n = who.length;
     $('#want-gaps').classList.toggle('all-ok', !n);
     // przy klikaniu dostępności osoby uwagi tylko przeszkadzają
     $('#want-gaps').hidden = !!view.who || blank && !n;
-    $('#want-gaps .head').innerHTML = `<span class="count">${n || '✓'}</span><b>Uwagi</b><span class="hint">${n ? 'prośby, dni „Chcę”, „W ostateczności”, kanapki i komentarze osób' : 'wszystko się zgadza'}</span>`;
+    $('#want-gaps .head').innerHTML = `<span class="count">${n || '✓'}</span><b>Uwagi</b><span class="hint">${n ? 'prośby, dni „Chcę”, „W ostateczności”, i kanapki' : 'wszystko się zgadza'}</span>`;
     const days = (ds) => ds?.map((d) => `${d}.${String(m + 1).padStart(2, '0')}`).join(', ');
     const nums = (pid, f) => gaps.filter((g) => g.pid === pid && f(g)).map((g) => `${esc(label(g.k))}: <b>${g.got}</b> zamiast ${g.want}`).join('<br>');
     const dm = (key) => `${+key.slice(8)}.${key.slice(5, 7)}`;
     const pairs = (ps) => ps?.map(([a, b]) => `${dm(a)} i ${dm(b)}`).join(', ');
     const row = (cls, tag, text) => text ? `<p><span class="${cls}">${tag}</span><span>${text}</span></p>` : '';
     $('#want-gaps ul').innerHTML = who.map((p) => `<li><b>${esc(p.name)}</b>` +
-      row('note', 'Komentarz', esc(uwaga(p.id))) + (blank ? '' :
+      (blank ? '' :
       row('few', 'Za mało', nums(p.id, (g) => g.got < g.want)) +
       row('over', 'Za dużo', nums(p.id, (g) => g.got > g.want)) +
       row('lvl-3', '„Chcę” bez dyżuru', days(wish[p.id])) +
@@ -247,9 +248,11 @@ function render() {
 
 // Zapisy na dyżury: kiedy osoba ostatnio sama zmieniła dostępność/prośby (state.stamps stawia serwer)
 const when = (iso) => iso ? new Date(iso).toLocaleString('pl-PL', { dateStyle: 'short', timeStyle: 'short' }) : '—';
-const stamp = (pid) => (state.stamps[pid] ? ` <small class="stamp">zmienione w Zapisach: ${when(state.stamps[pid])}</small>` : '') +
-  (uwaga(pid) ? ` <small class="stamp note-text">Komentarz: ${esc(uwaga(pid))}</small>` : '');
+const stamp = (pid) => state.stamps[pid] ? ` <small class="stamp">zmienione w Zapisach: ${when(state.stamps[pid])}</small>` : '';
 // komentarz osoby z Zapisów do oglądanego miesiąca ('' = brak) — zwykły tekst, zawsze przez esc()
+// okno osoby: wszystkie komentarze od bieżącego miesiąca (starsze zostają w danych, ale już nie są potrzebne)
+const komentarze = (pid) => Object.entries(state.uwagi[pid] ?? {}).filter(([k, t]) => k >= dateKey(now.getFullYear(), now.getMonth(), 1).slice(0, 7) && t.trim()).sort()
+  .map(([k, t]) => `<p class="note-text"><b>${new Date(+k.slice(0, 4), +k.slice(5) - 1).toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' })}:</b> ${esc(t.trim())}</p>`).join('');
 const uwaga = (pid) => state.uwagi[pid]?.[dateKey(view.y, view.m, 1).slice(0, 7)]?.trim() ?? '';
 // Termin zapisów (pilnuje baza): osoby zmieniają miesiąc do 20. dnia poprzedniego; state.zapisyOd zamyka wcześniejsze miesiące
 function zapisyInfo(y, m) {

@@ -319,8 +319,7 @@ a.outlined { display: inline-flex; align-items: center; min-height: 48px; paddin
 .new-pin b { font: 600 28px/1 var(--headline); letter-spacing: .15em; -webkit-user-select: text; user-select: text; }
 #status .stamp, #status .zapisy-info { color: var(--muted); font-size: 12px; font-weight: 400; }
 #status .zapisy-info { margin-left: auto; }
-#want-gaps .note { background: var(--accent-soft); color: var(--md-sys-color-on-primary-container); }
-.note-text, #want-gaps .note + span { white-space: pre-line; overflow-wrap: anywhere; }
+.note-text { white-space: pre-line; overflow-wrap: anywhere; }
 #panel-zapisy-od .field { max-width: 420px; }
 #person menu { padding: 16px 28px 24px; border-top: 1px solid var(--md-sys-color-outline-variant); }
 .person-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; margin-bottom: 16px; }

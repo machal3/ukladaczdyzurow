@@ -277,7 +277,7 @@ test('Zapisy na dyżury w trybie chmury: konto osoby, nowy PIN (zajęty → losu
   assert.ok(state().priority.length, 'odświeżony stan przechodzi te same migracje');
 });
 
-test('komentarze osób z Zapisów: w Uwagach także przy pustym grafiku, przetrwają zapis, znikają z usuniętą osobą', async (t) => {
+test('komentarze osób z Zapisów: tylko w oknie osoby i Statystykach, przetrwają zapis, znikają z usuniętą osobą', async (t) => {
   const days = [0, 1, 2, 3, 4, 5, 6], d = new Date();
   const next = new Date(d.getFullYear(), d.getMonth() + 1, 15); // aplikacja startuje na następnym miesiącu
   const shown = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}`;
@@ -286,13 +286,16 @@ test('komentarze osób z Zapisów: w Uwagach także przy pustym grafiku, przetrw
     people: [{ id: 'a', name: 'Anna Kowalska', prestige: 1 }, { id: 'b', name: 'Jan Nowak', prestige: 1 }],
     shifts: [{ id: 'o', name: 'OITN', days }], schedule: {}, manual: {}, miejscaV2: true, uwagi,
   });
-  assert.equal($('#want-gaps').hidden, false, 'pusty grafik, ale jest komentarz');
-  const li = $('#want-gaps li');
-  assert.match(li.textContent, /Anna Kowalska.*Komentarz.*Wolę <b>OITN<\/b>/s);
-  assert.equal(li.querySelector('b b'), null, 'tekst bez HTML');
-  assert.equal(w.document.querySelectorAll('#want-gaps li').length, 1, 'komentarz z innego miesiąca się nie liczy');
+  assert.equal($('#want-gaps').hidden, true, 'nie w Uwagach');
+  $('#people [data-edit="a"]').click();
+  assert.match($('#person-body').textContent, /Komentarze z Zapisów.*Wolę <b>OITN<\/b>/s);
+  assert.equal($('#person-body .note-text b b'), null, 'tekst bez HTML');
+  $('#person').close();
+  $('#people [data-edit="b"]').click();
+  assert.doesNotMatch($('#person-body').textContent, /Komentarze z Zapisów/, 'stary komentarz się nie liczy');
+  $('#person').close();
   $('#people [data-who="a"]').click();
-  assert.match($('#status').textContent, /Komentarz: Wolę <b>OITN<\/b>/);
+  assert.doesNotMatch($('#status').textContent, /Komentarz/);
   $('[data-avail]').click(); // zapis całego stanu
   assert.deepEqual(state().uwagi, uwagi);
   $('[data-done]').click();
