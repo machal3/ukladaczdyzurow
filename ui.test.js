@@ -168,7 +168,14 @@ test('dodawanie osoby i switch w oknie ustawień zachowują zapis i zdarzenia', 
   $('#person').close();
   $(`[data-limits="${person.id}"]`).click();
   assert.equal($('[data-pn1sandwich]'), null);
-  assert.equal($(`#people .icon[data-who="${person.id}"]`).getAttribute('aria-pressed'), 'false', 'okno osoby to nie tryb dostępności');
+  const pressed = (sel) => $(`#people [${sel}="${person.id}"]`).getAttribute('aria-pressed');
+  assert.deepEqual(['data-who', 'data-edit', 'data-limits'].map(pressed), ['false', 'false', 'true'], 'podświetlone „Limity”, nie kalendarz');
+  $('#person').close();
+  $(`[data-edit="${person.id}"]`).click();
+  assert.deepEqual(['data-who', 'data-edit', 'data-limits'].map(pressed), ['false', 'true', 'false'], 'podświetlone ⚙');
+  $('#person').close();
+  assert.deepEqual(['data-who', 'data-edit', 'data-limits'].map(pressed), ['false', 'false', 'false']);
+  $(`[data-limits="${person.id}"]`).click();
   const limit = $('[data-limit="*"]');
   limit.value = '4';
   limit.dispatchEvent(new w.Event('change', { bubbles: true }));

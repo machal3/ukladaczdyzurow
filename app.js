@@ -153,15 +153,15 @@ function render() {
   const count = Object.fromEntries(team().map((p) => [p.id, 0]));
   for (const k of monthKeys()) for (const pid of Object.values(state.schedule[k] || {})) if (pid in count) count[pid]++;
   const shown = listPeople(team(), count, view), filtered = view.q.trim() || view.role || view.none;
-  // podświetlenie = tryb dostępności tej osoby; okno osoby też ustawia view.who, ale to nie dostępność
-  const on = (id) => id === view.who && !$('#person').open;
+  // podświetlony przycisk = to, co jest otwarte: tryb dostępności albo okno osoby (⚙ ustawienia / „Limity”)
+  const on = (id) => id === view.who && !$('#person').open, open = (id, part) => id === view.who && $('#person').open && personPart === part;
   $('#people').innerHTML = shown.map((p) => `<li class="${on(p.id) ? 'on' : ''}">
       <span class="avatar ${p.prestige ? '' : 'rez'}" aria-hidden="true">${esc(initials(p.name))}</span>
       <span class="id"><button class="who ${on(p.id) ? 'on' : ''}" data-who="${p.id}" aria-pressed="${on(p.id)}" title="Dostępność w grafiku">${esc(p.name)}</button><span class="sub">${ROLES[roleOf(p)]}</span></span>
       <button class="x" data-del-person="${p.id}" aria-label="Usuń ${esc(p.name)}">×</button>
       <span class="foot"><span class="icons"><button class="edit icon" data-who="${p.id}" aria-pressed="${on(p.id)}" aria-label="Dostępność: ${esc(p.name)}" title="Dostępność w grafiku">${CAL}</button>
-      <button class="edit icon" data-edit="${p.id}" aria-label="Ustawienia: ${esc(p.name)}" title="Ustawienia: funkcja, kanapka, komentarze, konto w Zapisach">${COG}</button></span>
-      <button class="edit" data-limits="${p.id}" aria-label="Limity i prośby: ${esc(p.name)}" title="Miejsca, minima, limity i prośby">${GEAR}<span>Limity</span></button></span></li>`).join('') ||
+      <button class="edit icon" data-edit="${p.id}" aria-pressed="${open(p.id, 'settings')}" aria-label="Ustawienia: ${esc(p.name)}" title="Ustawienia: funkcja, kanapka, komentarze, konto w Zapisach">${COG}</button></span>
+      <button class="edit" data-limits="${p.id}" aria-pressed="${open(p.id, 'limits')}" aria-label="Limity i prośby: ${esc(p.name)}" title="Miejsca, minima, limity i prośby">${GEAR}<span>Limity</span></button></span></li>`).join('') ||
     (team().length ? '<li class="no-match"><b>Nikt nie pasuje</b><span>Zmień wyszukiwanie lub filtry.</span><button type="button" class="outline" data-clear-filters>Wyczyść filtry</button></li>' : '');
   $('#people-count').textContent = filtered ? `Pokazano ${shown.length} z ${team().length}` : '';
   for (const b of document.querySelectorAll('[data-filter]')) b.setAttribute('aria-pressed', b.dataset.filter === 'none' ? view.none : b.dataset.filter === view.role);
