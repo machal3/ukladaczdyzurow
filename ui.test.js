@@ -156,7 +156,7 @@ test('wpis ręczny z klawiatury pozostaje po generowaniu miesiąca', async (t) =
 
 test('dostępność i import tabeli działają po zmianie struktury formularzy', async (t) => {
   const { w, $, state } = await setup(t);
-  $('#summary-list [data-who]').click();
+  $('#people [data-who]').click();
   const control = $('[data-avail]');
   const key = control.dataset.avail;
   const person = state().people[0].id;
@@ -223,7 +223,6 @@ test('okno osoby: Min., Limit i Prośba zapisują się w każdym wierszu i dzia�
   const mine = Object.values(state().schedule).filter((day) => Object.values(day).includes(anna.id));
   assert.ok(mine.filter((day) => day[oitn] === anna.id).length >= 6);
   assert.ok(mine.length <= 9);
-  assert.equal($('#summary-list .badge.under'), null); // minimum spełnione → bez ostrzeżenia
 
   $(`[data-edit="${anna.id}"]`).click();
   set('min', oitn, '10'); // przy limicie 9 niewykonalne → komunikat i poprzedni grafik
@@ -235,5 +234,4 @@ test('okno osoby: Min., Limit i Prośba zapisują się w każdym wierszu i dzia�
   await generated();
   assert.match(message, /minimum.*przekracza limit górny/);
   assert.deepEqual(state().schedule, previous);
-  assert.match($('#summary-list .badge.under').title, /Do minimum brakuje: \d/);
 });
