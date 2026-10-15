@@ -130,20 +130,9 @@ function render() {
   const count = Object.fromEntries(team().map((p) => [p.id, 0]));
   for (const k of monthKeys()) for (const pid of Object.values(state.schedule[k] || {})) if (pid in count) count[pid]++;
   const shown = listPeople(team(), count, view), filtered = view.q.trim() || view.role || view.none;
-  // Pigułki pod funkcją: własne limity, prośby, wykluczone miejsca i dni „Nie mogę” / „Chcę” / „Muszę” w oglądanym miesiącu
-  const badges = (p) => {
-    const l = state.limits[p.id] ?? {}, mn = state.mins[p.id] ?? {}, w = state.wants[p.id] ?? {}, a = state.avail[p.id] ?? {};
-    const off = state.shifts.filter((s) => l[s.id] === 0);
-    const other = [...Object.keys(l).filter((k) => !off.some((s) => s.id === k)), ...Object.keys(mn), ...Object.keys(w)].filter((k) => k !== '*').length;
-    const days = (lvl) => monthKeys().filter((k) => a[k] === lvl).length;
-    return [['lvl-2', l['*'] != null && `Limit ${l['*']}`], ['lvl-2', mn['*'] != null && `Min. ${mn['*']}`], ['lvl-3', w['*'] != null && `Prośba ${w['*']}`],
-      ['lvl-1', off.length && `Bez: ${off.map((s) => s.name).join(', ')}`], ['lvl-2', other && 'Inne limity'],
-      ['lvl-0', days(0) && `Nie mogę ${days(0)}`], ['lvl-3', days(3) && `Chcę ${days(3)}`], ['lvl-4', days(4) && `Muszę ${days(4)}`]]
-      .filter(([, t]) => t).map(([c, t]) => `<span class="pill ${c}">${esc(t)}</span>`).join('');
-  };
   $('#people').innerHTML = shown.map((p) => `<li class="${p.id === view.who ? 'on' : ''}">
       <span class="avatar ${p.prestige ? '' : 'rez'}" aria-hidden="true">${esc(initials(p.name))}</span>
-      <span class="id"><button class="who ${p.id === view.who ? 'on' : ''}" data-who="${p.id}" aria-pressed="${p.id === view.who}" title="Dostępność w grafiku">${esc(p.name)}</button><span class="sub">${ROLES[roleOf(p)]}</span><span class="badges">${badges(p)}</span></span>
+      <span class="id"><button class="who ${p.id === view.who ? 'on' : ''}" data-who="${p.id}" aria-pressed="${p.id === view.who}" title="Dostępność w grafiku">${esc(p.name)}</button><span class="sub">${ROLES[roleOf(p)]}</span></span>
       <button class="x" data-del-person="${p.id}" aria-label="Usuń ${esc(p.name)}">×</button>
       <span class="foot"><button class="edit" data-who="${p.id}" aria-pressed="${p.id === view.who}" aria-label="Dostępność: ${esc(p.name)}" title="Dostępność w grafiku">${CAL}<span>Dostępność</span></button>
       <button class="edit" data-edit="${p.id}" aria-label="Ustawienia: ${esc(p.name)}" title="Funkcja, limity i prośby">${GEAR}<span>Ustawienia</span></button></span></li>`).join('') ||
@@ -204,9 +193,9 @@ function render() {
     `<button type="button" class="brush" data-brush="${mode}" data-lvl="" aria-pressed="${brush[mode] === null}" title="Każdy klik w dzień: następny poziom">Po kolei</button>` +
     levels.map((lvl, i) => `<button type="button" class="brush ${cls[i]}" data-brush="${mode}" data-lvl="${lvl}" aria-pressed="${brush[mode] === lvl}" title="Klik i przeciąganie po dniach wpisuje: ${names[i]}">${names[i]}</button>`).join('<span aria-hidden="true">→</span>') + '</span>';
   const done = '<button data-done>Gotowe</button>';
-  const how = 'klikaj dni albo wybierz poziom i przeciągnij myszą po dniach:';
-  $('#status').innerHTML = view.bad ? `<span><b>Gównianość dni</b> — ${how}</span>${chips('bad', [0, 1, 2, 3], BAD, ['lvl-2', 'lvl-1', 'lvl-0', 'bad-3'])}<span>Pod spodem: limity i prośby liczone jak inny dzień tygodnia (np. święto jak Nd).</span>${done}` :
-    view.who ? `<span><b>Dostępność: ${esc(nameOf[view.who])}</b> — ${how}</span>${chips('avail', [2, 3, 4, 0, 1], [2, 3, 4, 0, 1].map((i) => LEVELS[i]), ['lvl-2', 'lvl-3', 'lvl-4', 'lvl-0', 'lvl-1'])}${done}` :
+  const how = '<span class="hint"> — klikaj dni albo wybierz poziom i przeciągnij myszą po dniach:</span>';
+  $('#status').innerHTML = view.bad ? `<span class="who"><b>Gównianość dni</b>${how}</span>${chips('bad', [0, 1, 2, 3], BAD, ['lvl-2', 'lvl-1', 'lvl-0', 'bad-3'])}<span class="hint">Pod spodem: limity i prośby liczone jak inny dzień tygodnia (np. święto jak Nd).</span>${done}` :
+    view.who ? `<span class="who"><b>Dostępność: ${esc(nameOf[view.who])}</b>${how}</span>${chips('avail', [2, 3, 4, 0, 1], [2, 3, 4, 0, 1].map((i) => LEVELS[i]), ['lvl-2', 'lvl-3', 'lvl-4', 'lvl-0', 'lvl-1'])}${done}` :
     empty === slots && slots ? '<span>Pusty grafik — <b>Ułóż miesiąc</b> wypełni go automatycznie; każde pole możesz też wpisać ręcznie.</span>' :
     empty ? `<span>Obsadzone <b class="ok">${slots - empty} z ${slots}</b></span><span class="progress" role="progressbar" aria-label="Obsadzone dyżury" aria-valuenow="${Math.round((slots - empty) / slots * 100)}"><i style="width:${(slots - empty) / slots * 100}%"></i></span>` +
       `<span>wolne: <b>${empty}</b></span><button class="ghost" data-jump>Pokaż pierwszy wolny →</button>` : '';
@@ -330,7 +319,6 @@ function showTab(tab) {
   if (tab === 'stats') renderStats(); // budowana tylko, gdy widoczna
   scrollTo({ top: scrolls[tab] ?? 0, behavior: 'instant' }); // instant: html ma scroll-behavior: smooth
 }
-new ResizeObserver(([e]) => document.documentElement.style.setProperty('--head', e.target.offsetHeight + 'px')).observe($('.app-header'));
 $('.tabs').onclick = $('.app-header').onclick =(e) => { const t = e.target.closest('[data-tab]'); if (t) showTab(t.dataset.tab); };
 
 // „Gotowe” kończy dostępność/gównianość i wraca na kartę, z której je włączono
