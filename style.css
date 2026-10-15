@@ -220,6 +220,8 @@ main > :is(section, article), .board { animation: appear 350ms var(--motion); }
 #people .x { grid-area: x; }
 /* Stopka karty: licznik i „Ustawienia” w jednym wierszu, wyśrodkowane w pionie. */
 #people .foot { grid-area: foot; display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 12px 8px 0 0; padding-top: 12px; border-top: 1px solid var(--md-sys-color-outline-variant); }
+#people .foot .icons { display: flex; gap: 8px; }
+.edit.icon { padding: 10px; min-width: 40px; }
 #people .edit[aria-pressed="true"] { background: var(--strong); color: var(--on-strong); }
 /* MD3: pasek wyszukiwania i menu sortowania (pigułki 56px), pod nimi filter chips; brak dopasowań = pusty stan. */
 .people-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-bottom: 24px; }

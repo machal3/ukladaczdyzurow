@@ -105,7 +105,7 @@ test('układanie w tle: nawigacja działa, anulowanie i edycja chronią przed sp
   assert.deepEqual(state().schedule, original);
 
   $('#generate').click();
-  $(`[data-edit="${state().people[0].id}"]`).click();
+  $(`[data-limits="${state().people[0].id}"]`).click();
   const limit = $('[data-limit="*"]');
   limit.value = '4';
   limit.dispatchEvent(new w.Event('change', { bubbles: true }));
@@ -164,6 +164,10 @@ test('dodawanie osoby i switch w oknie ustawień zachowują zapis i zdarzenia', 
   assert.equal(control.getAttribute('role'), 'switch');
   control.click();
   assert.equal(state().people.find((p) => p.id === person.id).pn1Sandwich, false);
+  assert.equal($('[data-limit="*"]'), null, 'limity są w osobnej części okna');
+  $('#person').close();
+  $(`[data-limits="${person.id}"]`).click();
+  assert.equal($('[data-pn1sandwich]'), null);
   const limit = $('[data-limit="*"]');
   limit.value = '4';
   limit.dispatchEvent(new w.Event('change', { bubbles: true }));
@@ -342,7 +346,7 @@ test('dekoracje odtwarzają się po wymianie DOM podczas logowania', async (t) =
 test('okno osoby: Min., Limit i Prośba zapisują się w każdym wierszu i działają przy układaniu', async (t) => {
   const { w, $, state, generated } = await setup(t);
   const anna = state().people.find((p) => p.name === 'Anna Kowalska'), oitn = state().shifts.find((s) => s.name === 'OITN').id;
-  $(`[data-edit="${anna.id}"]`).click();
+  $(`[data-limits="${anna.id}"]`).click();
   const set = (kind, key, value) => {
     const input = $(`[data-${kind}="${key}"]`);
     input.value = value;
@@ -378,7 +382,7 @@ test('okno osoby: Min., Limit i Prośba zapisują się w każdym wierszu i dzia�
   assert.ok(mine.filter((day) => day[oitn] === anna.id).length >= 6);
   assert.ok(mine.length <= 9);
 
-  $(`[data-edit="${anna.id}"]`).click();
+  $(`[data-limits="${anna.id}"]`).click();
   set('min', oitn, '10'); // przy limicie 9 niewykonalne → komunikat i poprzedni grafik
   $('#person').close();
   const previous = state().schedule;
@@ -407,7 +411,7 @@ test('statystyki: ręczny wpis od razu w zestawieniu, szczegóły osoby w oknie,
   assert.equal($('#pstat').open, true);
   assert.equal($('#pstat-title').textContent, 'Anna Kowalska');
   assert.match($('#pstat-body').textContent, /Dlaczego tak/);
-  $('#pstat [data-edit]').click();
+  $('#pstat [data-limits]').click();
   assert.equal($('#person').open, true);
   assert.equal($('#person [data-ptab]'), null);
   assert.ok($('#person [data-limit="*"]'));
@@ -428,7 +432,7 @@ test('okno osoby: chip miejsca i zwinięte grupy; pigułki na karcie; pędzel z 
     input.value = value;
     input.dispatchEvent(new w.Event('change', { bubbles: true }));
   };
-  $(`[data-edit="${anna.id}"]`).click();
+  $(`[data-limits="${anna.id}"]`).click();
   assert.deepEqual([...w.document.querySelectorAll('#person details.limits-group')].map((d) => d.open), [false, false]);
   const chip = () => $(`#person [data-place="${oitn}"]`);
   chip().click();
@@ -441,7 +445,7 @@ test('okno osoby: chip miejsca i zwinięte grupy; pigułki na karcie; pędzel z 
   chip().click();
   set('min', 'd5', '1');
   $('#person').close();
-  $(`[data-edit="${anna.id}"]`).click(); // z wpisami grupy otwierają się same
+  $(`[data-limits="${anna.id}"]`).click(); // z wpisami grupy otwierają się same
   assert.deepEqual([...w.document.querySelectorAll('#person details.limits-group')].map((d) => d.open), [true, true]);
   $('#person').close();
 

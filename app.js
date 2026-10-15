@@ -5,7 +5,8 @@ import { pdf, docx } from './export.js';
 
 const DAYS = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So', 'Nd'];
 const STORE = 'dyzury-v1';
-const GEAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5H3"/><path d="M12 19H3"/><path d="M14 3v4"/><path d="M16 17v4"/><path d="M21 12h-9"/><path d="M21 19h-5"/><path d="M21 5h-7"/><path d="M8 10v4"/><path d="M8 12H3"/></svg>'; // Lucide „sliders-horizontal” = ustawienia osoby
+const GEAR = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5H3"/><path d="M12 19H3"/><path d="M14 3v4"/><path d="M16 17v4"/><path d="M21 12h-9"/><path d="M21 19h-5"/><path d="M21 5h-7"/><path d="M8 10v4"/><path d="M8 12H3"/></svg>'; // Lucide „sliders-horizontal” = limity i prośby osoby
+const COG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg>'; // Lucide „settings” = ustawienia osoby
 const CAL = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 2v3"/><path d="M16 2v3"/><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/></svg>'; // jak „Dostępność” w oknie osoby
 const HIST = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>'; // Lucide „history” = historia dyżurów
 const CHECK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>'; // jak w chipach filtrów
@@ -55,6 +56,7 @@ const now = new Date();
 const next = new Date(now.getFullYear(), now.getMonth() + 1); // start na następnym miesiącu
 let view = { y: next.getFullYear(), m: next.getMonth(), who: null, bad: false, q: '', role: null, none: false, sort: 'surname' }; // who: osoba, której dostępność edytujemy; bad: tryb oceny gównianości dni; q/role/none/sort: szukanie, filtry i sortowanie w zakładce Osoby (patrz listPeople)
 let prevWho = null; // tryb sprzed otwarcia okna osoby
+let personPart = 'settings'; // okno osoby: 'settings' (funkcja, komentarze, konto) albo 'limits' (miejsca, min./limit/prośba)
 let back = 'settings'; // karta, na którą wraca „Gotowe” — ta, z której włączono tryb
 let generation = null;
 let brush = { avail: null, bad: null }; // pędzel w pasku #status (null = po kolei), patrz $('#calendar').onclick
@@ -155,8 +157,9 @@ function render() {
       <span class="avatar ${p.prestige ? '' : 'rez'}" aria-hidden="true">${esc(initials(p.name))}</span>
       <span class="id"><button class="who ${p.id === view.who ? 'on' : ''}" data-who="${p.id}" aria-pressed="${p.id === view.who}" title="Dostępność w grafiku">${esc(p.name)}</button><span class="sub">${ROLES[roleOf(p)]}</span></span>
       <button class="x" data-del-person="${p.id}" aria-label="Usuń ${esc(p.name)}">×</button>
-      <span class="foot"><button class="edit" data-who="${p.id}" aria-pressed="${p.id === view.who}" aria-label="Dostępność: ${esc(p.name)}" title="Dostępność w grafiku">${CAL}<span>Dostępność</span></button>
-      <button class="edit" data-edit="${p.id}" aria-label="Ustawienia: ${esc(p.name)}" title="Funkcja, limity i prośby">${GEAR}<span>Ustawienia</span></button></span></li>`).join('') ||
+      <span class="foot"><span class="icons"><button class="edit icon" data-who="${p.id}" aria-pressed="${p.id === view.who}" aria-label="Dostępność: ${esc(p.name)}" title="Dostępność w grafiku">${CAL}</button>
+      <button class="edit icon" data-edit="${p.id}" aria-label="Ustawienia: ${esc(p.name)}" title="Ustawienia: funkcja, kanapka, komentarze, konto w Zapisach">${COG}</button></span>
+      <button class="edit" data-limits="${p.id}" aria-label="Limity i prośby: ${esc(p.name)}" title="Miejsca, minima, limity i prośby">${GEAR}<span>Limity</span></button></span></li>`).join('') ||
     (team().length ? '<li class="no-match"><b>Nikt nie pasuje</b><span>Zmień wyszukiwanie lub filtry.</span><button type="button" class="outline" data-clear-filters>Wyczyść filtry</button></li>' : '');
   $('#people-count').textContent = filtered ? `Pokazano ${shown.length} z ${team().length}` : '';
   for (const b of document.querySelectorAll('[data-filter]')) b.setAttribute('aria-pressed', b.dataset.filter === 'none' ? view.none : b.dataset.filter === view.role);
@@ -164,9 +167,9 @@ function render() {
   const who = state.people.find((p) => p.id === view.who);
   // Treść budujemy tylko przy otwarciu: przebudowa przy każdej zmianie pola zabiera fokus,
   // zamyka klawiaturę na telefonie i przewija okno do góry. Pola same pokazują zapisaną wartość.
-  if (who && $('#person').open && $('#person-body').dataset.key !== view.who) {
-    $('#person-body').dataset.key = view.who;
-    $('#person-title').textContent = who.name;
+  if (who && $('#person').open && $('#person-body').dataset.key !== view.who + personPart) {
+    $('#person-body').dataset.key = view.who + personPart;
+    $('#person-title').textContent = personPart === 'limits' ? `${who.name} — limity i prośby` : who.name;
     // ustawienia: trzy karty jedna pod drugą — osoba, miejsca, tabela (min., limit i prośba w jednym wierszu)
     const num = (kind, key, ph, label) => `<input type="number" min="0" step="1" placeholder="${ph}" data-${kind}="${key}" value="${{ limit: state.limits, min: state.mins, want: state.wants }[kind][who.id]?.[key] ?? ''}" aria-label="${label}">`;
     const row = (name, key, ph, label) => `<tr><th scope="row">${name}</th><td>${num('min', key, '—', `Minimum: ${label}`)}</td>` +
@@ -178,15 +181,15 @@ function render() {
     const group = (name, open, rows) => `<details class="limits-group" ${open ? 'open' : ''}><summary><span>${name}</span>${CHEV}</summary>` +
       `<table class="counts">${head}<tbody>${rows}</tbody></table></details>`;
     const card = (title, sub, body) => `<section><header class="card-head"><h4>${title}</h4>${sub ? `<p>${sub}</p>` : ''}</header>${body}</section>`;
-    $('#person-body').innerHTML = '<div class="person-grid">' +
+    $('#person-body').innerHTML = '<div class="person-grid">' + (personPart === 'settings' ?
       card('Osoba', '', field('Funkcja', '', `<select data-prestige>${ROLES.map((r, i) => `<option value="${i}" ${i === roleOf(who) ? 'selected' : ''}>${r}</option>`).join('')}</select>`) +
         field('Ostatnio gówniane', 'dyżury spoza grafiku, 0–3', `<select data-past>${BAD.map((_, i) => `<option value="${i}" ${i === (who.past ?? 0) ? 'selected' : ''}>${i}</option>`).join('')}</select>`) +
         field('Kanapka PN1 So + Pn', 'włączone = woli ten układ', `<input type="checkbox" role="switch" data-pn1sandwich ${who.pn1Sandwich === false ? '' : 'checked'}>`)) +
+      (komentarze(who.id) ? card('Komentarze z Zapisów', 'Osoba dopisała je do swoich dyżurów w danym miesiącu.', komentarze(who.id)) : '') +
+      (zapisy ? card('Konto w Zapisach', 'Osoba sama wpisuje dostępność i prośby w aplikacji Zapisy na dyżury.', '<div id="konto"></div>') : '') :
       card('Dyżuruje na', 'Kliknij miejsce, by je wykluczyć (Limit 0) lub znów dopuścić.',
         `<div class="place-chips" role="group" aria-label="Dyżuruje na">${state.shifts.map((s) =>
           `<button type="button" class="chip" data-place="${s.id}" aria-pressed="true" title="Kliknij, by wykluczyć lub dopuścić ${esc(s.name)} (Limit 0)">${CHECK}<span>${esc(s.name)}</span></button>`).join('')}</div>`) +
-      (komentarze(who.id) ? card('Komentarze z Zapisów', 'Osoba dopisała je do swoich dyżurów w danym miesiącu.', komentarze(who.id)) : '') +
-      (zapisy ? card('Konto w Zapisach', 'Osoba sama wpisuje dostępność i prośby w aplikacji Zapisy na dyżury.', '<div id="konto"></div>') : '') +
       card('Limity i prośby', 'Liczba dyżurów w miesiącu — obowiązuje w każdym miesiącu.',
         `<table class="counts">${head}<tbody>${row('Łącznie', '*', '∞', 'łącznie') + row('Pt/So/Nd', 'we', WEEKEND_LIMIT, 'Pt/So/Nd')}</tbody></table>` +
         group(`Na miejscach <small>${esc(state.shifts.map((s) => s.name).join(', '))}</small>`, custom(state.shifts.map((s) => s.id)),
@@ -194,7 +197,7 @@ function render() {
         group('Weekendy w szczegółach <small>So + Nd, osobno Pt / So / Nd</small>', custom(['d56', 'd4', 'd5', 'd6']),
           row('So + Nd', 'd56', '∞', 'soboty i niedziele łącznie') + `<tr class="sub"><th colspan="4" scope="rowgroup">Ten sam dzień weekendu</th></tr>` +
           ['Pt', 'So', 'Nd'].map((n, i) => row(n, `d${i + 4}`, '∞', `ten sam dzień ${n}`)).join('')) +
-        '<p class="hint">Min. i Limit to twarde granice — także 0. Puste pole = wartość domyślna (szara, ∞ = bez limitu). Prośba to docelowa liczba: algorytm ogranicza zarówno niedobór, jak i nadmiar. Domyślny 1 w ten sam dzień weekendu jest preferencją. Jeśli nie znajdzie grafiku zgodnego z limitami, zachowa poprzedni.</p>') +
+        '<p class="hint">Min. i Limit to twarde granice — także 0. Puste pole = wartość domyślna (szara, ∞ = bez limitu). Prośba to docelowa liczba: algorytm ogranicza zarówno niedobór, jak i nadmiar. Domyślny 1 w ten sam dzień weekendu jest preferencją. Jeśli nie znajdzie grafiku zgodnego z limitami, zachowa poprzedni.</p>')) +
       '</div>';
   }
   if (who && $('#person').open) personStatus(who.id);
@@ -631,7 +634,7 @@ $('#add-rule').onsubmit = (e) => {
 };
 
 $('main').onclick = (e) => {
-  const { delPerson, delRule, who, edit, up, filter, log, stat } = e.target.dataset;
+  const { delPerson, delRule, who, up, filter, log, stat } = e.target.dataset, edit = e.target.dataset.edit ?? e.target.dataset.limits;
   if (stat) { statsWho = stat; showStat(); $('#pstat').showModal(); }
   if (log) { // historia osoby w osobnym oknie, żeby nie rozpychała Statystyk
     const p = state.people.find((x) => x.id === log);
@@ -645,9 +648,13 @@ $('main').onclick = (e) => {
   if (up) update(() => { const i = +up; [state.priority[i - 1], state.priority[i]] = [state.priority[i], state.priority[i - 1]]; });
   if (e.target.dataset.go) showTab(e.target.dataset.go);
   if (delRule) update(() => { state.rules = state.rules.filter((r) => r.id !== delRule); });
-  // imię = tryb dostępności w kalendarzu; „Ustawienia” = okno osoby (po zamknięciu wraca poprzedni tryb, chyba że „Dostępność →”)
+  // imię = tryb dostępności w kalendarzu; „Ustawienia” / „Limity” = okno osoby (po zamknięciu wraca poprzedni tryb, chyba że „Dostępność →”)
   if (who) { view.who = view.who === who ? null : who; view.bad = false; back = document.body.dataset.tab; if (view.who) showTab('calendar'); render(); }
-  if (edit) { prevWho = view.who; view.who = edit; view.bad = false; $('#person').returnValue = ''; $('#person-body').dataset.key = ''; $('#person').showModal(); render(); if (zapisy) openKonto(); }
+  if (edit) {
+    personPart = 'limits' in e.target.dataset ? 'limits' : 'settings';
+    prevWho = view.who; view.who = edit; view.bad = false; $('#person').returnValue = ''; $('#person-body').dataset.key = ''; $('#person').showModal(); render();
+    if (zapisy && personPart === 'settings') openKonto();
+  }
   if (delPerson && confirm(`Usunąć ${state.people.find((p) => p.id === delPerson).name}? Przeszłe dyżury zostaną w grafiku, przyszłe zostaną zwolnione.`)) update(() => {
     if (zapisy) cloudRpc('admin_usun_konto', { osoba: delPerson }).catch((e) => alert(`Nie usunięto konta w Zapisach: ${e.message}`));
     state.people.find((p) => p.id === delPerson).gone = true;
@@ -814,7 +821,7 @@ function renderStats() {
           `<section><h4>Dlaczego tak</h4><ul class="why">${why.map(([t, w]) => `<li class="${t}">${w}</li>`).join('')}</ul></section>
           <section><h4>Limity i prośby <small>ten miesiąc</small></h4><div class="table-scroll"><table class="counts lims"><thead><tr><td></td><th scope="col">Dostał</th><th scope="col">Min.</th><th scope="col">Limit</th><th scope="col">Prośba</th><td></td></tr></thead><tbody>${limRows}</tbody></table></div></section>
           <section><h4>Dni tygodnia</h4><div class="dows">${DAYS.map((d, i) => `<span style="--k:${x.dow[i] / maxDow}" class="${x.dow[i] ? '' : 'zero'}"><small>${d}</small><b>${x.dow[i]}</b></span>`).join('')}</div></section>`,
-        actions: `<button type="button" class="outlined" data-log="${p.id}">${HIST}Historia</button><button type="button" class="outlined" data-who="${p.id}">${CAL}Dostępność</button><button type="button" class="outlined" data-edit="${p.id}">${GEAR}Ustawienia</button><button>Zamknij</button>` };
+        actions: `<button type="button" class="outlined" data-log="${p.id}">${HIST}Historia</button><button type="button" class="outlined" data-who="${p.id}">${CAL}Dostępność</button><button type="button" class="outlined" data-edit="${p.id}">${COG}Ustawienia</button><button type="button" class="outlined" data-limits="${p.id}">${GEAR}Limity</button><button>Zamknij</button>` };
       return `<button type="button" class="srow" data-stat="${p.id}" aria-haspopup="dialog">
         <span class="who-cell"><span class="avatar ${p.prestige ? '' : 'rez'}" aria-hidden="true">${esc(initials(p.name))}</span><span><b>${esc(p.name)}</b><small>${ROLES[roleOf(p)]}</small></span></span>
         <span class="cell-n"><span class="big">${x.total}<small> dyż.</small></span>${bar(x.total / maxN)}<small>${places}</small></span>
