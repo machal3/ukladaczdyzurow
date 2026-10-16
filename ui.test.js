@@ -67,6 +67,18 @@ async function setup(t, saved, fake = {}) {
   return { w, $, tick, generated, workers, state: () => JSON.parse(w.localStorage.getItem('dyzury-v1')) };
 }
 
+test('miejsca wszędzie w kolejności OITN, PN2, PN1 — także w zapisanych danych o innej kolejności', async (t) => {
+  const days = [0, 1, 2, 3, 4, 5, 6];
+  const { $ } = await setup(t, {
+    people: [{ id: 'a', name: 'Anna Kowalska', prestige: 1 }], schedule: {}, manual: {}, miejscaV2: true,
+    shifts: [{ id: 'p1', name: 'PN1', days }, { id: 'o', name: 'OITN', days }, { id: 'p2', name: 'PN2', days }],
+  });
+  const labels = [...$('#calendar .cell:not(.empty)').querySelectorAll('.slot-label')].map((e) => e.textContent);
+  assert.deepEqual(labels, ['OITN', 'PN2', 'PN1']);
+  $('[data-limits="a"]').click();
+  assert.match($('#person-body').textContent, /OITN, PN2, PN1/);
+});
+
 test('nawigacja i motyw nie zmieniają zapisanych danych grafiku', async (t) => {
   const { w, $, tick } = await setup(t);
   const saved = w.localStorage.getItem('dyzury-v1');

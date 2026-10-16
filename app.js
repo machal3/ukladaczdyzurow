@@ -13,13 +13,15 @@ const CHECK = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-
 const CHEV = '<svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
 const WEEKEND_LIMIT = 2; // domyślny limit dyżurów Pt/So/Nd w miesiącu, gdy osoba nie ustawiła własnego
 
+const SHIFT_ORDER = ['OITN', 'PN2', 'PN1'];
+const shiftRank = (s) => { const i = SHIFT_ORDER.indexOf(s.name.trim().toUpperCase()); return i < 0 ? SHIFT_ORDER.length : i; };
 const cloud = await cloudLoad(); // null = tryb lokalny (tylko localStorage)
 let state = cloud?.data ?? load() ?? {
   people: ['Anna Kowalska', 'Jan Nowak', 'Piotr Wiśniewski', 'Maria Zając', 'Tomasz Lis'].map(person),
   shifts: [
     { id: uid(), name: 'OITN', days: [0, 1, 2, 3, 4, 5, 6] },
-    { id: uid(), name: 'PN1', days: [0, 1, 2, 3, 4, 5, 6] },
     { id: uid(), name: 'PN2', days: [0, 1, 2, 3, 4, 5, 6] },
+    { id: uid(), name: 'PN1', days: [0, 1, 2, 3, 4, 5, 6] },
   ],
   schedule: {}, // { 'YYYY-MM-DD': { shiftId: personId } }
   manual: {},   // ręczne przypisania — zachowane przy ponownym układaniu
@@ -52,6 +54,8 @@ function migrate() {
     state.miejscaV2 = true;
     save();
   }
+  // kolejność miejsc w całym interfejsie (i w Zapisach — osoba_load wysyła je w tej kolejności): SHIFT_ORDER, inne za nimi
+  state.shifts.sort((a, b) => shiftRank(a) - shiftRank(b));
 }
 if (cloud && !cloud.data) save();
 const zapisy = !!(cloud && ZAPISY_URL); // Zapisy na dyżury: karta w oknie osoby, wiersz w ustawieniach, pole „otwarte od” // pusta chmura → wysyłamy to, co było w tej przeglądarce
@@ -580,13 +584,11 @@ $('#clear').onclick = () => {
 
 $('#print').onclick = () => window.print(); // wydruk / „Zapisz jako PDF” — obsługuje przeglądarka, patrz @media print w style.css
 
-// Tabela wydruku i eksportu: miejsca w kolejności PRINT_ORDER (po nazwie), pozostałe za nimi.
+// Tabela wydruku i eksportu: miejsca w kolejności SHIFT_ORDER, jak w całym interfejsie.
 // names: '' = miejsce nie działa tego dnia, null = nieobsadzone.
-const PRINT_ORDER = ['OITN', 'PN2', 'PN1'];
 function sheet() {
   const { y, m } = view, nameOf = Object.fromEntries(state.people.map((p) => [p.id, p.name]));
-  const rank = (s) => { const i = PRINT_ORDER.indexOf(s.name.trim().toUpperCase()); return i < 0 ? PRINT_ORDER.length : i; };
-  const cols = state.shifts.filter((s) => s.days.length).sort((a, b) => rank(a) - rank(b));
+  const cols = state.shifts.filter((s) => s.days.length);
   const month = new Date(y, m).toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' });
   const rows = Array.from({ length: daysInMonth(y, m) }, (_, i) => {
     const d = i + 1, wd = weekday(y, m, d), day = state.schedule[dateKey(y, m, d)] || {};
