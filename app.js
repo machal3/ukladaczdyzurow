@@ -87,6 +87,7 @@ function syncReady() {
   $('#publish').disabled = !!generation;
   $('#publish').setAttribute('aria-pressed', ready);
   $('#publish span').textContent = ready ? 'Cofnij gotowość' : 'Gotowe';
+  $('#publish').title = ready ? 'Cofnij gotowość — grafik wróci do edycji' : 'Gotowe — grafik widzą osoby w Zapisach; „Ułóż miesiąc” jest wtedy zablokowany';
 }
 
 function uid() { return Math.random().toString(36).slice(2, 10); }

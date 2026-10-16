@@ -74,10 +74,13 @@ h1 { font: var(--type-display); letter-spacing: -.025em; text-wrap: balance; }
 .month h2 { order: -1; font: var(--type-headline); letter-spacing: -.02em; margin-right: 16px; text-transform: capitalize; min-width: 8em; font-variant-numeric: tabular-nums; } /* stała szerokość: „Październik 2026” mieści się, więc strzałki i „Dzisiaj” nie skaczą przy zmianie miesiąca */
 .month button { display: grid; place-items: center; padding: 10px; min-width: 44px; background: var(--md-sys-color-surface-container-high); color: var(--text); }
 #today { padding-inline: 18px; background: var(--md-sys-color-secondary-container); color: var(--md-sys-color-on-secondary-container); }
-.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
-.actions .ghost { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 10px 16px 10px 12px; } /* MD3 text button z ikoną: 40 px, ikona 18 px, 12/16 px */
-.actions .ghost svg { width: 18px; height: 18px; }
-#generate { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 56px; padding: 16px 20px; border-radius: 16px; margin-left: 12px; background: var(--accent-soft); color: var(--md-sys-color-on-primary-container); }
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+/* grupy przycisków-ikon (MD3 icon button 40 px w pigułce); nazwy w title + .sr-only */
+.actions .group { display: flex; gap: 2px; padding: 4px; border-radius: 999px; background: var(--md-sys-color-surface-container); }
+.actions .group .ghost, #publish { display: grid; place-items: center; width: 40px; min-height: 40px; height: 40px; padding: 0; }
+#publish { width: 48px; height: 48px; background: var(--md-sys-color-surface-container); }
+.actions .ghost svg { width: 20px; height: 20px; }
+#generate { display: inline-flex; align-items: center; justify-content: center; gap: 10px; min-height: 48px; padding: 12px 20px; border-radius: 16px; margin-left: 4px; background: var(--accent-soft); color: var(--md-sys-color-on-primary-container); }
 #generate:enabled:hover { background: var(--md-sys-color-primary-container); }
 #publish[aria-pressed=true] { background: var(--strong); color: var(--on-strong); }
 #status { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin: 0 0 20px; padding: 14px 20px; border-radius: 20px; background: var(--md-sys-color-surface-container); color: var(--muted); font-size: 13px; }
@@ -566,8 +569,6 @@ body:has(.login) { padding: 24px; min-height: 100dvh; display: grid; place-items
   .month { gap: 6px; flex-wrap: wrap; }
   .month h2 { flex: 1; font-size: 22px; margin: 0; min-width: 0; }
   #today { padding-inline: 12px; }
-  .actions { gap: 8px; flex-wrap: wrap; }
-  .actions .ghost { background: var(--md-sys-color-surface-container); }
   #generate { position: fixed; right: 20px; bottom: calc(96px + env(safe-area-inset-bottom)); z-index: 8; margin: 0; min-height: 56px; padding: 16px 22px; background: var(--accent-soft);  }
   #status { top: 8px; font-size: 12px; padding: 14px 16px; gap: 8px; }
   #status .cycle { flex-basis: 100%; order: 2; }
