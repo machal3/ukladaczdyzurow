@@ -89,7 +89,8 @@ export const shiftsForDay = (shifts, y, m, d) => shifts.filter((s) => s.days.inc
 // przerwy, np. pn i śr — chyba że osoba chce ten dzień; wyjątek: PN1 w sobotę + dowolny dyżur w poniedziałek to kanapka preferowana,
 // chyba że osoba ma person.pn1Sandwich === false), potem różne dni weekendu (w ten sam Pt/So/Nd domyślnie maks. 1 dyżur — miękko), potem prośby: kto ma mniej dyżurów na tym miejscu, niż prosił
 // (wants = { personId: { shiftId: n, d4/d5/d6: n w ten dzień weekendu, we: n w Pt/So/Nd, '*': n łącznie } }, miękkie — nie łamie limitów ani zakazów), potem w gówniany dzień najmniejsze
-// obciążenie gównianością (person.past + person.hist z poprzednich miesięcy + ten miesiąc), potem równy podział liczby dyżurów.
+// obciążenie gównianością (person.past + person.hist z poprzednich miesięcy + ten miesiąc), potem równy podział liczby dyżurów,
+// na końcu (lekko, tylko przy remisie) unikanie „Czw + Nd” — dyżur w czwartek i w najbliższą niedzielę (patrz thuSunDays).
 // W dzień Tragiczny najpierw ci, którzy mieli ostatni Tragiczny najdawniej albo wcale (person.tragic = data, liczy się też ten miesiąc).
 // Wpisy z `locked` (ręczne) są zachowane i liczą się do bilansu. Wpisy `locked` z 2 dni przed i po miesiącu (sąsiednie miesiące)
 // nie liczą się do limitów, minimów ani próśb, ale blokują dzień po dniu, odpoczynek po weekendowym OITN i liczą się do kanapek.
@@ -173,6 +174,9 @@ function greedyMonth(y, m, shifts, people, locked = {}, avail = {}, limits = {},
     const isTragic = badOf(bad, y, m, d) === 3;
     // 1 = kanapka, −1 = preferowana kanapka PN1 w sobotę + poniedziałek (osoba bez pn1Sandwich === false), suma dla obu stron
     const wd = weekday(y, m, d);
+    // 1 = Czw + Nd z dyżurem w czwartek / niedzielę obok (ten dzień tygodnia: wd 3 albo 6), chyba że osoba chce któryś z nich
+    const thuSun = (p) => +((wd === 3 && d + 3 <= D + 2 && on(p.id, d + 3) && availOf(avail, p.id, dateKey(y, m, d + 3)) < 3) ||
+      (wd === 6 && on(p.id, d - 3) && availOf(avail, p.id, dateKey(y, m, d - 3)) < 3)) * +(availOf(avail, p.id, key) < 3);
     const sandwich = (p, sid) => availOf(avail, p.id, key) < 3 &&
       (on(p.id, d - 2) && (p.pn1Sandwich !== false && wd === 0 && dayAt(d - 2)[pn1] === p.id ? -1 : 1)) +
       (on(p.id, d + 2) && (p.pn1Sandwich !== false && wd === 5 && sid === pn1 ? -1 : 1));
@@ -205,7 +209,7 @@ function greedyMonth(y, m, shifts, people, locked = {}, avail = {}, limits = {},
         .filter((p) => availOf(avail, p.id, key) > 0 && !busy.has(p.id) && !takenOn(d - 1, p.id) && !takenOn(d + 1, p.id) && underLimit(p.id, s.id, d) &&
           !(hasResident && resident.has(p.id)) && !(bosses >= MAX_BOSS && boss.has(p.id)) && prest[p.id] >= need && !breaksRule(rules, day, p.id, s.id) &&
           !oitnWe(d - 2, p.id) && !(s.id === oitn && wd >= 5 && takenOn(d + 2, p.id)))
-        .sort((a, b) => must(b) - must(a) || belowMin(b.id, s.id, d, key) - belowMin(a.id, s.id, d, key) || order.reduce((r, k) => r || cmp[k](a, b), 0) ||
+        .sort((a, b) => must(b) - must(a) || belowMin(b.id, s.id, d, key) - belowMin(a.id, s.id, d, key) || order.reduce((r, k) => r || cmp[k](a, b), 0) || thuSun(a) - thuSun(b) ||
           (noise ? noise[a.id] - noise[b.id] : (lastDay[a.id] ?? -99) - (lastDay[b.id] ?? -99)))[0];
       if (!pick) continue; // brak wolnej osoby → dyżur zostaje pusty, widoczny w UI
       day[s.id] = pick.id;
@@ -271,8 +275,22 @@ export function sandwichDays(y, m, schedule, shifts, people, avail = {}) {
   return out;
 }
 
+// „Czw + Nd”: dyżur w czwartek i w najbliższą niedzielę (prawdziwe dni tygodnia, czwartek może być z poprzedniego miesiąca w schedule).
+// Lekko niewskazane — w generateVariants najniższa waga, w greedyMonth ostatni remis. Nie liczy się, gdy osoba chce któryś z tych dni (Chcę/Muszę).
+// { personId: [['YYYY-MM-DD' czwartek, 'YYYY-MM-DD' niedziela]] }
+export function thuSunDays(y, m, schedule, people, avail = {}) {
+  const out = {}, ids = new Set(people.map((p) => p.id));
+  for (let d = 1; d <= daysInMonth(y, m); d++) {
+    if (weekday(y, m, d) !== 6) continue;
+    const sun = dateKey(y, m, d), thu = dateKey(y, m, d - 3), onThu = Object.values(schedule[thu] || {});
+    for (const pid of Object.values(schedule[sun] || {}))
+      if (ids.has(pid) && onThu.includes(pid) && availOf(avail, pid, thu) < 3 && availOf(avail, pid, sun) < 3) (out[pid] ??= []).push([thu, sun]);
+  }
+  return out;
+}
+
 export function scoreMonth(y, m, schedule, shifts, people, avail = {}, bad = {}, wants = {}, limits = {}, asDay = {}) {
-  const sc = { unfilled: 0, min: 0, avail: 0, sandwich: 0, weDow: 0, wants: 0, bad: 0, even: 0, lastResort: 0 };
+  const sc = { unfilled: 0, min: 0, avail: 0, sandwich: 0, weDow: 0, wants: 0, bad: 0, even: 0, lastResort: 0, thuSun: 0 };
   const count = Object.fromEntries(people.map((p) => [p.id, 0]));
   const burden = Object.fromEntries(people.map((p) => [p.id, (p.past ?? 0) * PAST_WEIGHT + (p.hist ?? 0)]));
   const perShift = {}, last = {}, lastSid = {}; // perShift jak w generateMonth, też 'personId:d4..d6', '*', 'we'
@@ -308,6 +326,7 @@ export function scoreMonth(y, m, schedule, shifts, people, avail = {}, bad = {},
   for (const [pid, l] of Object.entries(limits)) for (const [k, n] of Object.entries(l?.min ?? {}))
     if (pid in count) sc.min += Math.max(0, n - (perShift[`${pid}:${k}`] || 0));
   for (const pid in count) { sc.even += count[pid] ** 2; sc.bad += burden[pid] ** 2; }
+  for (const pairs of Object.values(thuSunDays(y, m, schedule, people, avail))) sc.thuSun += pairs.length;
   sc.spread = people.length && Math.max(...Object.values(count)) - Math.min(...Object.values(count));
   return sc;
 }
@@ -733,9 +752,10 @@ export function generateVariants(y, m, shifts, people, locked = {}, avail = {}, 
   if (!model.valid(locked, false)) throw lockedError(y, m, shifts, people, avail, limits, rules, asDay, locked);
   const { slots } = model;
   const scale = { avail: 10, sandwich: 1, weDow: 1, bad: Math.max(1, slots.length * 9 / Math.max(1, people.length)), even: Math.max(1, slots.length / Math.max(1, people.length)) };
-  const key = (sc) => [sc.unfilled, sc.wants, order.reduce((n, k, i) => n + (k === 'wants' ? 0 : (order.length - i) * sc[k] / scale[k]), 0)];
+  // Czw + Nd: waga 1 — tyle, co najniższe kryterium z kolejności (kanapka na drugim miejscu waży 5), czyli tylko lekko wskazane
+  const key = (sc) => [sc.unfilled, sc.wants, order.reduce((n, k, i) => n + (k === 'wants' ? 0 : (order.length - i) * sc[k] / scale[k]), 0) + sc.thuSun];
   const cmp = (a, b) => { const ka = key(a.score), kb = key(b.score); return ka.reduce((r, v, i) => r || v - kb[i], 0); };
-  const same = (a, b) => ['unfilled', 'min', ...PRIORITY_ORDER].every((k) => a.score[k] === b.score[k]); // remis we wszystkich kryteriach
+  const same = (a, b) => ['unfilled', 'min', ...PRIORITY_ORDER, 'thuSun'].every((k) => a.score[k] === b.score[k]); // remis we wszystkich kryteriach
   const withEdge = Object.keys(model.edge).length ? (s) => ({ ...model.edge, ...s }) : (s) => s; // kanapki z końcem poprzedniego miesiąca
   const score = (schedule) => scoreMonth(y, m, withEdge(schedule), shifts, people, avail, bad, wants, limits, asDay);
   const copy = (s) => Object.fromEntries(Object.entries(s).map(([key, day]) => [key, { ...day }]));

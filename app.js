@@ -1,4 +1,4 @@
-import { dateKey, daysInMonth, weekday, limitDay, shiftsForDay, scoreMonth, PRIORITIES, PRIORITY_ORDER, availOf, breaksRule, LEVELS, ROLES, roleOf, badOf, BAD, history, parseTable, matchPerson, personLog, PAST_WEIGHT, listPeople, missedWishes, lastResortDays, sandwichDays, monthStats, limitClash } from './scheduler.js';
+import { dateKey, daysInMonth, weekday, limitDay, shiftsForDay, scoreMonth, PRIORITIES, PRIORITY_ORDER, availOf, breaksRule, LEVELS, ROLES, roleOf, badOf, BAD, history, parseTable, matchPerson, personLog, PAST_WEIGHT, listPeople, missedWishes, lastResortDays, sandwichDays, thuSunDays, monthStats, limitClash } from './scheduler.js';
 import { runScheduler } from './scheduler-client.js';
 import { cloudLoad, cloudSave, cloudLogout, cloudRpc, cloudReload, ZAPISY_URL } from './cloud.js';
 import { pdf, docx } from './export.js';
@@ -259,7 +259,7 @@ function render() {
   $('#status').classList.toggle('info', !!view.who || view.bad || empty === slots);
   $('#status').classList.toggle('pinned', !!view.who || !!view.bad); // pasek pędzla przypięty pod nagłówkiem
   $('#calendar').classList.toggle('painting', !!view.who || view.bad); // bez zaznaczania tekstu przy przeciąganiu
-  // Uwagi do oglądanego miesiąca: niespełnione prośby, dni „Chcę” bez dyżuru, dyżury „W ostateczności”, kanapki —
+  // Uwagi do oglądanego miesiąca: niespełnione prośby, dni „Chcę” bez dyżuru, dyżury „W ostateczności”, kanapki, Czw + Nd —
   // liczone na bieżąco, więc zmiana wariantu lub ręczna poprawka od razu się tu odbija
   {
     const gaps = scoreMonth(y, m, state.schedule, state.shifts, team(), {}, {}, effWants(), {}, state.asDay).gaps;
@@ -267,14 +267,15 @@ function render() {
     const wish = missedWishes(y, m, state.schedule, team(), av);
     const last = lastResortDays(y, m, state.schedule, team(), av);
     const sw = sandwichDays(y, m, state.schedule, state.shifts, team(), av);
+    const ts = thuSunDays(y, m, state.schedule, team(), av);
     // w pustym miesiącu nie ma jeszcze czego oceniać; komentarze osób są w oknie osoby i w Statystykach
     const blank = empty === slots;
-    const who = team().filter((p) => !blank && (wish[p.id] || last[p.id] || sw[p.id] || gaps.some((g) => g.pid === p.id)));
+    const who = team().filter((p) => !blank && (wish[p.id] || last[p.id] || sw[p.id] || ts[p.id] || gaps.some((g) => g.pid === p.id)));
     const n = who.length;
     $('#want-gaps').classList.toggle('all-ok', !n);
     // przy klikaniu dostępności osoby uwagi tylko przeszkadzają
     $('#want-gaps').hidden = !!view.who || blank && !n;
-    $('#want-gaps .head').innerHTML = `<span class="count">${n || '✓'}</span><b>Uwagi</b><span class="hint">${n ? 'prośby, dni „Chcę”, „W ostateczności”, i kanapki' : 'wszystko się zgadza'}</span>`;
+    $('#want-gaps .head').innerHTML = `<span class="count">${n || '✓'}</span><b>Uwagi</b><span class="hint">${n ? 'prośby, dni „Chcę”, „W ostateczności”, kanapki i Czw + Nd' : 'wszystko się zgadza'}</span>`;
     const days = (ds) => ds?.map((d) => `${d}.${String(m + 1).padStart(2, '0')}`).join(', ');
     const nums = (pid, f) => gaps.filter((g) => g.pid === pid && f(g)).map((g) => `${esc(label(g.k))}: <b>${g.got}</b> zamiast ${g.want}`).join('<br>');
     const dm = (key) => `${+key.slice(8)}.${key.slice(5, 7)}`;
@@ -286,7 +287,8 @@ function render() {
       row('over', 'Za dużo', nums(p.id, (g) => g.got > g.want)) +
       row('lvl-3', '„Chcę” bez dyżuru', days(wish[p.id])) +
       row('lvl-1', '„W ostateczności”', days(last[p.id])) +
-      row('lvl-2', 'Kanapki', pairs(sw[p.id]))) + '</li>').join('');
+      row('lvl-2', 'Kanapki', pairs(sw[p.id])) +
+      row('lvl-2', 'Czw + Nd', pairs(ts[p.id]))) + '</li>').join('');
   }
   $('#bad-mode').setAttribute('aria-pressed', view.bad);
   if (document.activeElement !== $('#zapisy-od')) $('#zapisy-od').value = state.zapisyOd ?? '';

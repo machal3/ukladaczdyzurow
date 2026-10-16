@@ -79,6 +79,21 @@ test('miejsca wszędzie w kolejności OITN, PN2, PN1 — także w zapisanych dan
   assert.match($('#person-body').textContent, /OITN, PN2, PN1/);
 });
 
+test('Uwagi: Czw + Nd z datami przy osobie', async (t) => {
+  const days = [0, 1, 2, 3, 4, 5, 6], d = new Date();
+  const next = new Date(d.getFullYear(), d.getMonth() + 1, 1); // aplikacja startuje na następnym miesiącu
+  const y = next.getFullYear(), m = next.getMonth();
+  const thu = [...Array(7)].map((_, i) => i + 1).find((day) => new Date(y, m, day).getDay() === 4);
+  const key = (day) => { const x = new Date(y, m, day); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`; };
+  const { $ } = await setup(t, {
+    people: [{ id: 'a', name: 'Anna Kowalska', prestige: 1 }], shifts: [{ id: 'o', name: 'OITN', days }], manual: {}, miejscaV2: true,
+    schedule: { [key(thu)]: { o: 'a' }, [key(thu + 3)]: { o: 'a' } },
+  });
+  assert.equal($('#want-gaps').hidden, false);
+  const dm = (day) => `${new Date(y, m, day).getDate()}.${String(m + 1).padStart(2, '0')}`;
+  assert.match($('#want-gaps').textContent, new RegExp(`Czw \\+ Nd${dm(thu).replace('.', '\\.')} i ${dm(thu + 3).replace('.', '\\.')}`));
+});
+
 test('nawigacja i motyw nie zmieniają zapisanych danych grafiku', async (t) => {
   const { w, $, tick } = await setup(t);
   const saved = w.localStorage.getItem('dyzury-v1');

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { generateMonth, generateVariants, scoreMonth, dateKey, history, badOf, parseTable, matchPerson, personLog, listPeople, missedWishes, lastResortDays, sandwichDays, monthStats, limitClash } from './scheduler.js';
+import { generateMonth, generateVariants, scoreMonth, dateKey, history, badOf, parseTable, matchPerson, personLog, listPeople, missedWishes, lastResortDays, sandwichDays, thuSunDays, monthStats, limitClash } from './scheduler.js';
 
 const people = ['a', 'b', 'c', 'd'].map((id) => ({ id, name: id }));
 const all = [0, 1, 2, 3, 4, 5, 6];
@@ -293,6 +293,32 @@ test('kanapki: unika dyżuru z jednym dniem przerwy, chyba że osoba chce ten dz
   assert.equal(generateMonth(2026, 9, one, trio, {}, { a: { [k]: 3 } })[k].s, 'a'); // a miał 1.10, ale chce 3.10
   const locked = { [dateKey(2026, 9, 5)]: { s: 'b' } };
   assert.notEqual(generateMonth(2026, 9, one, people, locked)[k].s, 'b'); // b wpisany ręcznie 5.10 → nie 3.10
+});
+
+test('thuSunDays: czwartek i najbliższa niedziela tej samej osoby, bez dni „Chcę”/„Muszę”, przez przełom miesięcy', () => {
+  const one = [{ id: 's', name: 'S', days: all }];
+  // 1.10.2026 = czwartek, 4.10 = niedziela
+  const schedule = { '2026-10-01': { s: 'a' }, '2026-10-04': { s: 'a' }, '2026-10-08': { s: 'b' }, '2026-10-11': { s: 'b' },
+    '2026-10-15': { s: 'c' }, '2026-10-18': { s: 'd' }, '2026-10-29': { s: 'd' }, '2026-11-01': { s: 'd' } };
+  const avail = { b: { '2026-10-11': 3 } };
+  assert.deepEqual(thuSunDays(2026, 9, schedule, people, avail), { a: [['2026-10-01', '2026-10-04']] });
+  assert.equal(scoreMonth(2026, 9, schedule, one, people, avail).thuSun, 1);
+  assert.deepEqual(thuSunDays(2026, 10, schedule, people), { d: [['2026-10-29', '2026-11-01']] }, 'czwartek z poprzedniego miesiąca');
+});
+
+test('Czw + Nd: algorytm unika, gdy się da, ale lżej niż kanapki', () => {
+  const one = [{ id: 's', name: 'S', days: all }];
+  const opts = { tries: 20, timeBudgetMs: 400 };
+  const five = [...people, { id: 'e', name: 'e' }]; // bez kary 5 osób na jednym miejscu często wpada na Czw + Nd
+  const [free] = generateVariants(2026, 9, one, five, {}, {}, {}, [], {}, {}, opts);
+  assert.equal(free.score.unfilled, 0);
+  assert.equal(free.score.thuSun, 0);
+  assert.deepEqual(thuSunDays(2026, 9, free.schedule, five), {});
+  // 3 osoby na jedno miejsce: bez kanapek każdy dyżuruje co 3. dzień, więc Czw + Nd jest nieuniknione — kanapek i tak nie ma
+  const [tight] = generateVariants(2026, 9, one, people.slice(0, 3), {}, {}, {}, [], {}, {}, opts);
+  assert.equal(tight.score.unfilled, 0);
+  assert.equal(tight.score.sandwich, 0);
+  assert.ok(tight.score.thuSun > 0);
 });
 
 test('kanapka PN1 w sobotę + poniedziałek jest preferowana, chyba że osoba ją wyłączyła', () => {
