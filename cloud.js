@@ -1,9 +1,11 @@
-// Chmura: Supabase — dostęp na PIN (sprawdzany w bazie, patrz supabase.sql), cały stan w jednym wierszu tabeli `dyzury`.
-// Wpisany PIN zostaje w localStorage, więc pyta tylko raz. Bez SUPABASE_URL w config.js wszystko działa lokalnie.
+// Chmura: Supabase — dostęp na PIN i sesję (sprawdzane w bazie, patrz supabase.sql), cały stan w jednym wierszu tabeli `dyzury`.
+// PIN idzie tylko do admin_login; w localStorage zostaje token sesji (90 dni), więc pyta tylko raz.
+// Bez SUPABASE_URL w config.js wszystko działa lokalnie.
 import { SUPABASE_URL, SUPABASE_KEY } from './config.js';
 
-const PIN = 'dyzury-pin';
-let pin = null;
+const TOKEN = 'dyzury-token';
+const OLD_PIN = 'dyzury-pin'; // dawniej w przeglądarce zostawał sam PIN — zamieniany na token i usuwany
+let token = null;
 let queue = Promise.resolve();
 let pending = 0;
 
@@ -20,18 +22,24 @@ async function rpc(fn, body) {
 export async function cloudLoad() {
   if (!SUPABASE_URL) return null;
   const page = document.body.innerHTML;
-  let p = localStorage.getItem(PIN), msg = '';
+  let t = localStorage.getItem(TOKEN), p = localStorage.getItem(OLD_PIN), msg = '';
+  localStorage.removeItem(OLD_PIN);
   for (;;) {
-    if (p) try {
-      const { data } = await rpc('load_state', { p });
-      localStorage.setItem(PIN, pin = p);
-      document.body.innerHTML = page;
-      return { data };
+    try {
+      if (!t && p) localStorage.setItem(TOKEN, t = (await rpc('admin_login', { p })).token);
+      if (t) {
+        const { data } = await rpc('load_state', { p: t });
+        token = t;
+        document.body.innerHTML = page;
+        return { data };
+      }
     } catch (e) {
-      if (e.message === 'Zły PIN') { localStorage.removeItem(PIN); msg = 'Zły PIN.'; }
+      if (e.message === 'Sesja wygasła') { localStorage.removeItem(TOKEN); msg = 'Sesja wygasła — wpisz PIN.'; }
+      else if (e.message === 'Zły PIN') msg = 'Zły PIN.';
       else msg = e.message.startsWith('Za dużo') ? e.message : `Błąd połączenia: ${e.message}`;
     }
     p = await ask(msg);
+    t = null; // wpisany PIN → nowa sesja
   }
 }
 
@@ -53,7 +61,7 @@ function ask(msg) {
 // Szybkie serie zmian (np. malowanie dni przeciągnięciem) idą jednym zapisem: wysyłany jest tylko ostatni stan po 400 ms ciszy.
 let timer = null, latest = null;
 export function cloudSave(json) {
-  if (!pin) return;
+  if (!token) return;
   latest = json;
   if (!timer) pending++; // od pierwszej zmiany — beforeunload ostrzega też przed jeszcze niewysłaną
   clearTimeout(timer);
@@ -62,20 +70,25 @@ export function cloudSave(json) {
 function send() {
   timer = null;
   const d = JSON.parse(latest);
-  queue = queue.then(() => rpc('save_state', { p: pin, d }))
+  queue = queue.then(() => rpc('save_state', { p: token, d }))
     .catch((e) => alert(`Nie zapisano w chmurze: ${e.message}`)).finally(() => pending--);
 }
 addEventListener('beforeunload', (e) => { if (pending) e.preventDefault(); }); // niezapisane zmiany → przeglądarka pyta
 
-export function cloudLogout() { localStorage.removeItem(PIN); location.reload(); }
+export async function cloudLogout() {
+  localStorage.removeItem(TOKEN);
+  await rpc('admin_logout', { t: token }).catch(() => {}); // bez sieci token i tak znika z przeglądarki
+  location.reload();
+}
 
-// Wywołanie funkcji bazy z PIN-em administratora (np. admin_konta, admin_set_pin — patrz supabase-zapisy.sql w repo Zapisów)
-export const cloudRpc = (fn, body) => rpc(fn, { p: pin, ...body });
+// Wywołanie funkcji bazy z sesją administratora (np. admin_konta, admin_set_pin — patrz supabase-zapisy.sql w repo Zapisów;
+// check_pin przyjmuje token zamiast PIN-u)
+export const cloudRpc = (fn, body) => rpc(fn, { p: token, ...body });
 
 // Świeży stan z bazy (np. zmiany osób z Zapisów) albo null, gdy coś czeka na wysłanie — wtedy lokalny stan jest nowszy
 export async function cloudReload() {
-  if (!pin || pending) return null;
-  const { data } = await rpc('load_state', { p: pin });
+  if (!token || pending) return null;
+  const { data } = await rpc('load_state', { p: token });
   return pending ? null : data; // zmiana w trakcie wczytywania wygrywa
 }
 

@@ -258,7 +258,8 @@ reszta oceny do 10% gorsza), pojawia się panel **Warianty grafiku**
 - **Tryb lokalny** (domyślny) — wszystko w pamięci przeglądarki (localStorage). Inna przeglądarka lub inny
   komputer = osobne dane. Wyczyszczenie danych przeglądarki usuwa grafik.
 - **Tryb chmury** — gdy w `config.js` ustawiony jest Supabase, aplikacja prosi o PIN i zapisuje stan w bazie;
-  wszyscy z PIN-em widzą ten sam grafik. **Wyloguj** (w Ustawieniach) zapomina PIN w tej przeglądarce.
+  wszyscy z PIN-em widzą ten sam grafik. Przeglądarka nie pamięta PIN-u, tylko sesję (90 dni); **Wyloguj**
+  (w Ustawieniach) ją kończy, a zmiana PIN-u w bazie kończy wszystkie sesje.
 
 ---
 
