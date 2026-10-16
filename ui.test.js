@@ -141,14 +141,14 @@ test('układanie w tle: nawigacja działa, anulowanie i edycja chronią przed sp
   assert.deepEqual(state().schedule, original);
 });
 
-test('„Gotowe” publikuje miesiąc i blokuje układanie; „Cofnij gotowość” to odwraca', async (t) => {
+test('„Opublikuj” publikuje miesiąc i blokuje układanie; „Cofnij publikację” to odwraca', async (t) => {
   const { w, $, state } = await setup(t);
   w.confirm = () => true;
   const k = () => Object.keys(state().gotowe ?? {});
   $('#publish').click();
   assert.equal(k().length, 1);
   assert.equal($('#generate').disabled, true);
-  assert.equal($('#publish').textContent, 'Cofnij gotowość');
+  assert.equal($('#publish').textContent, 'Cofnij publikację');
   $('#generate').click();
   assert.equal($('#cancel-generate').hidden, true, 'gotowy miesiąc się nie układa');
   $('#next').click();

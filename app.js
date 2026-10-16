@@ -77,17 +77,17 @@ const stopGeneration = () => {
   $('#generation-status').textContent = 'Układanie anulowane. Grafik pozostaje bez zmian.';
 };
 
-// „Gotowe” publikuje oglądany miesiąc (Zapisy pokazują osobom tylko gotowe miesiące) i blokuje „Ułóż miesiąc”.
+// „Opublikuj” publikuje oglądany miesiąc (Zapisy pokazują osobom tylko gotowe miesiące) i blokuje „Ułóż miesiąc”.
 // ponytail: ręczne poprawki gotowego miesiąca dalej działają i osoby widzą je od razu
 const monthKeyOf = () => dateKey(view.y, view.m, 1).slice(0, 7);
 function syncReady() {
   const ready = !!state.gotowe[monthKeyOf()];
   $('#generate').disabled = !!generation || ready;
-  $('#generate').title = ready ? 'Grafik jest gotowy — najpierw „Cofnij gotowość”' : 'Ułóż automatycznie cały miesiąc (ręczne dyżury zostają)';
+  $('#generate').title = ready ? 'Grafik jest opublikowany — najpierw „Cofnij publikację”' : 'Ułóż automatycznie cały miesiąc (ręczne dyżury zostają)';
   $('#publish').disabled = !!generation;
   $('#publish').setAttribute('aria-pressed', ready);
-  $('#publish span').textContent = ready ? 'Cofnij gotowość' : 'Gotowe';
-  $('#publish').title = ready ? 'Cofnij gotowość — grafik wróci do edycji' : 'Gotowe — grafik widzą osoby w Zapisach; „Ułóż miesiąc” jest wtedy zablokowany';
+  $('#publish span').textContent = ready ? 'Cofnij publikację' : 'Opublikuj';
+  $('#publish').title = ready ? 'Cofnij publikację — grafik wróci do edycji' : 'Opublikuj — grafik widzą osoby w Zapisach; „Ułóż miesiąc” jest wtedy zablokowany';
 }
 
 function uid() { return Math.random().toString(36).slice(2, 10); }
@@ -276,7 +276,7 @@ function render() {
     $('#want-gaps').classList.toggle('all-ok', !n);
     // przy klikaniu dostępności osoby uwagi tylko przeszkadzają
     $('#want-gaps').hidden = !!view.who || blank && !n;
-    $('#want-gaps .head').innerHTML = `<span class="count">${n || '✓'}</span><b>Uwagi</b><span class="hint">${n ? 'prośby, dni „Chcę”, „W ostateczności”, kanapki i Czw + Nd' : 'wszystko się zgadza'}</span>`;
+    $('#want-gaps .head').innerHTML = `<span class="count">${n || '✓'}</span><b>Uwagi</b>${n ? '' : '<span class="hint">wszystko się zgadza</span>'}`;
     const days = (ds) => ds?.map((d) => `${d}.${String(m + 1).padStart(2, '0')}`).join(', ');
     const nums = (pid, f) => gaps.filter((g) => g.pid === pid && f(g)).map((g) => `${esc(label(g.k))}: <b>${g.got}</b> zamiast ${g.want}`).join('<br>');
     const dm = (key) => `${+key.slice(8)}.${key.slice(5, 7)}`;
@@ -439,8 +439,8 @@ $('#next').onclick = () => { $('#panel-variants').hidden = true; view = { ...vie
 $('#cancel-generate').onclick = stopGeneration;
 $('#publish').onclick = () => {
   const k = monthKeyOf(), name = $('#month-label').textContent;
-  if (state.gotowe[k] ? !confirm(`Cofnąć gotowość grafiku na ${name}? Osoby przestaną go widzieć w Zapisach, a „Ułóż miesiąc” znów zadziała.`)
-    : !confirm(`Grafik na ${name} gotowy? Osoby zobaczą go w Zapisach, a „Ułóż miesiąc” zostanie zablokowany do cofnięcia gotowości.`)) return;
+  if (state.gotowe[k] ? !confirm(`Cofnąć publikację grafiku na ${name}? Osoby przestaną go widzieć w Zapisach, a „Ułóż miesiąc” znów zadziała.`)
+    : !confirm(`Opublikować grafik na ${name}? Osoby zobaczą go w Zapisach, a „Ułóż miesiąc” zostanie zablokowany do cofnięcia publikacji.`)) return;
   update(() => { if (state.gotowe[k]) delete state.gotowe[k]; else state.gotowe[k] = true; });
 };
 $('#generate').onclick = async () => {
@@ -888,7 +888,7 @@ function renderStats() {
   const tile = (label, value, sub, cls = '') => `<div class="kpi ${cls}"><span class="kpi-label">${label}</span><b class="kpi-value">${value}</b><span class="kpi-sub">${sub}</span></div>`;
 
   let html = `<div class="panel stats-top"><h3>Statystyki — ${monthName}</h3>
-    <p class="lead">Kto ile dyżurów dostał i dlaczego. Kliknij osobę, by zobaczyć powody i limity; „Historia” pokazuje jej dyżury z 4 miesięcy.</p><div class="kpis">` +
+    <div class="kpis">` +
     tile('Obsadzone', `${st.filled}<small> / ${st.slots}</small>`, `${bar(st.slots && st.filled / st.slots, st.filled < st.slots ? 'warn' : '')}${pct}% · wolne ${st.slots - st.filled}`, st.filled < st.slots ? 'warn' : '') +
     tile('Dyżury na osobę', `${Math.min(...totals)}–${Math.max(...totals)}`, `średnio ${num(avg)}`) +
     tile('Odchylenie od próśb', wantDev, wantDev ? 'suma niedoborów i nadmiarów' : 'prośby spełnione', wantDev ? 'maybe' : '') +
@@ -901,7 +901,7 @@ function renderStats() {
     }).join('') + '</ul></div>';
 
   const rows = [...ppl].sort((a, b) => st.people[b.id].total - st.people[a.id].total || a.name.localeCompare(b.name, 'pl'));
-  html += `<div class="panel stats-people"><h3>Osoby <small>od najwięcej dyżurów · kliknij, by zobaczyć szczegóły</small></h3>
+  html += `<div class="panel stats-people"><h3>Osoby</h3>
     <p class="stats-legend"><span><i class="sw start"></i>gównianość sprzed miesiąca</span><span><i class="sw"></i>w tym miesiącu</span>` +
     `<span><span class="pill lvl-3">Chcę</span><span class="pill lvl-2">Mogę</span><span class="pill lvl-1">Ost.</span> dostępność w dni dyżurów</span></p>
     <div class="srow shead" aria-hidden="true"><span>Osoba</span><span>Dyżury</span><span>Pt/So/Nd</span><span>Gównianość</span><span>Dostępność</span></div>` +

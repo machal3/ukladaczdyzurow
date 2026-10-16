@@ -98,11 +98,13 @@ h1 { font: var(--type-display); letter-spacing: -.025em; text-wrap: balance; }
 #want-gaps .count { display: grid; place-items: center; min-width: 28px; height: 28px; padding: 0 8px; border-radius: var(--shape-full); background: var(--warn-soft); color: var(--md-sys-color-on-error-container); font: var(--type-label); }
 #want-gaps.all-ok .count { background: var(--ok-soft); color: var(--md-sys-color-on-primary-container); }
 #want-gaps .hint { color: var(--muted); font-size: 15px; }
-#want-gaps ul { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px 8px; margin: 0; padding: 0; list-style: none; }
-#want-gaps li { display: flex; flex-direction: column; gap: 8px; padding: 12px 16px; background: var(--bg); border-radius: 20px; }
-#want-gaps li > b { font: var(--type-title); font-size: 15px; }
-#want-gaps p { display: grid; grid-template-columns: 132px 1fr; align-items: baseline; gap: 8px; margin: 0; font-size: 15px; line-height: 1.6; color: var(--text); }
-#want-gaps p span[class] { justify-self: start; padding: 2px 10px; border-radius: var(--shape-full); font: var(--type-label); }
+#want-gaps ul { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr)); gap: 12px; margin: 0; padding: 0; list-style: none; }
+/* subgrid: etykiety w karcie mają wspólną szerokość (najdłuższej), tekst zaczyna się w jednej linii */
+#want-gaps li { display: grid; grid-template-columns: max-content minmax(0, 1fr); align-content: start; gap: 8px 12px; padding: 12px 16px; background: var(--bg); border-radius: 20px; }
+#want-gaps li > b { grid-column: 1 / -1; font: var(--type-title); font-size: 16px; overflow-wrap: anywhere; }
+#want-gaps p { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; align-items: baseline; margin: 0; font-size: 15px; line-height: 1.6; color: var(--text); }
+#want-gaps p > span:last-child { min-width: 0; overflow-wrap: anywhere; }
+#want-gaps p span[class] { justify-self: start; padding: 2px 10px; border-radius: var(--shape-full); font: var(--type-label); white-space: nowrap; }
 #want-gaps .few + span b { color: var(--warn); }
 #want-gaps .few { background: var(--warn-soft); color: var(--md-sys-color-on-error-container); }
 #want-gaps .over { background: var(--md-sys-color-secondary-container); color: var(--md-sys-color-on-secondary-container); }
@@ -597,6 +599,9 @@ body:has(.login) { padding: 24px; min-height: 100dvh; display: grid; place-items
   .board { gap: 16px; }
   .calendar { grid-template-columns: 1fr; gap: 12px; padding: 8px; border-radius: 24px; }
   #want-gaps { padding: 8px; border-radius: 24px; }
+  #want-gaps .head { padding: 4px 8px 12px; }
+  #want-gaps .hint { flex-basis: 100%; font-size: 14px; } /* pełny drugi wiersz zamiast urwanego zawinięcia */
+  #want-gaps li { padding: 12px; }
   .dow, .cell.empty { display: none; }
   .cell { padding: 12px; gap: 12px; border-radius: 20px; }
   .day-slots { grid-template-columns: 1fr; gap: 6px; }
@@ -652,6 +657,7 @@ input[type=checkbox]:not([role=switch]):checked::after { content: '✓'; color: 
 .filled-field :is(input, textarea), .filled-select select { min-height: 56px; }
 @media (max-width: 380px) {
   .bar > .tabs > button { font-size: 11px; }
+  #want-gaps p { grid-template-columns: 1fr; gap: 4px; } /* za wąsko na dwie kolumny: etykieta nad tekstem */
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
