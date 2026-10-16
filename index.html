@@ -23,7 +23,6 @@
       <button class="ghost" data-tab="calendar" aria-pressed="true"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 2v3"/><path d="M16 2v3"/><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M8 13h.01"/><path d="M12 13h.01"/><path d="M16 13h.01"/><path d="M8 17h.01"/><path d="M12 17h.01"/><path d="M16 17h.01"/></svg></span><span>Grafik</span></button>
       <button class="ghost" data-tab="people" aria-pressed="false"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><path d="M16 3.128a4 4 0 0 1 0 7.744"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><circle cx="9" cy="7" r="4"/></svg></span><span>Osoby</span></button>
       <button class="ghost" data-tab="stats" aria-pressed="false"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v16a2 2 0 0 0 2 2h16"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg></span><span>Statystyki</span></button>
-      <button class="ghost" data-tab="settings" aria-pressed="false"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5H3"/><path d="M12 19H3"/><path d="M14 3v4"/><path d="M16 17v4"/><path d="M21 12h-9"/><path d="M21 19h-5"/><path d="M21 5h-7"/><path d="M8 10v4"/><path d="M8 12H3"/></svg></span><span>Układanie</span></button>
     </nav>
     <nav class="month" aria-label="Miesiąc">
       <button id="prev" class="ghost" aria-label="Poprzedni miesiąc"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
@@ -33,6 +32,11 @@
     </nav>
     <div class="actions">
       <!-- po lewej grupy narzędzi (ikona + nazwa), po prawej główny przebieg: Opublikuj, Ułóż miesiąc -->
+      <div class="group" role="group" aria-label="Miesiąc">
+        <button class="ghost" data-tab="settings" aria-pressed="false" title="Układanie — priorytety, warunki i ustawienia układania"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 5H3"/><path d="M12 19H3"/><path d="M14 3v4"/><path d="M16 17v4"/><path d="M21 12h-9"/><path d="M21 19h-5"/><path d="M21 5h-7"/><path d="M8 10v4"/><path d="M8 12H3"/></svg><span class="label">Układanie</span></button>
+        <button id="bad-mode" class="ghost" aria-pressed="false" title="Gównianość — oceń, jak ciężki jest każdy dzień (0–3); układanie dzieli gówniane dni sprawiedliwie. Tu też dzień może liczyć się do limitów jak inny (np. święto jak Nd)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 14 4-4"/><path d="M3.34 19a10 10 0 1 1 17.32 0"/></svg><span class="label">Gównianość</span></button>
+        <button id="clear" class="ghost" title="Wyczyść grafik tego miesiąca"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 21H8a2 2 0 0 1-1.42-.587l-3.994-3.999a2 2 0 0 1 0-2.828l10-10a2 2 0 0 1 2.829 0l5.999 6a2 2 0 0 1 0 2.828L12.834 21"/><path d="m5.082 11.09 8.828 8.828"/></svg><span class="label">Wyczyść</span></button>
+      </div>
       <div class="group" role="group" aria-label="Wczytaj">
         <button id="import-open" class="ghost" title="Importuj — wczytaj grafik z tabeli (Word .docx albo wklejona)"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12"/><path d="m17 8-5-5-5 5"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/></svg><span class="label">Importuj</span></button>
       </div>
@@ -40,9 +44,6 @@
         <button id="print" class="ghost" title="Drukuj grafik tego miesiąca"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8" rx="1"/></svg><span class="label">Drukuj</span></button>
         <button id="export-pdf" class="ghost" title="PDF — otwórz grafik jako plik PDF w nowej karcie"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M12 18v-6"/><path d="m9 15 3 3 3-3"/></svg><span class="label">PDF</span></button>
         <button id="export-docx" class="ghost" title="Word — pobierz grafik jako plik .docx"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg><span class="label">Word</span></button>
-      </div>
-      <div class="group" role="group" aria-label="Usuń">
-        <button id="clear" class="ghost" title="Wyczyść grafik tego miesiąca"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 21H8a2 2 0 0 1-1.42-.587l-3.994-3.999a2 2 0 0 1 0-2.828l10-10a2 2 0 0 1 2.829 0l5.999 6a2 2 0 0 1 0 2.828L12.834 21"/><path d="m5.082 11.09 8.828 8.828"/></svg><span class="label">Wyczyść</span></button>
       </div>
       <button id="publish" class="ghost" aria-pressed="false" title="Opublikowany grafik widzą osoby w Zapisach; „Ułóż miesiąc” jest wtedy zablokowany"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg><span class="label">Opublikuj</span></button>
       <button id="cancel-generate" class="ghost" hidden>Anuluj układanie</button>
@@ -107,11 +108,6 @@
         <ul id="rules" class="list"></ul>
         <form id="add-rule" class="rule-form"></form>
       </div>
-      <div class="panel" id="panel-bad">
-        <h3>Gównianość dni</h3>
-        <p class="lead">Jak ciężki jest każdy dzień (0–3). Układanie dzieli gówniane dni sprawiedliwie między osoby. Tu też ustawisz, że dzień liczy się do limitów i próśb jak inny dzień tygodnia (np. święto w środę jak niedziela).</p>
-        <button id="bad-mode" class="ghost outline" aria-pressed="false">Oceń dni w kalendarzu →</button>
-      </div>
       <div class="panel" id="panel-zapisy-od" hidden>
         <h3>Zapisy na dyżury</h3>
         <p class="lead">Osoby zmieniają dostępność na dany miesiąc do 10. dnia poprzedniego miesiąca. Tu możesz zamknąć zapisy wcześniej: miesiące przed wybranym (np. już ułożone) są zamknięte. Puste = tylko termin 10.</p>
@@ -141,7 +137,7 @@
         <ol>
           <li><b>Osoby</b> — ikona ⚙ przy osobie otwiera jej ustawienia: funkcję (Rezydent / Starszy asystent), kanapkę PN1, komentarze i konto w Zapisach. Przycisk <b>Limity</b> otwiera miejsca, minima i limity (ustawiasz je tylko Ty) oraz — w osobnej karcie — prośby. Na wierzchu są <b>Łącznie</b> i <b>Pt/So/Nd</b> oraz przełączniki <b>Dyżuruje na</b> (kliknięcie wyklucza miejsce = Limit 0); limity na miejscach i szczegóły weekendów są w zwijanych grupach, które otwierają się same, gdy coś w nich wpisano.</li>
           <li><b>Dostępność</b> — kliknij imię osoby, a kalendarz przełączy się w tryb jej dostępności. Klikanie w dzień zmienia poziom: <b>Mogę → Chcę → Muszę → Nie mogę → W ostateczności → Mogę</b>. Szybciej: wybierz poziom w pasku nad kalendarzem (np. <b>Nie mogę</b>) — klik wpisuje go od razu, a przeciągnięcie myszą po kolejnych dniach (np. cały urlop) wpisuje go we wszystkie mijane dni. <b>Po kolei</b> wraca do zmiany po kliknięciu. Tak samo działa ocena gównianości dni. Na koniec <b>Gotowe</b>.</li>
-          <li><b>Układanie</b> — dodaj wszystkich dyżurujących (<b>Nowa osoba</b>), ustaw kolejność priorytetów, dodaj warunki i oceń, które dni są ciężkie (<b>Oceń dni w kalendarzu →</b>).</li>
+          <li><b>Układanie</b> (w Grafiku obok <b>Wyczyść</b>) — dodaj wszystkich dyżurujących (<b>Nowa osoba</b>), ustaw kolejność priorytetów, dodaj warunki. W Grafiku oceń, które dni są ciężkie (<b>Gównianość</b> obok <b>Wyczyść</b>).</li>
           <li><b>Grafik</b> — kliknij <b>Ułóż miesiąc</b>. Jeśli jest kilka równie dobrych grafików, nad kalendarzem pojawi się panel wariantów: zaznacz wariant, by go obejrzeć, i kliknij <b>Zostaw zaznaczony</b> (albo <b>Przywróć poprzedni grafik</b>). Gdy grafik jest ostateczny, kliknij <b>Opublikuj</b>: osoby zobaczą go w Zapisach, a <b>Ułóż miesiąc</b> zostanie zablokowany. <b>Cofnij publikację</b> to odwraca. Ręczne poprawki opublikowanego grafiku działają dalej i osoby widzą je od razu.</li>
           <li>Popraw ręcznie, co chcesz: kliknij pole dyżuru i wybierz osobę (albo „—”, by zwolnić). Ręczne wpisy zostają przy każdym kolejnym układaniu.</li>
           <li><b>Statystyki</b> — kto ile dyżurów dostał w oglądanym miesiącu i dlaczego: obsada, Pt/So/Nd, gównianość, dostępność w dni dyżurów, limity i prośby. Kliknij osobę, by otworzyć okno z powodami i limitami; przycisk „Historia” otwiera jej dyżury z 4 miesięcy w osobnym oknie.</li>
@@ -182,7 +178,7 @@
         </ul>
         <p>Zakładka <b>Statystyki</b> pokazuje przy każdej osobie, ile punktów z przeszłości liczy się przy układaniu oglądanego miesiąca.</p>
         <h4>Dzień liczony jak inny dzień tygodnia</h4>
-        <p>W trybie <b>Oceń dni w kalendarzu</b> pod gównianością każdego dnia jest lista <b>„Limity jak …”</b>. Dzień ustawiony np. jak niedziela (święto w środę) liczy się jak niedziela do limitów, minimów i próśb (Pt/So/Nd, ten sam dzień weekendu). Gównianość, miejsca do obsadzenia i wolne po OITN zostają według prawdziwego dnia tygodnia. W grafiku taki dzień ma etykietę „jak Nd”.</p>
+        <p>W trybie <b>Gównianość</b> pod gównianością każdego dnia jest lista <b>„Limity jak …”</b>. Dzień ustawiony np. jak niedziela (święto w środę) liczy się jak niedziela do limitów, minimów i próśb (Pt/So/Nd, ten sam dzień weekendu). Gównianość, miejsca do obsadzenia i wolne po OITN zostają według prawdziwego dnia tygodnia. W grafiku taki dzień ma etykietę „jak Nd”.</p>
         <h4>Limity — twarde</h4>
         <p>Min. i Limit są twardymi granicami w każdym wierszu tabeli osoby. Obowiązują w obrębie miesiąca, także dla wpisów ręcznych. Puste minimum = 0; puste maksimum = bez limitu, z wyjątkiem domyślnego limitu Pt/So/Nd. Jeśli nie uda się spełnić granic, poprzedni grafik zostaje bez zmian i pojawia się komunikat.</p>
         <ul>

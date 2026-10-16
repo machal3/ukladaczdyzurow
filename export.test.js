@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { pdf, docx, crc32, ttf } from './export.js';
 
 const table = { title: 'Grafik dyżurów — Październik 2026', head: ['Dzień', '', 'OITN', 'PN2', 'PN1'],
-  rows: [{ cells: ['1', 'Cz', 'Łucja Żółć', '—', 'Jan (Nowak)'], we: false, mon: false }, { cells: ['5', 'Pn', '', 'Ąę', 'X'], we: true, mon: true }] };
+  rows: [{ cells: ['1', 'Cz', 'Łucja Żółć', '—', 'Jan (Nowak)'], bad: 0, mon: false }, { cells: ['5', 'Pn', '', 'Ąę', 'X'], bad: 1, mon: true }] };
 const fonts = { regular: new Uint8Array(readFileSync('fonts/PlusJakartaSans-Regular.ttf')), bold: new Uint8Array(readFileSync('fonts/PlusJakartaSans-Bold.ttf')) };
 
 test('TTF: szerokości z cmap/hmtx, spacja węższa niż M, polskie litery mają glify', () => {

@@ -1,10 +1,13 @@
-// Eksport grafiku do PDF i Word .docx bez bibliotek. Wejście: { title, head: [...], rows: [{ cells: [...], we, mon }] },
+// Eksport grafiku do PDF i Word .docx bez bibliotek. Wejście: { title, head: [...], rows: [{ cells: [...], bad, mon }] },
+// bad = gównianość dnia 0–3 → szare tło wiersza (SHADE, te same odcienie co w wydruku, style.css);
 // dwie pierwsze kolumny wąskie (dzień, dzień tygodnia), reszta równa. Jedna strona A4 pionowo, jak wydruk.
 
 // Krój jak w wydruku (Plus Jakarta Sans, fonts/*.ttf), osadzony w obu formatach; fonts = { regular, bold } jako Uint8Array.
 // PDF: osadzony TrueType + własne kodowanie dla polskich znaków (ósemkowe \ooo); tekst ASCII, pliki fontów jako bajty 0–255
 const PL = { ą: 'aogonek', ć: 'cacute', ę: 'eogonek', ł: 'lslash', ń: 'nacute', ó: 'oacute', ś: 'sacute', ź: 'zacute', ż: 'zdotaccent',
   Ą: 'Aogonek', Ć: 'Cacute', Ę: 'Eogonek', Ł: 'Lslash', Ń: 'Nacute', Ó: 'Oacute', Ś: 'Sacute', Ź: 'Zacute', Ż: 'Zdotaccent', '—': 'emdash' };
+export const SHADE = [null, 0.93, 0.86, 0.78]; // szarość tła wg gównianości: Zwykły bez tła, Słaby (So/Nd), Gówniany, Tragiczny
+const hex = (g) => Math.round(g * 255).toString(16).toUpperCase().padStart(2, '0').repeat(3);
 const CODES = Object.keys(PL); // bajty 128, 129, …
 const pdfText = (s) => [...s].map((c) => '()\\'.includes(c) ? '\\' + c : c >= ' ' && c <= '~' ? c :
   CODES.includes(c) ? '\\' + (128 + CODES.indexOf(c)).toString(8) : '?').join('');
@@ -46,7 +49,7 @@ export function pdf({ title, head, rows }, fonts) {
   let fills = '', ink = `BT /F2 16 Tf ${L} 790 Td (${pdfText(title)}) Tj ET\n`;
   [{ cells: head, head: true }, ...rows].forEach((r, i) => {
     const y = top - (i + 1) * h, size = r.head ? 8 : 9.5;
-    if (r.we) fills += `0.93 g ${L} ${y.toFixed(2)} ${W} ${h.toFixed(2)} re f\n`;
+    if (SHADE[r.bad]) fills += `${SHADE[r.bad]} g ${L} ${y.toFixed(2)} ${W} ${h.toFixed(2)} re f\n`;
     if (r.mon) ink += line(y + h, 1, 0);
     ink += line(y, r.head ? 1.2 : 0.5, r.head ? 0 : 0.73);
     r.cells.forEach((c, j) => {
@@ -90,7 +93,7 @@ export function docx({ title, head, rows }, fonts) {
   const tr = (r) => `<w:tr><w:trPr><w:trHeight w:val="${r.head ? 360 : 400}" w:hRule="exact"/>${r.head ? '<w:tblHeader/>' : ''}</w:trPr>${r.cells.map((c, j) => r.head && j === 1 ? '' : // „Dzień” scalone z kolumną dnia tygodnia
     `<w:tc><w:tcPr><w:tcW w:w="${r.head && j === 0 ? 2 * narrow : widths[j]}" w:type="dxa"/>${r.head && j === 0 ? '<w:gridSpan w:val="2"/>' : ''}` +
     (r.head ? '<w:tcBorders><w:bottom w:val="single" w:sz="12" w:color="000000"/></w:tcBorders>' : r.mon ? '<w:tcBorders><w:top w:val="single" w:sz="8" w:color="000000"/></w:tcBorders>' : '') +
-    (r.we ? '<w:shd w:val="clear" w:color="auto" w:fill="EEEEEE"/>' : '') + '<w:vAlign w:val="center"/></w:tcPr>' +
+    (SHADE[r.bad] ? `<w:shd w:val="clear" w:color="auto" w:fill="${hex(SHADE[r.bad])}"/>` : '') + '<w:vAlign w:val="center"/></w:tcPr>' +
     `<w:p><w:pPr><w:spacing w:before="0" w:after="0"/>${j === 0 && !r.head ? '<w:jc w:val="right"/>' : ''}</w:pPr>${c ? run(c, r.head || j === 0, r.head ? 16 : 19, c === '—') : ''}</w:p></w:tc>`).join('')}</w:tr>`;
   const body = `<w:p><w:pPr><w:spacing w:before="0" w:after="200"/></w:pPr>${run(title, true, 32)}</w:p>` +
     `<w:tbl><w:tblPr><w:tblW w:w="${W}" w:type="dxa"/><w:tblBorders><w:bottom w:val="single" w:sz="4" w:color="BBBBBB"/><w:insideH w:val="single" w:sz="4" w:color="BBBBBB"/></w:tblBorders><w:tblLayout w:type="fixed"/><w:tblCellMar><w:left w:w="70" w:type="dxa"/><w:right w:w="70" w:type="dxa"/></w:tblCellMar></w:tblPr>` +

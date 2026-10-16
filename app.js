@@ -156,10 +156,11 @@ function render() {
   html += '<div class="cell empty"></div>'.repeat((7 - (weekday(y, m, 1) + daysInMonth(y, m)) % 7) % 7); // domknięcie ostatniego tygodnia
   $('#calendar').innerHTML = html;
 
-  // Wydruk (pionowo, jedna kartka): dzień pod dniem, miejsca w kolumnach — widoczny tylko w @media print
+  // Wydruk (pionowo, jedna kartka): dzień pod dniem, miejsca w kolumnach — widoczny tylko w @media print.
+  // Tło wiersza wg gównianości dnia z kalendarza (Słaby — domyślnie So/Nd — najjaśniej, Tragiczny najciemniej), patrz SHADE w export.js
   const { title, cols, rows: sheetRows } = sheet();
   $('#print-sheet').innerHTML = `<h2>${esc(title)}</h2><table><colgroup><col class="c-d"><col class="c-wd"></colgroup><thead><tr><th colspan="2">Dzień</th>${cols.map((s) => `<th>${esc(s.name)}</th>`).join('')}</tr></thead><tbody>` +
-    sheetRows.map((r) => `<tr class="${r.wd >= 5 ? 'we' : ''} ${r.wd === 0 ? 'mon' : ''}"><td class="d">${r.d}</td><td class="wd">${DAYS[r.wd]}</td>${r.names.map((n) =>
+    sheetRows.map((r) => `<tr class="bad-${r.bad} ${r.wd === 0 ? 'mon' : ''}"><td class="d">${r.d}</td><td class="wd">${DAYS[r.wd]}</td>${r.names.map((n) =>
       `<td>${n === '' ? '' : n ? esc(n) : '<span class="none">—</span>'}</td>`).join('')}</tr>`).join('') + '</tbody></table>';
 
   // Statystyki miesiąca
@@ -514,7 +515,9 @@ function showTab(tab) {
   if (tab === 'stats') renderStats(); // budowana tylko, gdy widoczna
   scrollTo({ top: scrolls[tab] ?? 0, behavior: 'instant' }); // instant: html ma scroll-behavior: smooth
 }
-$('.tabs').onclick = $('.app-header').onclick =(e) => { const t = e.target.closest('[data-tab]'); if (t) showTab(t.dataset.tab); };
+$('.tabs').onclick = $('.app-header').onclick = (e) => { const t = e.target.closest('[data-tab]'); if (t) showTab(t.dataset.tab); };
+// „Układanie” w pasku akcji działa jak przełącznik (jak „Gównianość”): ponowne kliknięcie wraca do kalendarza
+$('.actions').onclick = (e) => { const t = e.target.closest('[data-tab]'); if (t) showTab(document.body.dataset.tab === t.dataset.tab ? 'calendar' : t.dataset.tab); };
 
 // „Gotowe” kończy dostępność/gównianość i wraca na kartę, z której je włączono
 // Przełącznik Korekta / Wpis osoby. W oknie osoby karta się przebudowuje — przełącznik zostaje w tym samym miejscu ekranu.
@@ -539,7 +542,7 @@ $('#status').onclick = (e) => {
     input?.focus({ preventScroll: true });
   }
 };
-$('#bad-mode').onclick = () => { view.bad = !view.bad; view.who = null; back = 'settings'; if (view.bad) showTab('calendar'); render(); };
+$('#bad-mode').onclick = () => { view.bad = !view.bad; view.who = null; back = document.body.dataset.tab; if (view.bad) showTab('calendar'); render(); };
 
 // Klik w dzień w trybie dostępności: Mogę → Chcę → Muszę → Nie mogę → W ostateczności → Mogę
 // W trybie gównianości: 0 → 1 → 2 → 3 → 0 (wartość równa domyślnej nie jest zapisywana)
@@ -608,14 +611,14 @@ function sheet() {
   const month = new Date(y, m).toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' });
   const rows = Array.from({ length: daysInMonth(y, m) }, (_, i) => {
     const d = i + 1, wd = weekday(y, m, d), day = state.schedule[dateKey(y, m, d)] || {};
-    return { d, wd, names: cols.map((s) => !s.days.includes(wd) ? '' : nameOf[day[s.id]] ?? null) };
+    return { d, wd, bad: badOf(state.bad, y, m, d), names: cols.map((s) => !s.days.includes(wd) ? '' : nameOf[day[s.id]] ?? null) };
   });
   return { title: `Grafik dyżurów — ${month[0].toUpperCase() + month.slice(1)}`, cols, rows, file: `grafik-${dateKey(y, m, 1).slice(0, 7)}` };
 }
 const sheetTable = () => {
   const { title, cols, rows, file } = sheet();
   return { file, table: { title, head: ['Dzień', '', ...cols.map((s) => s.name)],
-    rows: rows.map((r) => ({ cells: [String(r.d), DAYS[r.wd], ...r.names.map((n) => n ?? '—')], we: r.wd >= 5, mon: r.wd === 0 })) } };
+    rows: rows.map((r) => ({ cells: [String(r.d), DAYS[r.wd], ...r.names.map((n) => n ?? '—')], bad: r.bad, mon: r.wd === 0 })) } };
 };
 const download = (url, name) => { const a = document.createElement('a'); a.href = url; a.download = name; a.click(); };
 // krój z wydruku do osadzenia w PDF/Word, pobierany przy pierwszym eksporcie

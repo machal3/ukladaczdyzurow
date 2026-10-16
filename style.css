@@ -121,7 +121,7 @@ h1 { font: var(--type-display); letter-spacing: -.025em; text-wrap: balance; }
 .progress i { display: block; height: 100%; border-radius: inherit; background: var(--strong); transition: width 300ms var(--motion); }
 body:not([data-tab=calendar]) #status { display: none; }
 main { display: flex; flex-direction: column; gap: 24px; min-width: 0; }
-body:not([data-tab=settings]) #settings, body:not([data-tab=people]) #people-tab, body:not([data-tab=calendar]) .board, body:not([data-tab=calendar]) #panel-variants, body:not([data-tab=calendar]) #want-gaps, body:not([data-tab=help]) #help, body:not([data-tab=stats]) #stats, body:not([data-tab=calendar]) .actions { display: none; }
+body:not([data-tab=settings]) #settings, body:not([data-tab=people]) #people-tab, body:not([data-tab=calendar]) .board, body:not([data-tab=calendar]) #panel-variants, body:not([data-tab=calendar]) #want-gaps, body:not([data-tab=help]) #help, body:not([data-tab=stats]) #stats, body:not([data-tab=calendar], [data-tab=settings]) .actions { display: none; }
 main > :is(section, article), .board { animation: appear 350ms var(--motion); }
 @keyframes appear { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
@@ -142,7 +142,8 @@ main > :is(section, article), .board { animation: appear 350ms var(--motion); }
 .burden-2 { --day-heading-bg: var(--md-semantic-color-bad-container); --day-heading-fg: var(--md-semantic-color-on-bad-container); }
 .burden-3 { --day-heading-bg: var(--md-sys-color-error); --day-heading-fg: var(--md-sys-color-on-error); }
 .cell:is(.burden-1, .burden-2, .burden-3) .day-heading { background: var(--day-heading-bg); color: var(--day-heading-fg); border-radius: 12px; }
-.cell:is(.burden-1, .burden-2, .burden-3) .day-heading :is(.num, .day-name, .today-label) { color: var(--day-heading-fg); }
+.cell:is(.burden-1, .burden-2, .burden-3) .day-heading :is(.num, .day-name, .today-label, .as-label) { color: var(--day-heading-fg); }
+.cell:is(.burden-1, .burden-2, .burden-3) .as-label { background: color-mix(in srgb, currentColor 16%, transparent); } /* „jak Nd” w odcieniu tła dnia */
 .num { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; color: var(--text); font: 600 22px/28px var(--headline); font-variant-numeric: tabular-nums; flex: none; }
 .day-name { display: none; }
 .today-label { font: var(--type-label); color: var(--md-sys-color-on-primary-container); }
@@ -259,9 +260,6 @@ main > :is(section, article), .board { animation: appear 350ms var(--motion); }
 .settings { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 20px; align-items: start; }
 #panel-priority { grid-row: span 2; }
 #panel-rules { background: var(--md-sys-color-surface-container); }
-#panel-bad { background: var(--maybe-soft); color: var(--md-sys-color-on-tertiary-container); border-radius: var(--shape-card); }
-#panel-bad .lead { color: inherit; }
-#panel-bad button { width: 100%; background: var(--md-sys-color-tertiary); color: var(--md-sys-color-on-tertiary); border: 0; }
 .settings .hint { margin-top: 20px; }
 #priority li { padding: 16px 12px; }
 #priority li > :first-child { white-space: normal; display: flex; align-items: center; gap: 12px; }
@@ -698,7 +696,11 @@ input[type=checkbox]:not([role=switch]):checked::after { content: '✓'; color: 
   .print-sheet .c-d, .print-sheet .c-wd { width: 10mm; }
   .print-sheet .d { text-align: right; padding-right: 1.5mm; font-weight: 700; font-variant-numeric: tabular-nums; }
   .print-sheet .wd { color: #555; padding-left: 1mm; }
-  .print-sheet tr.we td { background: #eee; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  /* tło wg gównianości dnia — te same odcienie co SHADE w export.js */
+  .print-sheet tr[class*="bad-"] td { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .print-sheet tr.bad-1 td { background: #ededed; }
+  .print-sheet tr.bad-2 td { background: #dbdbdb; }
+  .print-sheet tr.bad-3 td { background: #c7c7c7; }
   .print-sheet tr.mon td { border-top: 1pt solid #000; }
   .print-sheet .none { color: #aaa; }
 }
