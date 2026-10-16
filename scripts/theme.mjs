@@ -9,6 +9,9 @@ const themes = [
   { name: 'niebieski', seed: '#2260ea' },
   { name: 'fioletowy', seed: '#6750a4' },
   { name: 'bursztynowy', seed: '#8b5000' },
+  { name: 'czerwony', seed: '#b3261e' },
+  { name: 'rozowy', seed: '#b0306a' },
+  { name: 'turkusowy', seed: '#006a6a' },
 ];
 const quality = {
   weakDay: TonalPalette.fromInt(argbFromHex('#ad7b00')),

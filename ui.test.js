@@ -297,7 +297,7 @@ test('Zapisy na dyżury w trybie chmury: konto osoby, nowy PIN (zajęty → losu
   $('#app-settings-open').click();
   await settle();
   assert.equal($('#panel-zapisy').hidden, false);
-  assert.match($('#zapisy-fails').textContent, /24 h: 7/);
+  assert.match($('#zapisy-fails').textContent, /24 h\): 7\/100/);
   assert.equal($('#zapisy-link').getAttribute('href'), 'https://zapisy.example/');
   $('#app-settings').close();
 

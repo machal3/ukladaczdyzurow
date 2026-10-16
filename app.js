@@ -1032,7 +1032,7 @@ $('#app-settings-open').onclick = () => {
   if (!zapisy) return;
   $('#zapisy-fails').textContent = 'Wczytuję…';
   fetchKonta().then((k) => { $('#zapisy-fails').textContent = k.error ? `Nie udało się wczytać: ${k.error}` :
-    `Złe próby logowania z 24 h: ${k.fails24h} (przy 100 logowanie wstrzymuje się dla wszystkich).`; });
+    `Nieudane logowania (24 h): ${k.fails24h}/100 — po przekroczeniu logowanie jest wstrzymane.`; });
 };
 $('#zapisy-od').onchange = (e) => update(() => { if (e.target.value) state.zapisyOd = e.target.value; else delete state.zapisyOd; });
 $('#import-open').onclick = () => {
