@@ -319,7 +319,7 @@ test('Zapisy na dyżury w trybie chmury: konto osoby, nowy PIN (zajęty → losu
   assert.equal($('.new-pin'), null);
   $('#person').close();
 
-  assert.match($('#status').textContent, /Zapisy osób (na ten miesiąc: otwarte do 20 |zamknięte)/);
+  assert.match($('#status').textContent, /Zapisy osób (na ten miesiąc: otwarte do 10 |zamknięte)/);
   $('#zapisy-od').value = '2999-01'; // zamyka oglądany miesiąc wcześniej
   $('#zapisy-od').dispatchEvent(new w.Event('change', { bubbles: true }));
   assert.match($('#status').textContent, /Zapisy osób zamknięte/);
@@ -396,6 +396,22 @@ test('korekty administratora w trybie Zapisów: wpis osoby zostaje, korekta obok
   korekta.value = '4';
   korekta.dispatchEvent(new w.Event('change', { bubbles: true }));
   assert.deepEqual(state().wantsAdm.a, {}, 'tyle samo co osoba = bez korekty');
+  assert.equal($('[data-restore-wants]').hidden, true, 'bez korekt bez przycisku');
+  for (const [k, v] of [['*', '7'], ['we', '2']]) {
+    const f = $(`[data-want-adm="${k}"]`);
+    f.value = v;
+    f.dispatchEvent(new w.Event('change', { bubbles: true }));
+  }
+  assert.equal($('[data-restore-wants]').hidden, false);
+  answer = false;
+  $('[data-restore-wants]').click();
+  assert.deepEqual(state().wantsAdm.a, { '*': 7, we: 2 }, 'anulowane = korekty zostają');
+  answer = true;
+  $('[data-restore-wants]').click();
+  assert.equal(state().wantsAdm.a, undefined, 'wszystkie korekty próśb usunięte');
+  assert.deepEqual(state().wants.a, { '*': 4 }, 'prośba osoby bez zmian');
+  assert.equal($('[data-want-adm="*"]').value, '', 'pola korekty puste');
+  assert.equal($('[data-restore-wants]').hidden, true);
   $('#person').close();
   w.confirm = () => true;
   $('#people [data-del-person="b"]').click();
@@ -430,8 +446,9 @@ test('przełącznik „Wpis osoby”: zmiany wprost we wpisach osoby, korekta na
   $('#person [data-jawnie="1"]').click(); // przełącznik jest wspólny — już włączony, klik nic nie psuje
   assert.equal($('[data-want-adm="*"]'), null, 'w trybie jawnym korekta tylko do odczytu');
   assert.ok($('[data-want="d56"]'), 'So + Nd osoba też ustawia w Zapisach');
-  assert.equal($('[data-want="we"]'), null, 'o Pt/So/Nd osoba nie prosi — tylko korekta');
-  assert.ok($('[data-want-adm="we"]'));
+  assert.equal($('[data-want="we"]'), null, 'o Pt/So/Nd osoba nie prosi');
+  assert.deepEqual([...w.document.querySelectorAll('#person [data-want]')].map((e) => e.dataset.want), ['*', 'd56'], 'tylko wiersze z Zapisów');
+  assert.equal($('#person [data-want-adm]'), null, 'bez pól korekty w tym trybie');
   assert.equal($('[data-adm-cell="*"]').textContent, '6');
   const own = $('[data-want="*"]');
   assert.equal(own.value, '4');

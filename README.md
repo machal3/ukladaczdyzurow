@@ -280,7 +280,7 @@ swoją dostępność i prośby, 4-cyfrowym PIN-em. Działa tylko w trybie chmury
   imiona na miejscach). Nieułożonego grafiku osoby nie widzą.
 - **Komentarze** — osoba może dopisać komentarz do swoich dyżurów w danym miesiącu (do 500 znaków). Widać go w
   **ustawieniach osoby** (zakładka Osoby, karta „Komentarze z Zapisów”) i w jej oknie w **Statystykach**.
-- **Termin zapisów** — osoby zmieniają dostępność na dany miesiąc do 20. dnia poprzedniego miesiąca włącznie;
+- **Termin zapisów** — osoby zmieniają dostępność na dany miesiąc do 10. dnia poprzedniego miesiąca włącznie;
   pilnuje tego baza. Pasek nad kalendarzem pokazuje, czy zapisy na oglądany miesiąc są otwarte. Pole **Zamknij
   zapisy osób do miesiąca** (zakładka Układanie, opcjonalne) zamyka wcześniej wszystkie miesiące przed wybranym
   (np. już ułożone).

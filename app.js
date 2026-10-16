@@ -217,14 +217,14 @@ function render() {
       card('Limity', `Twarde granice liczby dyżurów w miesiącu — obowiązują w każdym miesiącu.${zapisy ? ' Ustawiasz je tylko Ty, osoba ich nie widzi.' : ''}`,
         counts([['Min.', 'najmniej'], ['Limit', 'najwyżej']], (k, ph, l) => `<td>${num('min', k, '—', `Minimum: ${l}`)}</td><td>${num('limit', k, ph, `Limit: ${l}`)}</td>`, [state.mins, state.limits]) +
         '<p class="hint">Min. i Limit działają zawsze — także 0. Puste pole = wartość domyślna (szara, ∞ = bez limitu). Jeśli nie znajdzie grafiku zgodnego z limitami, zachowa poprzedni.</p>', zapisy ? 'tylko Ty' : '') +
-      (zapisy ? card('Prośby', jawnie ? 'Ile dyżurów osoba chce w miesiącu. Łącznie i So + Nd zmieniasz wprost w jej prośbie — zobaczy ją w Zapisach jak swoją, a Twoja korekta w tym wierszu znika. Pozostałe wiersze są tylko Twoją korektą.'
+      (zapisy ? card('Prośby', jawnie ? 'Ile dyżurów osoba chce w miesiącu — tylko to, o co prosi w Zapisach. Zmieniasz wprost jej prośbę: zobaczy ją jak swoją, a Twoja korekta w tym wierszu znika. Inne prośby ustawisz w trybie Korekta.'
         : 'Ile dyżurów osoba chce w miesiącu — w Zapisach wpisuje sama tylko Łącznie i So + Nd. Korekta zastępuje jej prośbę przy układaniu, a osoba widzi dalej swoją.',
-        modeSwitch() + (jawnie
-          ? counts([['Osoba', 'widzi w Zapisach'], ['Korekta', 'Twoja']], (k, ph, l) => OSOBA_WANTS.includes(k)
-            ? `<td>${num('want', k, '—', `Prośba osoby: ${l}`)}</td><td class="own" data-adm-cell="${k}">${state.wantsAdm[who.id]?.[k] ?? '—'}</td>`
-            : `<td class="own">${own(k)}</td><td>${num('wantAdm', k, own(k), `Korekta prośby: ${l}`)}</td>`, [state.wants, state.wantsAdm])
+        modeSwitch() + (jawnie // tylko wiersze z Zapisów — bez mieszania kolumn do edycji
+          ? `<table class="counts"><thead><tr><td></td><th scope="col">Osoba<small>widzi w Zapisach</small></th><th scope="col">Korekta<small>Twoja</small></th></tr></thead><tbody>${OSOBA_WANTS.map((k) =>
+            `<tr><th scope="row">${WANT_NAME[k]}</th><td>${num('want', k, '—', `Prośba osoby: ${WANT_NAME[k]}`)}</td><td class="own" data-adm-cell="${k}">${state.wantsAdm[who.id]?.[k] ?? '—'}</td></tr>`).join('')}</tbody></table>`
           : counts([['Osoba', 'z Zapisów'], ['Korekta', 'Twoja']], (k, ph, l) => `<td class="own">${own(k)}</td><td>${num('wantAdm', k, own(k), `Korekta prośby: ${l}`)}</td>`, [state.wants, state.wantsAdm])) +
-        `<p class="hint">${jawnie ? 'Puste pole = osoba nie ma prośby.' : 'Puste pole korekty = obowiązuje prośba osoby (szara).'} Prośba to docelowa liczba: algorytm ogranicza zarówno niedobór, jak i nadmiar. Domyślny 1 w ten sam dzień weekendu jest preferencją.</p>`, 'wpisuje osoba')
+        `<p class="hint">${jawnie ? 'Puste pole = osoba nie ma prośby.' : 'Puste pole korekty = obowiązuje prośba osoby (szara).'} Prośba to docelowa liczba: algorytm ogranicza zarówno niedobór, jak i nadmiar. Domyślny 1 w ten sam dzień weekendu jest preferencją.</p>` +
+        '<button type="button" class="ghost outline restore-wants" data-restore-wants hidden>Przywróć prośby osoby</button>', 'wpisuje osoba')
       : card('Prośby', 'Ile dyżurów osoba chce w miesiącu — miękko, w granicach limitów.',
         counts([['Prośba', 'docelowo']], (k, ph, l) => `<td>${num('want', k, '—', `Prośba: ${l}`)}</td>`, [state.wants]) +
         '<p class="hint">Prośba to docelowa liczba: algorytm ogranicza zarówno niedobór, jak i nadmiar. Domyślny 1 w ten sam dzień weekendu jest preferencją.</p>'))) +
@@ -303,6 +303,7 @@ const stamp = (pid) => state.stamps[pid] ? ` <small class="stamp">zmienione w Za
 let jawnie = false;
 // O co osoba może prosić w Zapisach (WANT_ROWS tam, osoba_save w bazie): łącznie i So + Nd; resztę próśb ustawiasz tylko korektą
 const OSOBA_WANTS = ['*', 'd56'];
+const WANT_NAME = { '*': 'Łącznie', d56: 'So + Nd' }; // nazwy wierszy jak w tabelach okna osoby
 const EYE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.06 12.35a1 1 0 0 1 0-.7 10.75 10.75 0 0 1 19.88 0 1 1 0 0 1 0 .7 10.75 10.75 0 0 1-19.88 0"/><circle cx="12" cy="12" r="3"/></svg>';
 const EYE_OFF = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c4.97 0 8.4 3.62 9.94 6.65a1 1 0 0 1 0 .7 10.8 10.8 0 0 1-1.44 2.49"/><path d="M14.08 14.16a3 3 0 0 1-4.24-4.24"/><path d="M17.48 17.5A10.75 10.75 0 0 1 2.06 12.35a1 1 0 0 1 0-.7 10.8 10.8 0 0 1 4.45-5.14"/><path d="m2 2 20 20"/></svg>';
 const modeSwitch = () => !zapisy ? '' : '<span class="seg" role="group" aria-label="Gdzie zapisują się Twoje zmiany">' +
@@ -340,12 +341,13 @@ function mayCorrect(what) {
 const komentarze = (pid) => Object.entries(state.uwagi[pid] ?? {}).filter(([k, t]) => k >= dateKey(now.getFullYear(), now.getMonth(), 1).slice(0, 7) && t.trim()).sort()
   .map(([k, t]) => `<p class="note-text"><b>${new Date(+k.slice(0, 4), +k.slice(5) - 1).toLocaleDateString('pl-PL', { month: 'long', year: 'numeric' })}:</b> ${esc(t.trim())}</p>`).join('');
 const uwaga = (pid) => state.uwagi[pid]?.[dateKey(view.y, view.m, 1).slice(0, 7)]?.trim() ?? '';
-// Termin zapisów (pilnuje baza): osoby zmieniają miesiąc do 20. dnia poprzedniego; state.zapisyOd zamyka wcześniejsze miesiące
-const zapisyClosed = (y, m) => dateKey(now.getFullYear(), now.getMonth(), now.getDate()) > dateKey(y, m - 1, 20) ||
+const ZAPISY_DO = 10; // dzień poprzedniego miesiąca — jak zapisy_od w supabase-zapisy.sql (repo Zapisów)
+// Termin zapisów (pilnuje baza): osoby zmieniają miesiąc do 10. dnia poprzedniego; state.zapisyOd zamyka wcześniejsze miesiące
+const zapisyClosed = (y, m) => dateKey(now.getFullYear(), now.getMonth(), now.getDate()) > dateKey(y, m - 1, ZAPISY_DO) ||
   dateKey(y, m, 1).slice(0, 7) < (state.zapisyOd ?? '');
 function zapisyInfo(y, m) {
   return `<span class="zapisy-info">${zapisyClosed(y, m) ? 'Zapisy osób zamknięte' :
-    `Zapisy osób na ten miesiąc: otwarte do ${new Date(y, m - 1, 20).toLocaleDateString('pl-PL', { day: 'numeric', month: 'long' })}`}</span>`;
+    `Zapisy osób na ten miesiąc: otwarte do ${new Date(y, m - 1, ZAPISY_DO).toLocaleDateString('pl-PL', { day: 'numeric', month: 'long' })}`}</span>`;
 }
 
 function update(fn) { stopGeneration(); fn(); save(); render(); }
@@ -353,6 +355,8 @@ function update(fn) { stopGeneration(); fn(); save(); render(); }
 // Okno osoby: chipy miejsc (dozwolone = bez Limitu 0) — odświeżane przy każdej zmianie, bez przebudowy pól
 function personStatus(pid) {
   for (const b of document.querySelectorAll('#person [data-place]')) b.setAttribute('aria-pressed', state.limits[pid]?.[b.dataset.place] !== 0);
+  const restore = $('#person [data-restore-wants]'); // tylko gdy są korekty próśb
+  if (restore) restore.hidden = !Object.keys(state.wantsAdm[pid] ?? {}).length;
   markClash();
 }
 
@@ -512,7 +516,16 @@ function showTab(tab) {
 $('.tabs').onclick = $('.app-header').onclick =(e) => { const t = e.target.closest('[data-tab]'); if (t) showTab(t.dataset.tab); };
 
 // „Gotowe” kończy dostępność/gównianość i wraca na kartę, z której je włączono
-const setMode = (e) => { const b = e.target.closest('[data-jawnie]'); if (b) { jawnie = b.dataset.jawnie === '1'; render(); } };
+// Przełącznik Korekta / Wpis osoby. W oknie osoby karta się przebudowuje — przełącznik zostaje w tym samym miejscu ekranu.
+function setMode(e) {
+  const b = e.target.closest('[data-jawnie]');
+  if (!b || jawnie === (b.dataset.jawnie === '1')) return;
+  const top = b.getBoundingClientRect().top, inPerson = !!b.closest('#person');
+  jawnie = !jawnie;
+  render();
+  const same = inPerson && $(`#person [data-jawnie="${b.dataset.jawnie}"]`);
+  if (same) { $('#person-body').scrollTop += same.getBoundingClientRect().top - top; same.focus({ preventScroll: true }); }
+}
 $('#status').onclick = (e) => {
   setMode(e);
   if ('done' in e.target.dataset) { view.who = null; view.bad = false; brush = { avail: null, bad: null }; showTab(back); render(); }
@@ -771,6 +784,11 @@ $('#people-sort').onchange = (e) => { view.sort = e.target.value; render(); };
 $('#person').onclose = () => { if ($('#person').returnValue !== 'avail') view.who = prevWho; render(); };
 $('#person').onclick = (e) => {
   setMode(e);
+  if ('restoreWants' in e.target.dataset) { // wszystkie korekty próśb osoby → znów obowiązuje to, co wpisała w Zapisach
+    const n = Object.keys(state.wantsAdm[view.who] ?? {}).length;
+    if (confirm(`Usunąć Twoje korekty próśb tej osoby (${n})? Znów będzie obowiązywać to, co osoba wpisała w Zapisach.`))
+      update(() => { delete state.wantsAdm[view.who]; delete $('#person-body').dataset.key; }); // przebudowa pól korekty
+  }
   if (e.target.dataset.go) showTab(e.target.dataset.go);
   if (e.target.dataset.konto) kontoAction(e.target);
   const place = e.target.closest('[data-place]')?.dataset.place; // chip miejsca: wyklucz (Limit 0) ↔ dopuść (puste pole)
