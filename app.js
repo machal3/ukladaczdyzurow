@@ -213,10 +213,12 @@ function render() {
       card('Limity', `Twarde granice liczby dyżurów w miesiącu — obowiązują w każdym miesiącu.${zapisy ? ' Ustawiasz je tylko Ty, osoba ich nie widzi.' : ''}`,
         counts([['Min.', 'najmniej'], ['Limit', 'najwyżej']], (k, ph, l) => `<td>${num('min', k, '—', `Minimum: ${l}`)}</td><td>${num('limit', k, ph, `Limit: ${l}`)}</td>`, [state.mins, state.limits]) +
         '<p class="hint">Min. i Limit działają zawsze — także 0. Puste pole = wartość domyślna (szara, ∞ = bez limitu). Jeśli nie znajdzie grafiku zgodnego z limitami, zachowa poprzedni.</p>', zapisy ? 'tylko Ty' : '') +
-      (zapisy ? card('Prośby', jawnie ? 'Ile dyżurów osoba chce w miesiącu. Zmieniasz wprost jej prośbę — zobaczy ją w Zapisach jak swoją, a Twoja korekta w tym wierszu znika.'
-        : 'Ile dyżurów osoba chce w miesiącu — wpisuje je sama w Zapisach. Korekta zastępuje jej prośbę przy układaniu, a osoba widzi dalej swoją.',
+      (zapisy ? card('Prośby', jawnie ? 'Ile dyżurów osoba chce w miesiącu. Łącznie i So + Nd zmieniasz wprost w jej prośbie — zobaczy ją w Zapisach jak swoją, a Twoja korekta w tym wierszu znika. Pozostałe wiersze są tylko Twoją korektą.'
+        : 'Ile dyżurów osoba chce w miesiącu — w Zapisach wpisuje sama tylko Łącznie i So + Nd. Korekta zastępuje jej prośbę przy układaniu, a osoba widzi dalej swoją.',
         modeSwitch() + (jawnie
-          ? counts([['Osoba', 'widzi w Zapisach'], ['Korekta', 'Twoja']], (k, ph, l) => `<td>${num('want', k, '—', `Prośba osoby: ${l}`)}</td><td class="own" data-adm-cell="${k}">${state.wantsAdm[who.id]?.[k] ?? '—'}</td>`, [state.wants, state.wantsAdm])
+          ? counts([['Osoba', 'widzi w Zapisach'], ['Korekta', 'Twoja']], (k, ph, l) => OSOBA_WANTS.includes(k)
+            ? `<td>${num('want', k, '—', `Prośba osoby: ${l}`)}</td><td class="own" data-adm-cell="${k}">${state.wantsAdm[who.id]?.[k] ?? '—'}</td>`
+            : `<td class="own">${own(k)}</td><td>${num('wantAdm', k, own(k), `Korekta prośby: ${l}`)}</td>`, [state.wants, state.wantsAdm])
           : counts([['Osoba', 'z Zapisów'], ['Korekta', 'Twoja']], (k, ph, l) => `<td class="own">${own(k)}</td><td>${num('wantAdm', k, own(k), `Korekta prośby: ${l}`)}</td>`, [state.wants, state.wantsAdm])) +
         `<p class="hint">${jawnie ? 'Puste pole = osoba nie ma prośby.' : 'Puste pole korekty = obowiązuje prośba osoby (szara).'} Prośba to docelowa liczba: algorytm ogranicza zarówno niedobór, jak i nadmiar. Domyślny 1 w ten sam dzień weekendu jest preferencją.</p>`, 'wpisuje osoba')
       : card('Prośby', 'Ile dyżurów osoba chce w miesiącu — miękko, w granicach limitów.',
@@ -291,8 +293,10 @@ function render() {
 const when = (iso) => iso ? new Date(iso).toLocaleString('pl-PL', { dateStyle: 'short', timeStyle: 'short' }) : '—';
 const stamp = (pid) => state.stamps[pid] ? ` <small class="stamp">zmienione w Zapisach: ${when(state.stamps[pid])}</small>` : '';
 // Tryb Zapisów: gdzie idą zmiany administratora — false = korekty (availAdm/wantsAdm, osoba ich nie widzi),
-// true = wprost we wpisach osoby (avail/wants, widzi je w Zapisach). Na sesję; start zawsze na korektach.
+// true = wprost we wpisach osoby (avail/wants, widzi je w Zapisach; z próśb tylko OSOBA_WANTS). Na sesję; start zawsze na korektach.
 let jawnie = false;
+// O co osoba może prosić w Zapisach (WANT_ROWS tam, osoba_save w bazie): łącznie i So + Nd; resztę próśb ustawiasz tylko korektą
+const OSOBA_WANTS = ['*', 'd56'];
 const EYE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.06 12.35a1 1 0 0 1 0-.7 10.75 10.75 0 0 1 19.88 0 1 1 0 0 1 0 .7 10.75 10.75 0 0 1-19.88 0"/><circle cx="12" cy="12" r="3"/></svg>';
 const EYE_OFF = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c4.97 0 8.4 3.62 9.94 6.65a1 1 0 0 1 0 .7 10.8 10.8 0 0 1-1.44 2.49"/><path d="M14.08 14.16a3 3 0 0 1-4.24-4.24"/><path d="M17.48 17.5A10.75 10.75 0 0 1 2.06 12.35a1 1 0 0 1 0-.7 10.8 10.8 0 0 1 4.45-5.14"/><path d="m2 2 20 20"/></svg>';
 const modeSwitch = () => !zapisy ? '' : '<span class="seg" role="group" aria-label="Gdzie zapisują się Twoje zmiany">' +

@@ -402,6 +402,9 @@ test('przełącznik „Wpis osoby”: zmiany wprost we wpisach osoby, korekta na
   $('[data-limits="a"]').click();
   $('#person [data-jawnie="1"]').click(); // przełącznik jest wspólny — już włączony, klik nic nie psuje
   assert.equal($('[data-want-adm="*"]'), null, 'w trybie jawnym korekta tylko do odczytu');
+  assert.ok($('[data-want="d56"]'), 'So + Nd osoba też ustawia w Zapisach');
+  assert.equal($('[data-want="we"]'), null, 'o Pt/So/Nd osoba nie prosi — tylko korekta');
+  assert.ok($('[data-want-adm="we"]'));
   assert.equal($('[data-adm-cell="*"]').textContent, '6');
   const own = $('[data-want="*"]');
   assert.equal(own.value, '4');
