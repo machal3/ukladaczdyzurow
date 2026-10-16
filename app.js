@@ -177,8 +177,8 @@ function render() {
   const who = state.people.find((p) => p.id === view.who);
   // Treść budujemy tylko przy otwarciu: przebudowa przy każdej zmianie pola zabiera fokus,
   // zamyka klawiaturę na telefonie i przewija okno do góry. Pola same pokazują zapisaną wartość.
-  if (who && $('#person').open && $('#person-body').dataset.key !== view.who + personPart) {
-    $('#person-body').dataset.key = view.who + personPart;
+  if (who && $('#person').open && $('#person-body').dataset.key !== view.who + personPart + jawnie) {
+    $('#person-body').dataset.key = view.who + personPart + jawnie;
     $('#person-title').textContent = personPart === 'limits' ? `${who.name} — limity i prośby` : who.name;
     // ustawienia: karty jedna pod drugą. Limity (tylko administrator) i prośby (wpisuje osoba) osobno — te same wiersze w obu tabelach.
     const vals = { limit: state.limits, min: state.mins, want: state.wants, wantAdm: state.wantsAdm };
@@ -213,9 +213,12 @@ function render() {
       card('Limity', `Twarde granice liczby dyżurów w miesiącu — obowiązują w każdym miesiącu.${zapisy ? ' Ustawiasz je tylko Ty, osoba ich nie widzi.' : ''}`,
         counts([['Min.', 'najmniej'], ['Limit', 'najwyżej']], (k, ph, l) => `<td>${num('min', k, '—', `Minimum: ${l}`)}</td><td>${num('limit', k, ph, `Limit: ${l}`)}</td>`, [state.mins, state.limits]) +
         '<p class="hint">Min. i Limit działają zawsze — także 0. Puste pole = wartość domyślna (szara, ∞ = bez limitu). Jeśli nie znajdzie grafiku zgodnego z limitami, zachowa poprzedni.</p>', zapisy ? 'tylko Ty' : '') +
-      (zapisy ? card('Prośby', 'Ile dyżurów osoba chce w miesiącu — wpisuje je sama w Zapisach. Korekta zastępuje jej prośbę przy układaniu, a osoba widzi dalej swoją.',
-        counts([['Osoba', 'z Zapisów'], ['Korekta', 'Twoja']], (k, ph, l) => `<td class="own">${own(k)}</td><td>${num('wantAdm', k, own(k), `Korekta prośby: ${l}`)}</td>`, [state.wants, state.wantsAdm]) +
-        '<p class="hint">Puste pole korekty = obowiązuje prośba osoby (szara). Prośba to docelowa liczba: algorytm ogranicza zarówno niedobór, jak i nadmiar. Domyślny 1 w ten sam dzień weekendu jest preferencją.</p>', 'wpisuje osoba')
+      (zapisy ? card('Prośby', jawnie ? 'Ile dyżurów osoba chce w miesiącu. Zmieniasz wprost jej prośbę — zobaczy ją w Zapisach jak swoją, a Twoja korekta w tym wierszu znika.'
+        : 'Ile dyżurów osoba chce w miesiącu — wpisuje je sama w Zapisach. Korekta zastępuje jej prośbę przy układaniu, a osoba widzi dalej swoją.',
+        modeSwitch() + (jawnie
+          ? counts([['Osoba', 'widzi w Zapisach'], ['Korekta', 'Twoja']], (k, ph, l) => `<td>${num('want', k, '—', `Prośba osoby: ${l}`)}</td><td class="own" data-adm-cell="${k}">${state.wantsAdm[who.id]?.[k] ?? '—'}</td>`, [state.wants, state.wantsAdm])
+          : counts([['Osoba', 'z Zapisów'], ['Korekta', 'Twoja']], (k, ph, l) => `<td class="own">${own(k)}</td><td>${num('wantAdm', k, own(k), `Korekta prośby: ${l}`)}</td>`, [state.wants, state.wantsAdm])) +
+        `<p class="hint">${jawnie ? 'Puste pole = osoba nie ma prośby.' : 'Puste pole korekty = obowiązuje prośba osoby (szara).'} Prośba to docelowa liczba: algorytm ogranicza zarówno niedobór, jak i nadmiar. Domyślny 1 w ten sam dzień weekendu jest preferencją.</p>`, 'wpisuje osoba')
       : card('Prośby', 'Ile dyżurów osoba chce w miesiącu — miękko, w granicach limitów.',
         counts([['Prośba', 'docelowo']], (k, ph, l) => `<td>${num('want', k, '—', `Prośba: ${l}`)}</td>`, [state.wants]) +
         '<p class="hint">Prośba to docelowa liczba: algorytm ogranicza zarówno niedobór, jak i nadmiar. Domyślny 1 w ten sam dzień weekendu jest preferencją.</p>'))) +
@@ -242,7 +245,7 @@ function render() {
   const done = '<button data-done>Gotowe</button>';
   const how = '<span class="hint"> — klikaj dni albo wybierz poziom i przeciągnij myszą po dniach:</span>';
   $('#status').innerHTML = view.bad ? `<span class="who"><b>Gównianość dni</b>${how}</span>${chips('bad', [0, 1, 2, 3], BAD, ['lvl-2', 'lvl-1', 'lvl-0', 'bad-3'])}<span class="hint">Pod spodem: limity i prośby liczone jak inny dzień tygodnia (np. święto jak Nd).</span>${done}` :
-    view.who ? `<span class="who"><b>Dostępność: ${esc(nameOf[view.who])}</b>${stamp(view.who)}${fixInfo()}${how}</span>${chips('avail', [2, 3, 4, 0, 1], [2, 3, 4, 0, 1].map((i) => LEVELS[i]), ['lvl-2', 'lvl-3', 'lvl-4', 'lvl-0', 'lvl-1'])}${fixes().length ? '<button class="ghost" data-restore>Przywróć wpisy osoby</button>' : ''}${done}` :
+    view.who ? `<span class="who"><b>Dostępność: ${esc(nameOf[view.who])}</b>${stamp(view.who)}${fixInfo()}${how}</span>${modeSwitch()}${chips('avail', [2, 3, 4, 0, 1], [2, 3, 4, 0, 1].map((i) => LEVELS[i]), ['lvl-2', 'lvl-3', 'lvl-4', 'lvl-0', 'lvl-1'])}${fixes().length ? '<button class="ghost" data-restore>Przywróć wpisy osoby</button>' : ''}${done}` :
     empty === slots && slots ? '<span>Pusty grafik — <b>Ułóż miesiąc</b> wypełni go automatycznie; każde pole możesz też wpisać ręcznie.</span>' :
     empty ? `<span>Obsadzone <b class="ok">${slots - empty} z ${slots}</b></span><span class="progress" role="progressbar" aria-label="Obsadzone dyżury" aria-valuenow="${Math.round((slots - empty) / slots * 100)}"><i style="width:${(slots - empty) / slots * 100}%"></i></span>` +
       `<span>wolne: <b>${empty}</b></span><button class="ghost" data-jump>Pokaż pierwszy wolny →</button>` : '';
@@ -287,10 +290,20 @@ function render() {
 // Zapisy na dyżury: kiedy osoba ostatnio sama zmieniła dostępność/prośby (state.stamps stawia serwer)
 const when = (iso) => iso ? new Date(iso).toLocaleString('pl-PL', { dateStyle: 'short', timeStyle: 'short' }) : '—';
 const stamp = (pid) => state.stamps[pid] ? ` <small class="stamp">zmienione w Zapisach: ${when(state.stamps[pid])}</small>` : '';
+// Tryb Zapisów: gdzie idą zmiany administratora — false = korekty (availAdm/wantsAdm, osoba ich nie widzi),
+// true = wprost we wpisach osoby (avail/wants, widzi je w Zapisach). Na sesję; start zawsze na korektach.
+let jawnie = false;
+const EYE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2.06 12.35a1 1 0 0 1 0-.7 10.75 10.75 0 0 1 19.88 0 1 1 0 0 1 0 .7 10.75 10.75 0 0 1-19.88 0"/><circle cx="12" cy="12" r="3"/></svg>';
+const EYE_OFF = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c4.97 0 8.4 3.62 9.94 6.65a1 1 0 0 1 0 .7 10.8 10.8 0 0 1-1.44 2.49"/><path d="M14.08 14.16a3 3 0 0 1-4.24-4.24"/><path d="M17.48 17.5A10.75 10.75 0 0 1 2.06 12.35a1 1 0 0 1 0-.7 10.8 10.8 0 0 1 4.45-5.14"/><path d="m2 2 20 20"/></svg>';
+const modeSwitch = () => !zapisy ? '' : '<span class="seg" role="group" aria-label="Gdzie zapisują się Twoje zmiany">' +
+  `<button type="button" data-jawnie="0" aria-pressed="${!jawnie}" title="Zmiany zapisują się obok jako Twoje korekty — osoba w Zapisach ich nie widzi">${EYE_OFF}<span>Korekta</span></button>` +
+  `<button type="button" data-jawnie="1" aria-pressed="${jawnie}" title="Zmiany trafiają wprost do wpisów osoby — zobaczy je w Zapisach">${EYE}<span>Wpis osoby</span></button></span>`;
 // Korekty administratora (tryb Zapisów): dni oglądanego miesiąca z korektą dostępności osoby
 const fixes = (pid = view.who) => monthKeys().filter((k) => state.availAdm[pid]?.[k] !== undefined);
 const hasFixes = (pid) => fixes(pid).length > 0 || Object.keys(state.wantsAdm[pid] ?? {}).length > 0;
-const fixInfo = (n = fixes().length) => !zapisy ? '' : ` <small class="stamp">${state.stamps[view.who] ? '· ' : ''}${n ? `korekty: ${n} ${n === 1 ? 'dzień' : 'dni'}` : 'zmiany zapiszą się jako Twoje korekty'}, niewidoczne dla osoby</small>`;
+const fixInfo = (n = fixes().length) => !zapisy ? '' : ` <small class="stamp">${state.stamps[view.who] ? '· ' : ''}${jawnie
+  ? `${n ? `korekty: ${n} ${n === 1 ? 'dzień' : 'dni'} · ` : ''}zmiany trafią do wpisów osoby — zobaczy je w Zapisach`
+  : `${n ? `korekty: ${n} ${n === 1 ? 'dzień' : 'dni'}` : 'zmiany zapiszą się jako Twoje korekty'}, niewidoczne dla osoby`}</small>`;
 // dzień w trybie dostępności; korekta ma przerywaną obwódkę i pod spodem to, co wpisała osoba
 function availButton(key, lvl) {
   if (state.availAdm[view.who]?.[key] === undefined) return `<button class="avail lvl-${lvl}" data-avail="${key}">${LEVELS[lvl]}</button>`;
@@ -298,15 +311,18 @@ function availButton(key, lvl) {
   return `<button class="avail lvl-${lvl} adm" data-avail="${key}" title="Twoja korekta — osoba wpisała: ${own}">${LEVELS[lvl]}<small>osoba: ${own}</small></button>`;
 }
 // Pierwsza zmiana wpisów osoby, która korzysta z Zapisów (ma stamp): ostrzeżenie, raz na osobę i rodzaj w tej sesji.
-// Zmiana nie nadpisuje wpisu osoby — idzie do korekt (availAdm/wantsAdm).
+// Zmiana idzie do korekt (availAdm/wantsAdm) albo — przełącznik „Wpis osoby” — wprost do wpisów osoby (osobne ostrzeżenie).
 const warned = new Set();
-const needsWarning = (what) => zapisy && !!state.stamps[view.who] && !warned.has(view.who + what);
+const needsWarning = (what) => zapisy && !!state.stamps[view.who] && !warned.has(view.who + what + jawnie);
 function mayCorrect(what) {
   if (!needsWarning(what)) return true;
   const name = state.people.find((p) => p.id === view.who).name, avail = what === 'avail';
-  const open = avail && !zapisyClosed(view.y, view.m) ? '\n\nZapisy na ten miesiąc są jeszcze otwarte — osoba może jeszcze zmieniać swoje wpisy, ale Twoja korekta i tak ma pierwszeństwo.' : '';
-  if (!confirm(`${avail ? 'Dostępność' : 'Prośby'}: ${name} — wpisane przez osobę w Zapisach.\n\nZmienić mimo to? Twoja zmiana zapisze się obok jako korekta: liczy się przy układaniu, a osoba w Zapisach dalej widzi tylko swój wpis.${open}`)) return false;
-  warned.add(view.who + what);
+  const open = !avail || zapisyClosed(view.y, view.m) ? '' : jawnie ? '\n\nZapisy na ten miesiąc są jeszcze otwarte — osoba może Twoją zmianę jeszcze zmienić.'
+    : '\n\nZapisy na ten miesiąc są jeszcze otwarte — osoba może jeszcze zmieniać swoje wpisy, ale Twoja korekta i tak ma pierwszeństwo.';
+  const how = jawnie ? 'Zmienisz wpis osoby: zobaczy go w Zapisach jak swój. Twoja korekta w zmienianym miejscu (jeśli jest) zostanie usunięta.'
+    : 'Twoja zmiana zapisze się obok jako korekta: liczy się przy układaniu, a osoba w Zapisach dalej widzi tylko swój wpis.';
+  if (!confirm(`${avail ? 'Dostępność' : 'Prośby'}: ${name} — wpisane przez osobę w Zapisach.\n\nZmienić mimo to? ${how}${open}`)) return false;
+  warned.add(view.who + what + jawnie);
   return true;
 }
 // komentarz osoby z Zapisów do oglądanego miesiąca ('' = brak) — zwykły tekst, zawsze przez esc()
@@ -486,7 +502,9 @@ function showTab(tab) {
 $('.tabs').onclick = $('.app-header').onclick =(e) => { const t = e.target.closest('[data-tab]'); if (t) showTab(t.dataset.tab); };
 
 // „Gotowe” kończy dostępność/gównianość i wraca na kartę, z której je włączono
+const setMode = (e) => { const b = e.target.closest('[data-jawnie]'); if (b) { jawnie = b.dataset.jawnie === '1'; render(); } };
 $('#status').onclick = (e) => {
+  setMode(e);
   if ('done' in e.target.dataset) { view.who = null; view.bad = false; brush = { avail: null, bad: null }; showTab(back); render(); }
   if ('restore' in e.target.dataset && confirm(`Usunąć Twoje korekty dostępności z tego miesiąca (${fixes().length})? Znów będzie obowiązywać to, co osoba wpisała w Zapisach.`))
     update(() => { for (const k of fixes()) delete state.availAdm[view.who][k]; });
@@ -510,12 +528,13 @@ const paintDay = (el, lvl) => update(() => {
     const d = +el.dataset.bad, key = dateKey(view.y, view.m, d);
     delete state.bad[key];
     if (lvl !== badOf(state.bad, view.y, view.m, d)) state.bad[key] = lvl;
-  } else if (zapisy) { // korekta obok wpisu osoby; ten sam poziom co u osoby = bez korekty
+  } else if (zapisy && !jawnie) { // korekta obok wpisu osoby; ten sam poziom co u osoby = bez korekty
     const a = (state.availAdm[view.who] ??= {});
     if (lvl === availOf(state.avail, view.who, el.dataset.avail)) delete a[el.dataset.avail]; else a[el.dataset.avail] = lvl;
   } else {
     const a = (state.avail[view.who] ??= {});
     if (lvl === 2) delete a[el.dataset.avail]; else a[el.dataset.avail] = lvl;
+    delete state.availAdm[view.who]?.[el.dataset.avail]; // jawny wpis: obowiązuje to, co widać — bez korekty na nim
   }
 });
 let paint = null, skipClick = false; // paint = { lvl, last: dzień } podczas przeciągania; klik po nim już nic nie zmienia
@@ -743,6 +762,7 @@ $('#people-sort').onchange = (e) => { view.sort = e.target.value; render(); };
 
 $('#person').onclose = () => { if ($('#person').returnValue !== 'avail') view.who = prevWho; render(); };
 $('#person').onclick = (e) => {
+  setMode(e);
   if (e.target.dataset.go) showTab(e.target.dataset.go);
   if (e.target.dataset.konto) kontoAction(e.target);
   const place = e.target.closest('[data-place]')?.dataset.place; // chip miejsca: wyklucz (Limit 0) ↔ dopuść (puste pole)
@@ -775,10 +795,14 @@ $('#person').onchange = (e) => {
     if (!mayCorrect('wants')) return undo();
     if (n === state.wants[view.who]?.[sid]) { n = null; e.target.value = ''; } // tyle samo co prośba osoby = bez korekty
   }
+  const own = kind === 'want' && zapisy; // przełącznik „Wpis osoby”: prośba osoby wprost, korekta w tym wierszu znika
+  if (own && !mayCorrect('wants')) return undo();
   update(() => {
     const l = (obj[view.who] ??= {});
     if (n !== null) l[sid] = n; else delete l[sid];
+    if (own) delete state.wantsAdm[view.who]?.[sid];
   });
+  if (own) $(`#person [data-adm-cell="${sid}"]`).textContent = '—';
 };
 
 // Historia osoby p: każdy dyżur z oglądanego miesiąca i 3 poprzednich — data, miejsce, dostępność, gównianość, przerwa, ręczny/zaplanowany

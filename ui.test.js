@@ -375,6 +375,45 @@ test('korekty administratora w trybie Zapisów: wpis osoby zostaje, korekta obok
   assert.equal(state().availAdm.b, undefined, 'korekty znikają z osobą');
 });
 
+test('przełącznik „Wpis osoby”: zmiany wprost we wpisach osoby, korekta na tym samym dniu/wierszu znika', async (t) => {
+  const days = [0, 1, 2, 3, 4, 5, 6], d = new Date();
+  const next = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+  const key = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-01`;
+  const data = {
+    people: [{ id: 'a', name: 'Anna Kowalska', prestige: 1 }], shifts: [{ id: 'o', name: 'OITN', days }], schedule: {}, manual: {}, miejscaV2: true,
+    avail: { a: { [key]: 3 } }, availAdm: { a: { [key]: 0 } }, wants: { a: { '*': 4 } }, wantsAdm: { a: { '*': 6 } }, stamps: { a: '2030-01-02T10:00:00.000Z' },
+  };
+  const { w, $, state } = await setup(t, null, {
+    cloudLoad: async () => ({ data: structuredClone(data) }),
+    cloudRpc: async () => ({ konta: [], fails24h: 0 }),
+  });
+  let asked = '';
+  w.confirm = (msg) => { asked = msg; return true; };
+  $('#people [data-who="a"]').click();
+  assert.equal($('#status [data-jawnie="0"]').getAttribute('aria-pressed'), 'true', 'domyślnie korekta');
+  $('#status [data-jawnie="1"]').click();
+  assert.equal($('#status [data-jawnie="1"]').getAttribute('aria-pressed'), 'true');
+  assert.match($('#status').textContent, /zobaczy je w Zapisach/);
+  $(`[data-avail="${key}"]`).click(); // Nie mogę (korekta) → W ostateczności, prosto do wpisu osoby
+  assert.match(asked, /Zmienisz wpis osoby/);
+  assert.deepEqual([state().avail.a, state().availAdm.a], [{ [key]: 1 }, {}]);
+  $('[data-done]').click();
+
+  $('[data-limits="a"]').click();
+  $('#person [data-jawnie="1"]').click(); // przełącznik jest wspólny — już włączony, klik nic nie psuje
+  assert.equal($('[data-want-adm="*"]'), null, 'w trybie jawnym korekta tylko do odczytu');
+  assert.equal($('[data-adm-cell="*"]').textContent, '6');
+  const own = $('[data-want="*"]');
+  assert.equal(own.value, '4');
+  own.value = '5';
+  own.dispatchEvent(new w.Event('change', { bubbles: true }));
+  assert.match(asked, /Prośby.*Zmienisz wpis osoby/s);
+  assert.deepEqual([state().wants.a, state().wantsAdm.a], [{ '*': 5 }, {}]);
+  assert.equal($('[data-adm-cell="*"]').textContent, '—');
+  $('#person [data-jawnie="0"]').click();
+  assert.ok($('[data-want-adm="*"]'), 'z powrotem korekta');
+});
+
 test('komentarze osób z Zapisów: tylko w oknie osoby i Statystykach, przetrwają zapis, znikają z usuniętą osobą', async (t) => {
   const days = [0, 1, 2, 3, 4, 5, 6], d = new Date();
   const next = new Date(d.getFullYear(), d.getMonth() + 1, 15); // aplikacja startuje na następnym miesiącu
