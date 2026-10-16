@@ -1,3 +1,5 @@
 node_modules/
 dist/
 .visual-check/
+.claude/worktrees/
+
